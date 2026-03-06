@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, LayoutGrid, Table as TableIcon, Filter, X } from "lucide-react";
+import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -64,6 +64,8 @@ export default function Negociacoes() {
   const [fEmpreendimento, setFEmpreendimento] = useState("");
   const [fCidade, setFCidade] = useState("");
   const [fResponsavel, setFResponsavel] = useState("");
+  const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">("created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
   const hasFilters = !!(fStatus || fEmpreendimento || fCidade || fResponsavel);
 
@@ -86,8 +88,10 @@ export default function Negociacoes() {
 
   const cidades = useMemo(() => [...new Set(empreendimentos.map((e) => e.cidade).filter(Boolean))].sort(), [empreendimentos]);
 
+  const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
+
   const filtered = useMemo(() => {
-    return deals.filter((d) => {
+    const list = deals.filter((d) => {
       if (fStatus && d.status !== fStatus) return false;
       if (fEmpreendimento && d.empreendimento_id !== fEmpreendimento) return false;
       if (fCidade) {
@@ -97,7 +101,16 @@ export default function Negociacoes() {
       if (fResponsavel && d.responsavel_id !== fResponsavel) return false;
       return true;
     });
-  }, [deals, fStatus, fEmpreendimento, fCidade, fResponsavel, empreendimentos]);
+    list.sort((a, b) => {
+      let cmp = 0;
+      if (sortBy === "cliente_nome") cmp = a.cliente_nome.localeCompare(b.cliente_nome);
+      else if (sortBy === "qualificacao") cmp = (qualOrder[a.qualificacao] ?? 0) - (qualOrder[b.qualificacao] ?? 0);
+      else if (sortBy === "updated_at") cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime(); // updated_at not in Deal type, fallback
+      else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      return sortDir === "asc" ? cmp : -cmp;
+    });
+    return list;
+  }, [deals, fStatus, fEmpreendimento, fCidade, fResponsavel, empreendimentos, sortBy, sortDir]);
 
   const clearFilters = () => { setFStatus(""); setFEmpreendimento(""); setFCidade(""); setFResponsavel(""); };
 
