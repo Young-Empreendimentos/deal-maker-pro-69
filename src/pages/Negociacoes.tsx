@@ -1,16 +1,20 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, LayoutGrid, Table as TableIcon } from "lucide-react";
+import { Plus, LayoutGrid, Table as TableIcon, Filter, X } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
+import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
+import { useToast } from "@/hooks/use-toast";
 
-const KANBAN_COLUMNS = [
+export const KANBAN_COLUMNS = [
   { value: "lead_recebido", label: "Lead Recebido" },
   { value: "contato_feito", label: "Contato Feito" },
   { value: "visita_agendada", label: "Visita Agendada" },
@@ -19,13 +23,13 @@ const KANBAN_COLUMNS = [
   { value: "proposta_recebida", label: "Proposta Recebida" },
 ] as const;
 
-const QUAL_COLORS: Record<string, string> = {
+export const QUAL_COLORS: Record<string, string> = {
   frio: "bg-[hsl(var(--qual-frio))] text-white",
   morno: "bg-[hsl(var(--qual-morno))] text-white",
   quente: "bg-[hsl(var(--qual-quente))] text-white",
 };
 
-type Deal = {
+export type Deal = {
   id: string;
   cliente_nome: string;
   cliente_email: string | null;
@@ -38,12 +42,30 @@ type Deal = {
   ordem_kanban: number;
 };
 
+type Empreendimento = { id: string; nome: string; cidade: string };
+type UserOption = { id: string; email: string; nome: string };
+
 export default function Negociacoes() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
   const [view, setView] = useState<"kanban" | "table">("kanban");
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Filter data
+  const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
+  const [users, setUsers] = useState<UserOption[]>([]);
+
+  // Filter state
+  const [fStatus, setFStatus] = useState("");
+  const [fEmpreendimento, setFEmpreendimento] = useState("");
+  const [fCidade, setFCidade] = useState("");
+  const [fResponsavel, setFResponsavel] = useState("");
+
+  const hasFilters = !!(fStatus || fEmpreendimento || fCidade || fResponsavel);
 
   const fetchDeals = async () => {
     const { data } = await supabase
@@ -56,22 +78,66 @@ export default function Negociacoes() {
 
   useEffect(() => {
     fetchDeals();
-  }, []);
+    supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
+    if (isAdmin) {
+      supabase.rpc("get_all_users_with_roles").then(({ data }) => setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome }))));
+    }
+  }, [isAdmin]);
 
-  const handleStatusChange = async (dealId: string, newStatus: string) => {
-    await supabase.from("crm_deals").update({ status: newStatus } as any).eq("id", dealId);
-    fetchDeals();
+  const cidades = useMemo(() => [...new Set(empreendimentos.map((e) => e.cidade).filter(Boolean))].sort(), [empreendimentos]);
+
+  const filtered = useMemo(() => {
+    return deals.filter((d) => {
+      if (fStatus && d.status !== fStatus) return false;
+      if (fEmpreendimento && d.empreendimento_id !== fEmpreendimento) return false;
+      if (fCidade) {
+        const emp = empreendimentos.find((e) => e.id === d.empreendimento_id);
+        if (!emp || emp.cidade !== fCidade) return false;
+      }
+      if (fResponsavel && d.responsavel_id !== fResponsavel) return false;
+      return true;
+    });
+  }, [deals, fStatus, fEmpreendimento, fCidade, fResponsavel, empreendimentos]);
+
+  const clearFilters = () => { setFStatus(""); setFEmpreendimento(""); setFCidade(""); setFResponsavel(""); };
+
+  const onDragEnd = async (result: DropResult) => {
+    const { draggableId, destination, source } = result;
+    if (!destination) return;
+    if (destination.droppableId === source.droppableId && destination.index === source.index) return;
+
+    const newStatus = destination.droppableId;
+
+    // Optimistic update
+    setDeals((prev) =>
+      prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index } : d))
+    );
+
+    const { error } = await supabase
+      .from("crm_deals")
+      .update({ status: newStatus, ordem_kanban: destination.index } as any)
+      .eq("id", draggableId);
+
+    if (error) {
+      toast({ title: "Erro ao mover", description: error.message, variant: "destructive" });
+      fetchDeals();
+    }
   };
 
   return (
     <AppLayout>
       <div className="space-y-6">
+        {/* Header */}
         <div className="flex items-center justify-between flex-wrap gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">Negociações</h1>
-            <p className="text-sm text-muted-foreground">{deals.length} negociações encontradas</p>
+            <p className="text-sm text-muted-foreground">{filtered.length} negociações</p>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant={showFilters ? "secondary" : "outline"} size="sm" onClick={() => setShowFilters(!showFilters)} className="relative">
+              <Filter className="h-4 w-4 mr-1" /> Filtros
+              {hasFilters && <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />}
+            </Button>
             <div className="flex bg-muted rounded-md p-0.5">
               <button onClick={() => setView("kanban")} className={cn("p-2 rounded-sm transition-colors", view === "kanban" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
                 <LayoutGrid className="h-4 w-4" />
@@ -86,41 +152,115 @@ export default function Negociacoes() {
           </div>
         </div>
 
+        {/* Filters */}
+        {showFilters && (
+          <Card className="border bg-card">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                <Select value={fStatus} onValueChange={setFStatus}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Status" /></SelectTrigger>
+                  <SelectContent>
+                    {KANBAN_COLUMNS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={fEmpreendimento} onValueChange={setFEmpreendimento}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Empreendimento" /></SelectTrigger>
+                  <SelectContent>
+                    {empreendimentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                <Select value={fCidade} onValueChange={setFCidade}>
+                  <SelectTrigger className="text-sm"><SelectValue placeholder="Cidade" /></SelectTrigger>
+                  <SelectContent>
+                    {cidades.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {isAdmin && (
+                  <Select value={fResponsavel} onValueChange={setFResponsavel}>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Responsável" /></SelectTrigger>
+                    <SelectContent>
+                      {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome || u.email}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
+              </div>
+              {hasFilters && (
+                <Button variant="ghost" size="sm" onClick={clearFilters} className="mt-2 text-xs text-muted-foreground">
+                  <X className="h-3 w-3 mr-1" /> Limpar filtros
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Content */}
         {loading ? (
           <div className="text-center text-muted-foreground py-12">Carregando...</div>
         ) : view === "kanban" ? (
-          <div className="flex gap-4 overflow-x-auto pb-4">
-            {KANBAN_COLUMNS.map((col) => {
-              const colDeals = deals.filter((d) => d.status === col.value);
-              return (
-                <div key={col.value} className="min-w-[280px] flex-shrink-0">
-                  <div className="flex items-center gap-2 mb-3 px-1">
-                    <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-                    <Badge variant="secondary" className="text-xs">{colDeals.length}</Badge>
+          <DragDropContext onDragEnd={onDragEnd}>
+            <div className="flex gap-4 overflow-x-auto pb-4">
+              {KANBAN_COLUMNS.map((col) => {
+                const colDeals = filtered.filter((d) => d.status === col.value);
+                return (
+                  <div key={col.value} className="min-w-[280px] flex-shrink-0">
+                    <div className="flex items-center gap-2 mb-3 px-1">
+                      <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
+                      <Badge variant="secondary" className="text-xs">{colDeals.length}</Badge>
+                    </div>
+                    <Droppable droppableId={col.value}>
+                      {(provided, snapshot) => (
+                        <div
+                          ref={provided.innerRef}
+                          {...provided.droppableProps}
+                          className={cn(
+                            "space-y-2 min-h-[100px] rounded-lg p-2 transition-colors",
+                            snapshot.isDraggingOver ? "bg-primary/5 ring-2 ring-primary/20" : "bg-muted/30"
+                          )}
+                        >
+                          {colDeals.map((deal, index) => (
+                            <Draggable key={deal.id} draggableId={deal.id} index={index}>
+                              {(provided, snapshot) => (
+                                <div
+                                  ref={provided.innerRef}
+                                  {...provided.draggableProps}
+                                  {...provided.dragHandleProps}
+                                  onClick={() => navigate(`/negociacoes/${deal.id}`)}
+                                  className={cn(
+                                    "cursor-pointer",
+                                    snapshot.isDragging && "rotate-2 shadow-lg"
+                                  )}
+                                >
+                                  <Card className="hover:shadow-md transition-shadow border bg-card">
+                                    <CardContent className="p-3 space-y-2">
+                                      <p className="font-medium text-sm">{deal.cliente_nome}</p>
+                                      <div className="flex items-center gap-2">
+                                        <Badge className={cn("text-[10px] px-1.5 py-0", QUAL_COLORS[deal.qualificacao])}>
+                                          {deal.qualificacao}
+                                        </Badge>
+                                        <span className="text-[10px] text-muted-foreground">
+                                          {new Date(deal.created_at).toLocaleDateString("pt-BR")}
+                                        </span>
+                                      </div>
+                                    </CardContent>
+                                  </Card>
+                                </div>
+                              )}
+                            </Draggable>
+                          ))}
+                          {provided.placeholder}
+                          {colDeals.length === 0 && !snapshot.isDraggingOver && (
+                            <div className="text-xs text-muted-foreground text-center py-6">
+                              Arraste aqui
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </Droppable>
                   </div>
-                  <div className="space-y-2">
-                    {colDeals.map((deal) => (
-                      <Card key={deal.id} className="cursor-pointer hover:shadow-md transition-shadow border bg-card">
-                        <CardContent className="p-3 space-y-2">
-                          <p className="font-medium text-sm">{deal.cliente_nome}</p>
-                          <div className="flex items-center gap-2">
-                            <Badge className={cn("text-[10px] px-1.5 py-0", QUAL_COLORS[deal.qualificacao])}>
-                              {deal.qualificacao}
-                            </Badge>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    ))}
-                    {colDeals.length === 0 && (
-                      <div className="text-xs text-muted-foreground text-center py-8 border border-dashed rounded-md">
-                        Nenhuma negociação
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          </DragDropContext>
         ) : (
           <div className="bg-card rounded-lg border">
             <Table>
@@ -133,8 +273,8 @@ export default function Negociacoes() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {deals.map((deal) => (
-                  <TableRow key={deal.id}>
+                {filtered.map((deal) => (
+                  <TableRow key={deal.id} className="cursor-pointer" onClick={() => navigate(`/negociacoes/${deal.id}`)}>
                     <TableCell className="font-medium">{deal.cliente_nome}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className="text-xs">
@@ -151,7 +291,7 @@ export default function Negociacoes() {
                     </TableCell>
                   </TableRow>
                 ))}
-                {deals.length === 0 && (
+                {filtered.length === 0 && (
                   <TableRow>
                     <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                       Nenhuma negociação encontrada
