@@ -166,6 +166,7 @@ export default function Negociacoes() {
             <button onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")} className="p-2 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors" title={sortDir === "asc" ? "Crescente" : "Decrescente"}>
               {sortDir === "asc" ? "↑" : "↓"}
             </button>
+            <div className="flex bg-muted rounded-md p-0.5">
               <button onClick={() => setView("kanban")} className={cn("p-2 rounded-sm transition-colors", view === "kanban" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
                 <LayoutGrid className="h-4 w-4" />
               </button>
