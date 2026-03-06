@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import Login from "./pages/Login";
 import Negociacoes from "./pages/Negociacoes";
+import Dashboard from "./pages/Dashboard";
 import Empreendimentos from "./pages/Empreendimentos";
 import Configuracoes from "./pages/Configuracoes";
 import Tarefas from "./pages/Tarefas";
@@ -29,8 +30,9 @@ function AppRoutes() {
 
   return (
     <Routes>
-      <Route path="/login" element={user ? <Navigate to="/negociacoes" replace /> : <Login />} />
-      <Route path="/" element={<Navigate to="/negociacoes" replace />} />
+      <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
+      <Route path="/" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/negociacoes" element={<ProtectedRoute><Negociacoes /></ProtectedRoute>} />
       <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
