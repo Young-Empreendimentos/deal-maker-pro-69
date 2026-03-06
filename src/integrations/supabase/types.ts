@@ -223,6 +223,216 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_deal_phones: {
+        Row: {
+          created_at: string
+          deal_id: string
+          id: string
+          telefone: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          id?: string
+          telefone: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          id?: string
+          telefone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_phones_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_deals: {
+        Row: {
+          cliente_email: string | null
+          cliente_nome: string
+          created_at: string
+          empreendimento_id: string | null
+          fonte_id: string | null
+          id: string
+          ordem_kanban: number
+          qualificacao: Database["public"]["Enums"]["crm_qualificacao"]
+          responsavel_id: string
+          status: Database["public"]["Enums"]["crm_deal_status"]
+          updated_at: string
+        }
+        Insert: {
+          cliente_email?: string | null
+          cliente_nome: string
+          created_at?: string
+          empreendimento_id?: string | null
+          fonte_id?: string | null
+          id?: string
+          ordem_kanban?: number
+          qualificacao?: Database["public"]["Enums"]["crm_qualificacao"]
+          responsavel_id: string
+          status?: Database["public"]["Enums"]["crm_deal_status"]
+          updated_at?: string
+        }
+        Update: {
+          cliente_email?: string | null
+          cliente_nome?: string
+          created_at?: string
+          empreendimento_id?: string | null
+          fonte_id?: string | null
+          id?: string
+          ordem_kanban?: number
+          qualificacao?: Database["public"]["Enums"]["crm_qualificacao"]
+          responsavel_id?: string
+          status?: Database["public"]["Enums"]["crm_deal_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deals_empreendimento_id_fkey"
+            columns: ["empreendimento_id"]
+            isOneToOne: false
+            referencedRelation: "crm_empreendimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_fonte_id_fkey"
+            columns: ["fonte_id"]
+            isOneToOne: false
+            referencedRelation: "crm_fontes_lead"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_empreendimentos: {
+        Row: {
+          ativo: boolean
+          cidade: string
+          created_at: string
+          id: string
+          nome: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          cidade?: string
+          created_at?: string
+          id?: string
+          nome: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          cidade?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      crm_fontes_lead: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      crm_task_images: {
+        Row: {
+          id: string
+          image_url: string
+          nome_arquivo: string
+          task_id: string
+          uploaded_at: string
+        }
+        Insert: {
+          id?: string
+          image_url: string
+          nome_arquivo?: string
+          task_id: string
+          uploaded_at?: string
+        }
+        Update: {
+          id?: string
+          image_url?: string
+          nome_arquivo?: string
+          task_id?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_task_images_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "crm_tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      crm_tasks: {
+        Row: {
+          concluida: boolean
+          created_at: string
+          data_vencimento: string | null
+          deal_id: string
+          descricao: string | null
+          id: string
+          responsavel_id: string
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          concluida?: boolean
+          created_at?: string
+          data_vencimento?: string | null
+          deal_id: string
+          descricao?: string | null
+          id?: string
+          responsavel_id: string
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          concluida?: boolean
+          created_at?: string
+          data_vencimento?: string | null
+          deal_id?: string
+          descricao?: string | null
+          id?: string
+          responsavel_id?: string
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_tasks_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       esquadro_comentarios: {
         Row: {
           conteudo: string
@@ -955,6 +1165,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "user"
+      crm_deal_status:
+        | "lead_recebido"
+        | "contato_feito"
+        | "visita_agendada"
+        | "visita_realizada"
+        | "ficha_assinada"
+        | "proposta_recebida"
+      crm_qualificacao: "frio" | "morno" | "quente"
       esquadro_app_role: "admin" | "arquiteta"
       gleba_status:
         | "identificada"
@@ -1100,6 +1318,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "user"],
+      crm_deal_status: [
+        "lead_recebido",
+        "contato_feito",
+        "visita_agendada",
+        "visita_realizada",
+        "ficha_assinada",
+        "proposta_recebida",
+      ],
+      crm_qualificacao: ["frio", "morno", "quente"],
       esquadro_app_role: ["admin", "arquiteta"],
       gleba_status: [
         "identificada",
