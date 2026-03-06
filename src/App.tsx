@@ -9,6 +9,7 @@ import Negociacoes from "./pages/Negociacoes";
 import Empreendimentos from "./pages/Empreendimentos";
 import Configuracoes from "./pages/Configuracoes";
 import Tarefas from "./pages/Tarefas";
+import NegociacaoDetalhes from "./pages/NegociacaoDetalhes";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -31,6 +32,7 @@ function AppRoutes() {
       <Route path="/login" element={user ? <Navigate to="/negociacoes" replace /> : <Login />} />
       <Route path="/" element={<Navigate to="/negociacoes" replace />} />
       <Route path="/negociacoes" element={<ProtectedRoute><Negociacoes /></ProtectedRoute>} />
+      <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
       <Route path="/empreendimentos" element={<ProtectedRoute adminOnly><Empreendimentos /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute adminOnly><Configuracoes /></ProtectedRoute>} />
