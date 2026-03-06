@@ -1,9 +1,10 @@
-import { Handshake, Building2, Settings, LogOut, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Handshake, Building2, Settings, LogOut, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 
 const links = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/empreendimentos", label: "Empreendimentos", icon: Building2, adminOnly: true },
