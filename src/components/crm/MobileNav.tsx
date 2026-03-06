@@ -1,4 +1,4 @@
-import { Handshake, Building2, Settings, LogOut, Menu, X } from "lucide-react";
+import { Handshake, Building2, Settings, LogOut, Menu, X, ClipboardList } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -6,6 +6,7 @@ import { useState } from "react";
 
 const links = [
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
+  { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/empreendimentos", label: "Empreendimentos", icon: Building2, adminOnly: true },
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];
