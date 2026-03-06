@@ -151,7 +151,21 @@ export default function Negociacoes() {
               <Filter className="h-4 w-4 mr-1" /> Filtros
               {hasFilters && <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full" />}
             </Button>
-            <div className="flex bg-muted rounded-md p-0.5">
+            <Select value={sortBy} onValueChange={(v: any) => setSortBy(v)}>
+              <SelectTrigger className="w-[160px] text-sm h-9">
+                <ArrowUpDown className="h-3.5 w-3.5 mr-1 shrink-0" />
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="created_at">Data de criação</SelectItem>
+                <SelectItem value="updated_at">Contato recente</SelectItem>
+                <SelectItem value="cliente_nome">Nome</SelectItem>
+                <SelectItem value="qualificacao">Qualificação</SelectItem>
+              </SelectContent>
+            </Select>
+            <button onClick={() => setSortDir(d => d === "asc" ? "desc" : "asc")} className="p-2 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors" title={sortDir === "asc" ? "Crescente" : "Decrescente"}>
+              {sortDir === "asc" ? "↑" : "↓"}
+            </button>
               <button onClick={() => setView("kanban")} className={cn("p-2 rounded-sm transition-colors", view === "kanban" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
                 <LayoutGrid className="h-4 w-4" />
               </button>
