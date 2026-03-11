@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Phone, Mail, Image as ImageIcon, X, Upload } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Phone, Mail, Image as ImageIcon, Upload, XCircle, Trophy } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { KANBAN_COLUMNS, QUAL_COLORS } from "./Negociacoes";
+import { DealProposalForm, isProposalComplete } from "@/components/crm/DealProposalForm";
 
 type DealDetail = {
   id: string;
@@ -26,11 +27,42 @@ type DealDetail = {
   created_at: string;
   empreendimento_id: string | null;
   fonte_id: string | null;
+  // Proposal fields
+  numero_lote: string | null;
+  preco_lote: number | null;
+  forma_pagamento: string | null;
+  link_contrato: string | null;
+  versao_tabela: string | null;
+  interesse: string | null;
+  satisfacao_atendimento: number | null;
+  satisfacao_produto: number | null;
+  responsavel_venda_user_id: string | null;
+  responsavel_venda_imobiliaria_id: string | null;
+  valor_entrada: number | null;
+  data_nascimento: string | null;
+  escolaridade: string | null;
+  estado_civil: string | null;
+  sexo: string | null;
+  nacionalidade: string | null;
+  cidade_cliente: string | null;
+  logradouro: string | null;
+  numero_logradouro: string | null;
+  tipo_residencia: string | null;
+  renda_familiar: string | null;
+  filhos: string | null;
+  interesses_pessoais: string[] | null;
 };
 
 type DealPhone = { id: string; telefone: string };
 type Task = { id: string; titulo: string; descricao: string; data_vencimento: string | null; concluida: boolean; created_at: string };
 type TaskImage = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
+
+const PROPOSAL_STAGE_INDEX = KANBAN_COLUMNS.findIndex((c) => c.value === "proposta_recebida");
+const ALL_STATUSES = [
+  ...KANBAN_COLUMNS,
+  { value: "vendido", label: "Vendido" },
+  { value: "perdido", label: "Perdido" },
+];
 
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
@@ -46,12 +78,9 @@ export default function NegociacaoDetalhes() {
   const [fonteNome, setFonteNome] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // New task form
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "" });
   const [taskLoading, setTaskLoading] = useState(false);
-
-  // Image viewer
   const [viewImage, setViewImage] = useState<string | null>(null);
 
   const fetchAll = async () => {
@@ -69,7 +98,6 @@ export default function NegociacaoDetalhes() {
     const tasksData = (tasksRes.data as Task[]) ?? [];
     setTasks(tasksData);
 
-    // Fetch empreendimento & fonte names
     if (dealData?.empreendimento_id) {
       const { data } = await supabase.from("crm_empreendimentos").select("nome").eq("id", dealData.empreendimento_id).single();
       setEmpNome(data?.nome ?? "");
@@ -79,22 +107,11 @@ export default function NegociacaoDetalhes() {
       setFonteNome(data?.nome ?? "");
     }
 
-    // Fetch all images from all tasks
     if (tasksData.length > 0) {
       const taskIds = tasksData.map((t) => t.id);
-      const { data: imgs } = await supabase
-        .from("crm_task_images")
-        .select("*")
-        .in("task_id", taskIds)
-        .order("uploaded_at", { ascending: false });
-
+      const { data: imgs } = await supabase.from("crm_task_images").select("*").in("task_id", taskIds).order("uploaded_at", { ascending: false });
       const tasksMap = new Map(tasksData.map((t) => [t.id, t.titulo]));
-      setAllImages(
-        ((imgs as TaskImage[]) ?? []).map((img) => ({
-          ...img,
-          task_titulo: tasksMap.get(img.task_id) ?? "",
-        }))
-      );
+      setAllImages(((imgs as TaskImage[]) ?? []).map((img) => ({ ...img, task_titulo: tasksMap.get(img.task_id) ?? "" })));
     } else {
       setAllImages([]);
     }
@@ -105,9 +122,30 @@ export default function NegociacaoDetalhes() {
   useEffect(() => { fetchAll(); }, [id]);
 
   const handleStatusChange = async (newStatus: string) => {
-    if (!id) return;
+    if (!id || !deal) return;
     await supabase.from("crm_deals").update({ status: newStatus } as any).eq("id", id);
     setDeal((prev) => prev ? { ...prev, status: newStatus } : prev);
+  };
+
+  const handleMarkSold = async () => {
+    if (!deal) return;
+    const { complete, missing } = isProposalComplete(deal);
+    if (!complete) {
+      toast({
+        title: "Campos obrigatórios",
+        description: `Preencha todos os campos para marcar como vendido: ${missing.join(", ")}`,
+        variant: "destructive",
+      });
+      return;
+    }
+    await handleStatusChange("vendido");
+    toast({ title: "Negociação marcada como vendida! 🎉" });
+  };
+
+  const handleMarkLost = async () => {
+    if (!deal) return;
+    await handleStatusChange("perdido");
+    toast({ title: "Negociação marcada como perdida" });
   };
 
   const toggleTask = async (task: Task) => {
@@ -119,7 +157,6 @@ export default function NegociacaoDetalhes() {
     e.preventDefault();
     if (!user || !id) return;
     setTaskLoading(true);
-
     const { error } = await supabase.from("crm_tasks").insert({
       titulo: taskForm.titulo,
       descricao: taskForm.descricao || "",
@@ -127,7 +164,6 @@ export default function NegociacaoDetalhes() {
       data_vencimento: taskForm.data_vencimento || null,
       responsavel_id: user.id,
     });
-
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
@@ -153,15 +189,13 @@ export default function NegociacaoDetalhes() {
     e.target.value = "";
   };
 
-  if (loading) {
-    return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
-  }
-
-  if (!deal) {
-    return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
-  }
+  if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
+  if (!deal) return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
 
   const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && new Date(t.data_vencimento) < new Date();
+  const currentStageIndex = KANBAN_COLUMNS.findIndex((c) => c.value === deal.status);
+  const showProposalForm = currentStageIndex >= PROPOSAL_STAGE_INDEX || deal.status === "vendido";
+  const isFinal = deal.status === "vendido" || deal.status === "perdido";
 
   return (
     <AppLayout>
@@ -176,23 +210,42 @@ export default function NegociacaoDetalhes() {
             <p className="text-sm text-muted-foreground">Criado em {new Date(deal.created_at).toLocaleDateString("pt-BR")}</p>
           </div>
           <Badge className={cn("text-xs", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
+          {isFinal && (
+            <Badge variant={deal.status === "vendido" ? "default" : "destructive"} className="text-xs">
+              {deal.status === "vendido" ? "✅ Vendido" : "❌ Perdido"}
+            </Badge>
+          )}
         </div>
+
+        {/* Action buttons */}
+        {!isFinal && (
+          <div className="flex gap-2">
+            <Button variant="destructive" size="sm" onClick={handleMarkLost}>
+              <XCircle className="h-4 w-4 mr-1" /> Perda
+            </Button>
+            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleMarkSold}>
+              <Trophy className="h-4 w-4 mr-1" /> Vendido
+            </Button>
+          </div>
+        )}
 
         {/* Info Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Informações</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Informações</CardTitle></CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div className="flex justify-between">
                 <span className="text-muted-foreground">Status</span>
-                <Select value={deal.status} onValueChange={handleStatusChange}>
-                  <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
-                  <SelectContent>
-                    {KANBAN_COLUMNS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                {isFinal ? (
+                  <Badge variant={deal.status === "vendido" ? "default" : "destructive"} className="capitalize text-xs">{deal.status}</Badge>
+                ) : (
+                  <Select value={deal.status} onValueChange={handleStatusChange}>
+                    <SelectTrigger className="w-[180px] h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {KANBAN_COLUMNS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                )}
               </div>
               {empNome && (
                 <div className="flex justify-between">
@@ -210,34 +263,57 @@ export default function NegociacaoDetalhes() {
           </Card>
 
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Contato</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Contato</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               {deal.cliente_email && (
-                <div className="flex items-center gap-2 text-muted-foreground">
-                  <Mail className="h-4 w-4" /> <span>{deal.cliente_email}</span>
-                </div>
+                <div className="flex items-center gap-2 text-muted-foreground"><Mail className="h-4 w-4" /> <span>{deal.cliente_email}</span></div>
               )}
               {phones.map((p) => (
-                <div key={p.id} className="flex items-center gap-2 text-muted-foreground">
-                  <Phone className="h-4 w-4" /> <span>{p.telefone}</span>
-                </div>
+                <div key={p.id} className="flex items-center gap-2 text-muted-foreground"><Phone className="h-4 w-4" /> <span>{p.telefone}</span></div>
               ))}
-              {!deal.cliente_email && phones.length === 0 && (
-                <p className="text-muted-foreground text-xs">Nenhum contato cadastrado</p>
-              )}
+              {!deal.cliente_email && phones.length === 0 && <p className="text-muted-foreground text-xs">Nenhum contato cadastrado</p>}
             </CardContent>
           </Card>
         </div>
+
+        {/* Proposal Form - only visible from proposta_recebida stage */}
+        {showProposalForm && (
+          <DealProposalForm
+            dealId={deal.id}
+            initialData={{
+              numero_lote: deal.numero_lote,
+              preco_lote: deal.preco_lote,
+              forma_pagamento: deal.forma_pagamento,
+              link_contrato: deal.link_contrato,
+              versao_tabela: deal.versao_tabela,
+              interesse: deal.interesse,
+              satisfacao_atendimento: deal.satisfacao_atendimento,
+              satisfacao_produto: deal.satisfacao_produto,
+              responsavel_venda_user_id: deal.responsavel_venda_user_id,
+              responsavel_venda_imobiliaria_id: deal.responsavel_venda_imobiliaria_id,
+              valor_entrada: deal.valor_entrada,
+              data_nascimento: deal.data_nascimento,
+              escolaridade: deal.escolaridade,
+              estado_civil: deal.estado_civil,
+              sexo: deal.sexo,
+              nacionalidade: deal.nacionalidade,
+              cidade_cliente: deal.cidade_cliente,
+              logradouro: deal.logradouro,
+              numero_logradouro: deal.numero_logradouro,
+              tipo_residencia: deal.tipo_residencia,
+              renda_familiar: deal.renda_familiar,
+              filhos: deal.filhos,
+              interesses_pessoais: deal.interesses_pessoais,
+            }}
+            onSave={fetchAll}
+          />
+        )}
 
         {/* Tasks */}
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold">Tarefas ({tasks.length})</CardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowTaskForm(true)}>
-              <Plus className="h-4 w-4 mr-1" /> Nova tarefa
-            </Button>
+            <Button size="sm" variant="outline" onClick={() => setShowTaskForm(true)}><Plus className="h-4 w-4 mr-1" /> Nova tarefa</Button>
           </CardHeader>
           <CardContent className="space-y-2">
             {tasks.map((task) => (
@@ -260,20 +336,14 @@ export default function NegociacaoDetalhes() {
                 </label>
               </div>
             ))}
-            {tasks.length === 0 && (
-              <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">
-                Nenhuma tarefa criada
-              </div>
-            )}
+            {tasks.length === 0 && <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">Nenhuma tarefa criada</div>}
           </CardContent>
         </Card>
 
         {/* Image Gallery */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-sm font-semibold flex items-center gap-2">
-              <ImageIcon className="h-4 w-4" /> Galeria de Imagens ({allImages.length})
-            </CardTitle>
+            <CardTitle className="text-sm font-semibold flex items-center gap-2"><ImageIcon className="h-4 w-4" /> Galeria de Imagens ({allImages.length})</CardTitle>
           </CardHeader>
           <CardContent>
             {allImages.length > 0 ? (
@@ -289,9 +359,7 @@ export default function NegociacaoDetalhes() {
                 ))}
               </div>
             ) : (
-              <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">
-                Nenhuma imagem anexada às tarefas
-              </div>
+              <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">Nenhuma imagem anexada às tarefas</div>
             )}
           </CardContent>
         </Card>
