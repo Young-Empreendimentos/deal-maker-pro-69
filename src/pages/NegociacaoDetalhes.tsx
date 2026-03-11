@@ -56,6 +56,7 @@ type DealDetail = {
 type DealPhone = { id: string; telefone: string };
 type Task = { id: string; titulo: string; descricao: string; data_vencimento: string | null; concluida: boolean; created_at: string };
 type TaskImage = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
+type MotivoPerda = { id: string; nome: string };
 
 const PROPOSAL_STAGE_INDEX = KANBAN_COLUMNS.findIndex((c) => c.value === "proposta_recebida");
 const ALL_STATUSES = [
