@@ -837,6 +837,7 @@ export type Database = {
           cidade_id: string | null
           comentarios: string | null
           created_at: string
+          data_fechamento: string | null
           data_visita: string | null
           descricao_descarte: string | null
           google_drive_file_id: string | null
@@ -870,6 +871,7 @@ export type Database = {
           cidade_id?: string | null
           comentarios?: string | null
           created_at?: string
+          data_fechamento?: string | null
           data_visita?: string | null
           descricao_descarte?: string | null
           google_drive_file_id?: string | null
@@ -903,6 +905,7 @@ export type Database = {
           cidade_id?: string | null
           comentarios?: string | null
           created_at?: string
+          data_fechamento?: string | null
           data_visita?: string | null
           descricao_descarte?: string | null
           google_drive_file_id?: string | null
@@ -1051,6 +1054,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      report_configs: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          descricao: string
+          destinatarios: string[]
+          id: string
+          nome: string
+          report_key: string
+          ultimo_envio: string | null
+          ultimo_relatorio_html: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          destinatarios?: string[]
+          id?: string
+          nome: string
+          report_key: string
+          ultimo_envio?: string | null
+          ultimo_relatorio_html?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          descricao?: string
+          destinatarios?: string[]
+          id?: string
+          nome?: string
+          report_key?: string
+          ultimo_envio?: string | null
+          ultimo_relatorio_html?: string | null
+          updated_at?: string
+        }
+        Relationships: []
       }
       system_config: {
         Row: {
