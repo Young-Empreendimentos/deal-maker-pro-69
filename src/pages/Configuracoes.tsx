@@ -148,6 +148,7 @@ export default function Configuracoes() {
   useEffect(() => {
     fetchFontes();
     fetchMotivos();
+    fetchEmpreendimentos();
     if (isAdmin) fetchUsers();
   }, [isAdmin]);
 
