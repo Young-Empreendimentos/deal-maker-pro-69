@@ -10,41 +10,40 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Plus } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
+type Empreendimento = { id: string; nome: string; ativo: boolean };
 
 export default function Empreendimentos() {
   const { toast } = useToast();
   const [items, setItems] = useState<Empreendimento[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [nome, setNome] = useState("");
-  const [cidade, setCidade] = useState("");
   const [loading, setLoading] = useState(false);
 
-  const fetch = async () => {
-    const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome");
+  const fetchItems = async () => {
+    const { data } = await supabase.from("esquadro_empreendimentos").select("id, nome, ativo").order("nome");
     setItems((data as Empreendimento[]) ?? []);
   };
 
-  useEffect(() => { fetch(); }, []);
+  useEffect(() => { fetchItems(); }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    const { error } = await supabase.from("crm_empreendimentos").insert({ nome, cidade });
+    const { error } = await supabase.from("esquadro_empreendimentos").insert({ nome });
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Empreendimento criado!" });
       setShowForm(false);
-      setNome(""); setCidade("");
-      fetch();
+      setNome("");
+      fetchItems();
     }
     setLoading(false);
   };
 
   const toggleAtivo = async (id: string, ativo: boolean) => {
-    await supabase.from("crm_empreendimentos").update({ ativo: !ativo }).eq("id", id);
-    fetch();
+    await supabase.from("esquadro_empreendimentos").update({ ativo: !ativo }).eq("id", id);
+    fetchItems();
   };
 
   return (
@@ -60,7 +59,6 @@ export default function Empreendimentos() {
             <TableHeader>
               <TableRow>
                 <TableHead>Nome</TableHead>
-                <TableHead>Cidade</TableHead>
                 <TableHead>Status</TableHead>
               </TableRow>
             </TableHeader>
@@ -68,7 +66,6 @@ export default function Empreendimentos() {
               {items.map((item) => (
                 <TableRow key={item.id}>
                   <TableCell className="font-medium">{item.nome}</TableCell>
-                  <TableCell>{item.cidade}</TableCell>
                   <TableCell>
                     <Badge
                       className="cursor-pointer"
@@ -82,7 +79,7 @@ export default function Empreendimentos() {
               ))}
               {items.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center text-muted-foreground py-8">Nenhum empreendimento</TableCell>
+                  <TableCell colSpan={2} className="text-center text-muted-foreground py-8">Nenhum empreendimento</TableCell>
                 </TableRow>
               )}
             </TableBody>
@@ -95,7 +92,6 @@ export default function Empreendimentos() {
           <DialogHeader><DialogTitle className="font-display">Novo Empreendimento</DialogTitle></DialogHeader>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2"><Label>Nome *</Label><Input value={nome} onChange={(e) => setNome(e.target.value)} required /></div>
-            <div className="space-y-2"><Label>Cidade *</Label><Input value={cidade} onChange={(e) => setCidade(e.target.value)} required /></div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button type="submit" disabled={loading}>{loading ? "Criando..." : "Criar"}</Button>
