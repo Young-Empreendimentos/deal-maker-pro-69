@@ -270,6 +270,7 @@ export type Database = {
           interesses_pessoais: string[] | null
           link_contrato: string | null
           logradouro: string | null
+          motivo_perda_id: string | null
           nacionalidade: string | null
           numero_logradouro: string | null
           numero_lote: string | null
@@ -306,6 +307,7 @@ export type Database = {
           interesses_pessoais?: string[] | null
           link_contrato?: string | null
           logradouro?: string | null
+          motivo_perda_id?: string | null
           nacionalidade?: string | null
           numero_logradouro?: string | null
           numero_lote?: string | null
@@ -342,6 +344,7 @@ export type Database = {
           interesses_pessoais?: string[] | null
           link_contrato?: string | null
           logradouro?: string | null
+          motivo_perda_id?: string | null
           nacionalidade?: string | null
           numero_logradouro?: string | null
           numero_lote?: string | null
@@ -374,6 +377,13 @@ export type Database = {
             columns: ["fonte_id"]
             isOneToOne: false
             referencedRelation: "crm_fontes_lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_motivo_perda_id_fkey"
+            columns: ["motivo_perda_id"]
+            isOneToOne: false
+            referencedRelation: "crm_motivos_perda"
             referencedColumns: ["id"]
           },
           {
@@ -413,6 +423,27 @@ export type Database = {
         Relationships: []
       }
       crm_fontes_lead: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
+      crm_motivos_perda: {
         Row: {
           ativo: boolean
           created_at: string
@@ -1199,6 +1230,7 @@ export type Database = {
       }
       user_profiles: {
         Row: {
+          ativo: boolean
           created_at: string
           id: string
           nome: string
@@ -1206,6 +1238,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          ativo?: boolean
           created_at?: string
           id?: string
           nome?: string
@@ -1213,6 +1246,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          ativo?: boolean
           created_at?: string
           id?: string
           nome?: string

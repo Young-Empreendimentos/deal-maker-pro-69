@@ -56,6 +56,7 @@ type DealDetail = {
 type DealPhone = { id: string; telefone: string };
 type Task = { id: string; titulo: string; descricao: string; data_vencimento: string | null; concluida: boolean; created_at: string };
 type TaskImage = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
+type MotivoPerda = { id: string; nome: string };
 
 const PROPOSAL_STAGE_INDEX = KANBAN_COLUMNS.findIndex((c) => c.value === "proposta_recebida");
 const ALL_STATUSES = [
@@ -82,6 +83,11 @@ export default function NegociacaoDetalhes() {
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "" });
   const [taskLoading, setTaskLoading] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
+
+  // Loss reason
+  const [showLossDialog, setShowLossDialog] = useState(false);
+  const [motivosPerda, setMotivosPerda] = useState<MotivoPerda[]>([]);
+  const [selectedMotivo, setSelectedMotivo] = useState("");
 
   const fetchAll = async () => {
     if (!id) return;
@@ -142,9 +148,18 @@ export default function NegociacaoDetalhes() {
     toast({ title: "Negociação marcada como vendida! 🎉" });
   };
 
-  const handleMarkLost = async () => {
-    if (!deal) return;
-    await handleStatusChange("perdido");
+  const openLossDialog = async () => {
+    const { data } = await supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome");
+    setMotivosPerda((data as MotivoPerda[]) ?? []);
+    setSelectedMotivo("");
+    setShowLossDialog(true);
+  };
+
+  const confirmLoss = async () => {
+    if (!deal || !id || !selectedMotivo) return;
+    await supabase.from("crm_deals").update({ status: "perdido", motivo_perda_id: selectedMotivo } as any).eq("id", id);
+    setDeal((prev) => prev ? { ...prev, status: "perdido" } : prev);
+    setShowLossDialog(false);
     toast({ title: "Negociação marcada como perdida" });
   };
 
@@ -220,7 +235,7 @@ export default function NegociacaoDetalhes() {
         {/* Action buttons */}
         {!isFinal && (
           <div className="flex gap-2">
-            <Button variant="destructive" size="sm" onClick={handleMarkLost}>
+            <Button variant="destructive" size="sm" onClick={openLossDialog}>
               <XCircle className="h-4 w-4 mr-1" /> Perda
             </Button>
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleMarkSold}>
@@ -385,6 +400,26 @@ export default function NegociacaoDetalhes() {
       <Dialog open={!!viewImage} onOpenChange={(open) => !open && setViewImage(null)}>
         <DialogContent className="sm:max-w-2xl p-2">
           {viewImage && <img src={viewImage} alt="" className="w-full rounded-md" />}
+        </DialogContent>
+      </Dialog>
+
+      {/* Loss Reason Dialog */}
+      <Dialog open={showLossDialog} onOpenChange={setShowLossDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="font-display">Motivo da Perda</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Selecione o motivo pelo qual esta negociação foi perdida:</p>
+            <Select value={selectedMotivo} onValueChange={setSelectedMotivo}>
+              <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
+              <SelectContent>
+                {motivosPerda.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowLossDialog(false)}>Cancelar</Button>
+              <Button variant="destructive" onClick={confirmLoss} disabled={!selectedMotivo}>Confirmar Perda</Button>
+            </div>
+          </div>
         </DialogContent>
       </Dialog>
     </AppLayout>
