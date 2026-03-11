@@ -267,9 +267,14 @@ export default function Configuracoes() {
           <CardContent className="space-y-4">
             <EmpreendimentoForm
               onAdd={async (nome, cidade) => {
-                const { error } = await supabase.from("crm_empreendimentos").insert({ nome, cidade });
-                if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-                else fetchEmpreendimentos();
+                const { data, error } = await supabase.from("crm_empreendimentos").insert({ nome, cidade }).select();
+                console.log("Insert empreendimento result:", { data, error });
+                if (error) {
+                  toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
+                } else {
+                  toast({ title: "Empreendimento adicionado!" });
+                  fetchEmpreendimentos();
+                }
               }}
             />
             <Table>
