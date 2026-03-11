@@ -123,7 +123,7 @@ export default function Negociacoes() {
     const list = deals.filter((d) => {
       // Status group filter
       if (fStatusGroup.length > 0) {
-        const isInProgress = kanbanStatuses.has(d.status);
+        const isInProgress = kanbanStatuses.has(d.status as any);
         const matchesGroup = fStatusGroup.some((g) => {
           if (g === "em_andamento") return isInProgress;
           return d.status === g;
