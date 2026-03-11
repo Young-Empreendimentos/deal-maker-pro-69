@@ -235,7 +235,7 @@ export default function NegociacaoDetalhes() {
         {/* Action buttons */}
         {!isFinal && (
           <div className="flex gap-2">
-            <Button variant="destructive" size="sm" onClick={handleMarkLost}>
+            <Button variant="destructive" size="sm" onClick={openLossDialog}>
               <XCircle className="h-4 w-4 mr-1" /> Perda
             </Button>
             <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleMarkSold}>
