@@ -8,7 +8,7 @@ const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
-  { to: "/empreendimentos", label: "Empreendimentos", icon: Building2, adminOnly: true },
+  
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];
 
