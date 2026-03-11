@@ -109,7 +109,7 @@ export default function Negociacoes() {
 
   useEffect(() => {
     fetchDeals();
-    supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
+    supabase.from("esquadro_empreendimentos").select("id, nome").eq("ativo", true).then(({ data }) => setEmpreendimentos(((data as any[]) ?? []).map(e => ({ ...e, cidade: "" })) as Empreendimento[]));
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
     if (isAdmin) {
       supabase.rpc("get_all_users_with_roles").then(({ data }) => setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome }))));

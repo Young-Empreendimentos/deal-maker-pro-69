@@ -33,7 +33,7 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
   useEffect(() => {
     if (open) {
       supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes(data ?? []));
-      supabase.from("crm_empreendimentos").select("id, nome").eq("ativo", true).then(({ data }) => setEmpreendimentos(data ?? []));
+      supabase.from("esquadro_empreendimentos").select("id, nome").eq("ativo", true).then(({ data }) => setEmpreendimentos(data ?? []));
     }
   }, [open]);
 
