@@ -14,8 +14,50 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
+type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
+
+function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<void> }) {
+  const [nome, setNome] = useState("");
+  const [cidade, setCidade] = useState("");
+  return (
+    <div className="flex gap-2">
+      <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome..." className="flex-1" />
+      <Input value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Cidade..." className="flex-1" />
+      <Button size="sm" onClick={async () => { if (!nome.trim()) return; await onAdd(nome.trim(), cidade.trim()); setNome(""); setCidade(""); }}>
+        <Plus className="h-4 w-4" />
+      </Button>
+    </div>
+  );
+}
+
+function EmpreendimentoRow({ emp, onToggle, onSave }: { emp: Empreendimento; onToggle: () => void; onSave: (nome: string, cidade: string) => Promise<void> }) {
+  const [editing, setEditing] = useState(false);
+  const [nome, setNome] = useState(emp.nome);
+  const [cidade, setCidade] = useState(emp.cidade);
+  return (
+    <TableRow className={!emp.ativo ? "opacity-50" : ""}>
+      <TableCell>
+        {editing ? <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{emp.nome}</span>}
+      </TableCell>
+      <TableCell>
+        {editing ? <Input value={cidade} onChange={(e) => setCidade(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm text-muted-foreground">{emp.cidade || "—"}</span>}
+      </TableCell>
+      <TableCell><Switch checked={emp.ativo} onCheckedChange={onToggle} /></TableCell>
+      <TableCell>
+        {editing ? (
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => { await onSave(nome.trim(), cidade.trim()); setEditing(false); }}><Check className="h-3.5 w-3.5 text-success" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(false); setNome(emp.nome); setCidade(emp.cidade); }}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+          </div>
+        ) : (
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
+        )}
+      </TableCell>
+    </TableRow>
+  );
+}
 
 function EditableList({
   title,
@@ -112,6 +154,7 @@ export default function Configuracoes() {
   const { isAdmin } = useAuth();
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [motivos, setMotivos] = useState<MotivoPerda[]>([]);
+  const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [profiles, setProfiles] = useState<Map<string, UserProfile>>(new Map());
 
@@ -129,6 +172,11 @@ export default function Configuracoes() {
     setMotivos((data as MotivoPerda[]) ?? []);
   };
 
+  const fetchEmpreendimentos = async () => {
+    const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome");
+    setEmpreendimentos((data as Empreendimento[]) ?? []);
+  };
+
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
@@ -141,6 +189,7 @@ export default function Configuracoes() {
   useEffect(() => {
     fetchFontes();
     fetchMotivos();
+    fetchEmpreendimentos();
     if (isAdmin) fetchUsers();
   }, [isAdmin]);
 
@@ -211,6 +260,47 @@ export default function Configuracoes() {
             fetchMotivos();
           }}
         />
+
+        {/* Empreendimentos with cidade */}
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Empreendimentos</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <EmpreendimentoForm
+              onAdd={async (nome, cidade) => {
+                const { error } = await supabase.from("crm_empreendimentos").insert({ nome, cidade });
+                if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                else fetchEmpreendimentos();
+              }}
+            />
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Cidade</TableHead>
+                  <TableHead className="w-[60px]">Ativo</TableHead>
+                  <TableHead className="w-[40px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {empreendimentos.map((emp) => (
+                  <EmpreendimentoRow
+                    key={emp.id}
+                    emp={emp}
+                    onToggle={async () => {
+                      await supabase.from("crm_empreendimentos").update({ ativo: !emp.ativo }).eq("id", emp.id);
+                      fetchEmpreendimentos();
+                    }}
+                    onSave={async (nome, cidade) => {
+                      await supabase.from("crm_empreendimentos").update({ nome, cidade }).eq("id", emp.id);
+                      fetchEmpreendimentos();
+                    }}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+            {empreendimentos.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum empreendimento cadastrado</p>}
+          </CardContent>
+        </Card>
 
         <Card>
           <CardHeader><CardTitle className="text-lg">Usuários</CardTitle></CardHeader>

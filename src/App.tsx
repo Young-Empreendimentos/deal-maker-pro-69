@@ -36,7 +36,7 @@ function AppRoutes() {
       <Route path="/negociacoes" element={<ProtectedRoute><Negociacoes /></ProtectedRoute>} />
       <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
-      <Route path="/empreendimentos" element={<ProtectedRoute adminOnly><Empreendimentos /></ProtectedRoute>} />
+      
       <Route path="/configuracoes" element={<ProtectedRoute adminOnly><Configuracoes /></ProtectedRoute>} />
       <Route path="*" element={<NotFound />} />
     </Routes>
