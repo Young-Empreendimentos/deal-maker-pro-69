@@ -148,9 +148,18 @@ export default function NegociacaoDetalhes() {
     toast({ title: "Negociação marcada como vendida! 🎉" });
   };
 
-  const handleMarkLost = async () => {
-    if (!deal) return;
-    await handleStatusChange("perdido");
+  const openLossDialog = async () => {
+    const { data } = await supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome");
+    setMotivosPerda((data as MotivoPerda[]) ?? []);
+    setSelectedMotivo("");
+    setShowLossDialog(true);
+  };
+
+  const confirmLoss = async () => {
+    if (!deal || !id || !selectedMotivo) return;
+    await supabase.from("crm_deals").update({ status: "perdido", motivo_perda_id: selectedMotivo } as any).eq("id", id);
+    setDeal((prev) => prev ? { ...prev, status: "perdido" } : prev);
+    setShowLossDialog(false);
     toast({ title: "Negociação marcada como perdida" });
   };
 
