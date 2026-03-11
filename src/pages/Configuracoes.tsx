@@ -131,6 +131,11 @@ export default function Configuracoes() {
     setMotivos((data as MotivoPerda[]) ?? []);
   };
 
+  const fetchEmpreendimentos = async () => {
+    const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome");
+    setEmpreendimentos((data as Empreendimento[]) ?? []);
+  };
+
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
