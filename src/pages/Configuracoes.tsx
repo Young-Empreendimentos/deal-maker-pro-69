@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext";
 
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
+type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
 

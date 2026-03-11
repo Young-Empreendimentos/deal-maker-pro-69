@@ -105,7 +105,7 @@ export default function NegociacaoDetalhes() {
     setTasks(tasksData);
 
     if (dealData?.empreendimento_id) {
-      const { data } = await supabase.from("esquadro_empreendimentos").select("nome").eq("id", dealData.empreendimento_id).single();
+      const { data } = await supabase.from("crm_empreendimentos").select("nome").eq("id", dealData.empreendimento_id).single();
       setEmpNome(data?.nome ?? "");
     }
     if (dealData?.fonte_id) {
