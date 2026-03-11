@@ -254,43 +254,112 @@ export type Database = {
       }
       crm_deals: {
         Row: {
+          cidade_cliente: string | null
           cliente_email: string | null
           cliente_nome: string
           created_at: string
+          data_nascimento: string | null
           empreendimento_id: string | null
+          escolaridade: string | null
+          estado_civil: string | null
+          filhos: string | null
           fonte_id: string | null
+          forma_pagamento: string | null
           id: string
+          interesse: string | null
+          interesses_pessoais: string[] | null
+          link_contrato: string | null
+          logradouro: string | null
+          nacionalidade: string | null
+          numero_logradouro: string | null
+          numero_lote: string | null
           ordem_kanban: number
+          preco_lote: number | null
           qualificacao: Database["public"]["Enums"]["crm_qualificacao"]
+          renda_familiar: string | null
           responsavel_id: string
+          responsavel_venda_imobiliaria_id: string | null
+          responsavel_venda_user_id: string | null
+          satisfacao_atendimento: number | null
+          satisfacao_produto: number | null
+          sexo: string | null
           status: Database["public"]["Enums"]["crm_deal_status"]
+          tipo_residencia: string | null
           updated_at: string
+          valor_entrada: number | null
+          versao_tabela: string | null
         }
         Insert: {
+          cidade_cliente?: string | null
           cliente_email?: string | null
           cliente_nome: string
           created_at?: string
+          data_nascimento?: string | null
           empreendimento_id?: string | null
+          escolaridade?: string | null
+          estado_civil?: string | null
+          filhos?: string | null
           fonte_id?: string | null
+          forma_pagamento?: string | null
           id?: string
+          interesse?: string | null
+          interesses_pessoais?: string[] | null
+          link_contrato?: string | null
+          logradouro?: string | null
+          nacionalidade?: string | null
+          numero_logradouro?: string | null
+          numero_lote?: string | null
           ordem_kanban?: number
+          preco_lote?: number | null
           qualificacao?: Database["public"]["Enums"]["crm_qualificacao"]
+          renda_familiar?: string | null
           responsavel_id: string
+          responsavel_venda_imobiliaria_id?: string | null
+          responsavel_venda_user_id?: string | null
+          satisfacao_atendimento?: number | null
+          satisfacao_produto?: number | null
+          sexo?: string | null
           status?: Database["public"]["Enums"]["crm_deal_status"]
+          tipo_residencia?: string | null
           updated_at?: string
+          valor_entrada?: number | null
+          versao_tabela?: string | null
         }
         Update: {
+          cidade_cliente?: string | null
           cliente_email?: string | null
           cliente_nome?: string
           created_at?: string
+          data_nascimento?: string | null
           empreendimento_id?: string | null
+          escolaridade?: string | null
+          estado_civil?: string | null
+          filhos?: string | null
           fonte_id?: string | null
+          forma_pagamento?: string | null
           id?: string
+          interesse?: string | null
+          interesses_pessoais?: string[] | null
+          link_contrato?: string | null
+          logradouro?: string | null
+          nacionalidade?: string | null
+          numero_logradouro?: string | null
+          numero_lote?: string | null
           ordem_kanban?: number
+          preco_lote?: number | null
           qualificacao?: Database["public"]["Enums"]["crm_qualificacao"]
+          renda_familiar?: string | null
           responsavel_id?: string
+          responsavel_venda_imobiliaria_id?: string | null
+          responsavel_venda_user_id?: string | null
+          satisfacao_atendimento?: number | null
+          satisfacao_produto?: number | null
+          sexo?: string | null
           status?: Database["public"]["Enums"]["crm_deal_status"]
+          tipo_residencia?: string | null
           updated_at?: string
+          valor_entrada?: number | null
+          versao_tabela?: string | null
         }
         Relationships: [
           {
@@ -305,6 +374,13 @@ export type Database = {
             columns: ["fonte_id"]
             isOneToOne: false
             referencedRelation: "crm_fontes_lead"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_responsavel_venda_imobiliaria_fkey"
+            columns: ["responsavel_venda_imobiliaria_id"]
+            isOneToOne: false
+            referencedRelation: "imobiliarias"
             referencedColumns: ["id"]
           },
         ]
@@ -1214,6 +1290,8 @@ export type Database = {
         | "visita_realizada"
         | "ficha_assinada"
         | "proposta_recebida"
+        | "perdido"
+        | "vendido"
       crm_qualificacao: "frio" | "morno" | "quente"
       esquadro_app_role: "admin" | "arquiteta"
       gleba_status:
@@ -1367,6 +1445,8 @@ export const Constants = {
         "visita_realizada",
         "ficha_assinada",
         "proposta_recebida",
+        "perdido",
+        "vendido",
       ],
       crm_qualificacao: ["frio", "morno", "quente"],
       esquadro_app_role: ["admin", "arquiteta"],
