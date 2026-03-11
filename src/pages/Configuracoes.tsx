@@ -220,6 +220,47 @@ export default function Configuracoes() {
           }}
         />
 
+        {/* Empreendimentos with cidade */}
+        <Card>
+          <CardHeader><CardTitle className="text-lg">Empreendimentos</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <EmpreendimentoForm
+              onAdd={async (nome, cidade) => {
+                const { error } = await supabase.from("crm_empreendimentos").insert({ nome, cidade });
+                if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                else fetchEmpreendimentos();
+              }}
+            />
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nome</TableHead>
+                  <TableHead>Cidade</TableHead>
+                  <TableHead className="w-[60px]">Ativo</TableHead>
+                  <TableHead className="w-[40px]"></TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {empreendimentos.map((emp) => (
+                  <EmpreendimentoRow
+                    key={emp.id}
+                    emp={emp}
+                    onToggle={async () => {
+                      await supabase.from("crm_empreendimentos").update({ ativo: !emp.ativo }).eq("id", emp.id);
+                      fetchEmpreendimentos();
+                    }}
+                    onSave={async (nome, cidade) => {
+                      await supabase.from("crm_empreendimentos").update({ nome, cidade }).eq("id", emp.id);
+                      fetchEmpreendimentos();
+                    }}
+                  />
+                ))}
+              </TableBody>
+            </Table>
+            {empreendimentos.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum empreendimento cadastrado</p>}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader><CardTitle className="text-lg">Usuários</CardTitle></CardHeader>
           <CardContent>
