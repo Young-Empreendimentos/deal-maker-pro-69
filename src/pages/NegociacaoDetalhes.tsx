@@ -84,6 +84,11 @@ export default function NegociacaoDetalhes() {
   const [taskLoading, setTaskLoading] = useState(false);
   const [viewImage, setViewImage] = useState<string | null>(null);
 
+  // Loss reason
+  const [showLossDialog, setShowLossDialog] = useState(false);
+  const [motivosPerda, setMotivosPerda] = useState<MotivoPerda[]>([]);
+  const [selectedMotivo, setSelectedMotivo] = useState("");
+
   const fetchAll = async () => {
     if (!id) return;
 
