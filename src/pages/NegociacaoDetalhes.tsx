@@ -402,6 +402,26 @@ export default function NegociacaoDetalhes() {
           {viewImage && <img src={viewImage} alt="" className="w-full rounded-md" />}
         </DialogContent>
       </Dialog>
+
+      {/* Loss Reason Dialog */}
+      <Dialog open={showLossDialog} onOpenChange={setShowLossDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader><DialogTitle className="font-display">Motivo da Perda</DialogTitle></DialogHeader>
+          <div className="space-y-4">
+            <p className="text-sm text-muted-foreground">Selecione o motivo pelo qual esta negociação foi perdida:</p>
+            <Select value={selectedMotivo} onValueChange={setSelectedMotivo}>
+              <SelectTrigger><SelectValue placeholder="Selecione o motivo" /></SelectTrigger>
+              <SelectContent>
+                {motivosPerda.map((m) => <SelectItem key={m.id} value={m.id}>{m.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => setShowLossDialog(false)}>Cancelar</Button>
+              <Button variant="destructive" onClick={confirmLoss} disabled={!selectedMotivo}>Confirmar Perda</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </AppLayout>
   );
 }
