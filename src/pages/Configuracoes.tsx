@@ -113,6 +113,7 @@ export default function Configuracoes() {
   const { isAdmin } = useAuth();
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [motivos, setMotivos] = useState<MotivoPerda[]>([]);
+  const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [profiles, setProfiles] = useState<Map<string, UserProfile>>(new Map());
 
