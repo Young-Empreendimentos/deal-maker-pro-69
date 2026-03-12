@@ -23,41 +23,61 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
   const [cidade, setCidade] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
+  const handleAdd = async () => {
     const nomeLimpo = nome.trim();
     const cidadeLimpa = cidade.trim();
 
     if (!nomeLimpo || isSaving) return;
 
     setIsSaving(true);
-    const created = await onAdd(nomeLimpo, cidadeLimpa);
-    if (created) {
-      setNome("");
-      setCidade("");
+    try {
+      const created = await onAdd(nomeLimpo, cidadeLimpa);
+      if (created) {
+        setNome("");
+        setCidade("");
+      }
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   return (
-    <form className="flex gap-2" onSubmit={handleSubmit}>
+    <div className="flex gap-2">
       <Input
         value={nome}
         onChange={(e) => setNome(e.target.value)}
         placeholder="Nome..."
         className="flex-1"
         required
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void handleAdd();
+          }
+        }}
       />
       <Input
         value={cidade}
         onChange={(e) => setCidade(e.target.value)}
         placeholder="Cidade..."
         className="flex-1"
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            void handleAdd();
+          }
+        }}
       />
-      <Button size="sm" type="submit" disabled={!nome.trim() || isSaving} aria-label="Adicionar empreendimento">
+      <Button
+        size="sm"
+        type="button"
+        disabled={!nome.trim() || isSaving}
+        aria-label="Adicionar empreendimento"
+        onClick={() => void handleAdd()}
+      >
         <Plus className="h-4 w-4" />
       </Button>
-    </form>
+    </div>
   );
 }
 
