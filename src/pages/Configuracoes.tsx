@@ -18,17 +18,46 @@ type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
 
-function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<void> }) {
+function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<boolean> }) {
   const [nome, setNome] = useState("");
   const [cidade, setCidade] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const nomeLimpo = nome.trim();
+    const cidadeLimpa = cidade.trim();
+
+    if (!nomeLimpo || isSaving) return;
+
+    setIsSaving(true);
+    const created = await onAdd(nomeLimpo, cidadeLimpa);
+    if (created) {
+      setNome("");
+      setCidade("");
+    }
+    setIsSaving(false);
+  };
+
   return (
-    <div className="flex gap-2">
-      <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome..." className="flex-1" />
-      <Input value={cidade} onChange={(e) => setCidade(e.target.value)} placeholder="Cidade..." className="flex-1" />
-      <Button size="sm" onClick={async () => { if (!nome.trim()) return; await onAdd(nome.trim(), cidade.trim()); setNome(""); setCidade(""); }}>
+    <form className="flex gap-2" onSubmit={handleSubmit}>
+      <Input
+        value={nome}
+        onChange={(e) => setNome(e.target.value)}
+        placeholder="Nome..."
+        className="flex-1"
+        required
+      />
+      <Input
+        value={cidade}
+        onChange={(e) => setCidade(e.target.value)}
+        placeholder="Cidade..."
+        className="flex-1"
+      />
+      <Button size="sm" type="submit" disabled={!nome.trim() || isSaving} aria-label="Adicionar empreendimento">
         <Plus className="h-4 w-4" />
       </Button>
-    </div>
+    </form>
   );
 }
 
