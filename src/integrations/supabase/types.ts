@@ -223,6 +223,41 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_deal_images: {
+        Row: {
+          deal_id: string
+          id: string
+          image_url: string
+          nome_arquivo: string
+          uploaded_at: string
+          uploaded_by: string
+        }
+        Insert: {
+          deal_id: string
+          id?: string
+          image_url: string
+          nome_arquivo?: string
+          uploaded_at?: string
+          uploaded_by: string
+        }
+        Update: {
+          deal_id?: string
+          id?: string
+          image_url?: string
+          nome_arquivo?: string
+          uploaded_at?: string
+          uploaded_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_images_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_deal_phones: {
         Row: {
           created_at: string
