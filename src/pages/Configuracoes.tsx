@@ -25,13 +25,11 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
 
   const handleAdd = async () => {
     const nomeLimpo = nome.trim();
-    const cidadeLimpa = cidade.trim();
-
     if (!nomeLimpo || isSaving) return;
 
     setIsSaving(true);
     try {
-      const created = await onAdd(nomeLimpo, cidadeLimpa);
+      const created = await onAdd(nomeLimpo, cidade);
       if (created) {
         setNome("");
         setCidade("");
@@ -42,7 +40,7 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 items-center">
       <Input
         value={nome}
         onChange={(e) => setNome(e.target.value)}
@@ -56,18 +54,7 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
           }
         }}
       />
-      <Input
-        value={cidade}
-        onChange={(e) => setCidade(e.target.value)}
-        placeholder="Cidade..."
-        className="flex-1"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            void handleAdd();
-          }
-        }}
-      />
+      <CidadeCombobox value={cidade} onSelect={setCidade} className="flex-1 h-10" />
       <Button
         size="sm"
         type="button"
