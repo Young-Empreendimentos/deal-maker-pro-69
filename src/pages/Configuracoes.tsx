@@ -78,7 +78,7 @@ function EmpreendimentoRow({ emp, onToggle, onSave }: { emp: Empreendimento; onT
         {editing ? <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{emp.nome}</span>}
       </TableCell>
       <TableCell>
-        {editing ? <Input value={cidade} onChange={(e) => setCidade(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm text-muted-foreground">{emp.cidade || "—"}</span>}
+        {editing ? <CidadeCombobox value={cidade} onSelect={setCidade} className="h-8 text-sm w-full" /> : <span className="text-sm text-muted-foreground">{emp.cidade || "—"}</span>}
       </TableCell>
       <TableCell><Switch checked={emp.ativo} onCheckedChange={onToggle} /></TableCell>
       <TableCell>
