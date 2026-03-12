@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus, Pencil, Check, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { CidadeCombobox } from "@/components/crm/CidadeCombobox";
 
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
@@ -25,13 +26,11 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
 
   const handleAdd = async () => {
     const nomeLimpo = nome.trim();
-    const cidadeLimpa = cidade.trim();
-
     if (!nomeLimpo || isSaving) return;
 
     setIsSaving(true);
     try {
-      const created = await onAdd(nomeLimpo, cidadeLimpa);
+      const created = await onAdd(nomeLimpo, cidade);
       if (created) {
         setNome("");
         setCidade("");
@@ -42,7 +41,7 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
   };
 
   return (
-    <div className="flex gap-2">
+    <div className="flex gap-2 items-center">
       <Input
         value={nome}
         onChange={(e) => setNome(e.target.value)}
@@ -56,18 +55,7 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
           }
         }}
       />
-      <Input
-        value={cidade}
-        onChange={(e) => setCidade(e.target.value)}
-        placeholder="Cidade..."
-        className="flex-1"
-        onKeyDown={(e) => {
-          if (e.key === "Enter") {
-            e.preventDefault();
-            void handleAdd();
-          }
-        }}
-      />
+      <CidadeCombobox value={cidade} onSelect={setCidade} className="flex-1 h-10" />
       <Button
         size="sm"
         type="button"
@@ -91,7 +79,7 @@ function EmpreendimentoRow({ emp, onToggle, onSave }: { emp: Empreendimento; onT
         {editing ? <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{emp.nome}</span>}
       </TableCell>
       <TableCell>
-        {editing ? <Input value={cidade} onChange={(e) => setCidade(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm text-muted-foreground">{emp.cidade || "—"}</span>}
+        {editing ? <CidadeCombobox value={cidade} onSelect={setCidade} className="h-8 text-sm w-full" /> : <span className="text-sm text-muted-foreground">{emp.cidade || "—"}</span>}
       </TableCell>
       <TableCell><Switch checked={emp.ativo} onCheckedChange={onToggle} /></TableCell>
       <TableCell>
