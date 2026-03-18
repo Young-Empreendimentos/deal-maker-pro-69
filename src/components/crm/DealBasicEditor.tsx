@@ -125,7 +125,7 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
             <Select value={empId} onValueChange={setEmpId}>
               <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
+                <SelectItem value="__none__">Nenhum</SelectItem>
                 {empreendimentos.map((e) => (
                   <SelectItem key={e.id} value={e.id}>{e.nome}{e.cidade ? ` (${e.cidade})` : ""}</SelectItem>
                 ))}
