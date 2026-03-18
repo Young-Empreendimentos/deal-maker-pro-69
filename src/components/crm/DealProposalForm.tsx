@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,8 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Slider } from "@/components/ui/slider";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useToast } from "@/hooks/use-toast";
-import { Save, Search } from "lucide-react";
+import { Save, Search, ChevronsUpDown, Check } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const INTERESSES = ["moradia", "investimento", "comércio", "presente", "doação"] as const;
 const ESCOLARIDADES = ["Fundamental", "Médio", "Superior", "Pós-graduação", "Mestrado", "Doutorado"] as const;
@@ -62,6 +65,7 @@ type DealProposalData = {
 
 type UserOption = { id: string; email: string; nome: string };
 type ImobOption = { id: string; nome: string };
+type TabelaPreco = { empreendimento: string; num_lote: string; data_preco: string; preco_av: number };
 
 interface Props {
   dealId: string;
@@ -77,6 +81,11 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [imobiliarias, setImobiliarias] = useState<ImobOption[]>([]);
 
+  // Tabela de preços state
+  const [tabelaPrecos, setTabelaPrecos] = useState<TabelaPreco[]>([]);
+  const [selectedEmpreendimento, setSelectedEmpreendimento] = useState<string>("");
+  const [loteOpen, setLoteOpen] = useState(false);
+
   // IBGE cities search
   const [cidadeSearch, setCidadeSearch] = useState(initialData.cidade_cliente || "");
   const [cidadeOptions, setCidadeOptions] = useState<string[]>([]);
@@ -89,7 +98,52 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     supabase.from("imobiliarias").select("id, nome").order("nome").then(({ data }) => {
       setImobiliarias((data as ImobOption[]) ?? []);
     });
+    // Load all tabela precos
+    supabase.from("comercial_tabela_precos").select("empreendimento, num_lote, data_preco, preco_av")
+      .not("empreendimento", "is", null)
+      .not("num_lote", "is", null)
+      .not("data_preco", "is", null)
+      .not("preco_av", "is", null)
+      .order("empreendimento")
+      .order("num_lote")
+      .order("data_preco", { ascending: false })
+      .then(({ data }) => {
+        setTabelaPrecos((data as TabelaPreco[]) ?? []);
+      });
   }, []);
+
+  // Derive empreendimento from initial data (try to match)
+  useEffect(() => {
+    if (initialData.numero_lote && tabelaPrecos.length > 0 && !selectedEmpreendimento) {
+      const match = tabelaPrecos.find(t => t.num_lote === initialData.numero_lote);
+      if (match) setSelectedEmpreendimento(match.empreendimento);
+    }
+  }, [tabelaPrecos, initialData.numero_lote]);
+
+  // Derived lists
+  const empreendimentos = useMemo(() => {
+    const set = new Set(tabelaPrecos.map(t => t.empreendimento));
+    return Array.from(set).sort();
+  }, [tabelaPrecos]);
+
+  const lotesDoEmpreendimento = useMemo(() => {
+    if (!selectedEmpreendimento) return [];
+    const set = new Set(tabelaPrecos.filter(t => t.empreendimento === selectedEmpreendimento).map(t => t.num_lote));
+    return Array.from(set).sort((a, b) => {
+      const na = parseInt(a), nb = parseInt(b);
+      if (!isNaN(na) && !isNaN(nb)) return na - nb;
+      return a.localeCompare(b);
+    });
+  }, [tabelaPrecos, selectedEmpreendimento]);
+
+  const versoesTabela = useMemo(() => {
+    if (!selectedEmpreendimento || !form.numero_lote) return [];
+    return tabelaPrecos
+      .filter(t => t.empreendimento === selectedEmpreendimento && t.num_lote === form.numero_lote)
+      .map(t => t.data_preco)
+      .filter((v, i, a) => a.indexOf(v) === i)
+      .sort((a, b) => b.localeCompare(a)); // most recent first
+  }, [tabelaPrecos, selectedEmpreendimento, form.numero_lote]);
 
   const searchCidades = useCallback(async (term: string) => {
     setCidadeSearch(term);
@@ -108,6 +162,32 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
 
   const update = (key: keyof DealProposalData, value: any) => {
     setForm((f) => ({ ...f, [key]: value }));
+  };
+
+  const handleEmpreendimentoChange = (emp: string) => {
+    setSelectedEmpreendimento(emp);
+    // Reset dependent fields
+    update("numero_lote", null);
+    update("versao_tabela", null);
+    update("preco_lote", null);
+  };
+
+  const handleLoteChange = (lote: string) => {
+    update("numero_lote", lote);
+    update("versao_tabela", null);
+    update("preco_lote", null);
+    setLoteOpen(false);
+  };
+
+  const handleVersaoChange = (versao: string) => {
+    update("versao_tabela", versao);
+    // Auto-fill price
+    const match = tabelaPrecos.find(
+      t => t.empreendimento === selectedEmpreendimento && t.num_lote === form.numero_lote && t.data_preco === versao
+    );
+    if (match) {
+      update("preco_lote", match.preco_av);
+    }
   };
 
   const toggleInteresse = (item: string) => {
