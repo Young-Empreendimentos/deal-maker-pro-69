@@ -122,10 +122,10 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Empreendimento</Label>
-            <Select value={empId} onValueChange={setEmpId}>
+            <Select value={empId || "__none__"} onValueChange={(v) => setEmpId(v === "__none__" ? "" : v)}>
               <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhum</SelectItem>
+                <SelectItem value="__none__">Nenhum</SelectItem>
                 {empreendimentos.map((e) => (
                   <SelectItem key={e.id} value={e.id}>{e.nome}{e.cidade ? ` (${e.cidade})` : ""}</SelectItem>
                 ))}
@@ -134,10 +134,10 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Fonte</Label>
-            <Select value={fonteId} onValueChange={setFonteId}>
+            <Select value={fonteId || "__none__"} onValueChange={(v) => setFonteId(v === "__none__" ? "" : v)}>
               <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma</SelectItem>
+                <SelectItem value="__none__">Nenhuma</SelectItem>
                 {fontes.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
               </SelectContent>
             </Select>
