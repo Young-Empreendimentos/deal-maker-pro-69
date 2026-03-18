@@ -134,7 +134,7 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Fonte</Label>
-            <Select value={fonteId} onValueChange={setFonteId}>
+            <Select value={fonteId || "__none__"} onValueChange={(v) => setFonteId(v === "__none__" ? "" : v)}>
               <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Nenhuma</SelectItem>
