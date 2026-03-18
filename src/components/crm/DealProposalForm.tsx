@@ -248,20 +248,70 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
         {/* Lote & Pagamento */}
         <div className="space-y-4">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Lote e Pagamento</h4>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Empreendimento (Tabela de Preços)</Label>
+              <Select value={selectedEmpreendimento || "__none__"} onValueChange={(v) => handleEmpreendimentoChange(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione o empreendimento" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Selecione</SelectItem>
+                  {empreendimentos.map((e) => <SelectItem key={e} value={e}>{e}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Número do Lote</Label>
-              <Input value={form.numero_lote ?? ""} onChange={(e) => update("numero_lote", e.target.value)} placeholder="Ex: Q01-L15" />
+              <Popover open={loteOpen} onOpenChange={setLoteOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" role="combobox" aria-expanded={loteOpen} className="w-full justify-between text-sm font-normal h-9" disabled={!selectedEmpreendimento}>
+                    {form.numero_lote || "Selecione o lote"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[250px] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar lote..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum lote encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {lotesDoEmpreendimento.map((lote) => (
+                          <CommandItem key={lote} value={lote} onSelect={() => handleLoteChange(lote)}>
+                            <Check className={cn("mr-2 h-4 w-4", form.numero_lote === lote ? "opacity-100" : "opacity-0")} />
+                            Lote {lote}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+            </div>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Versão da Tabela</Label>
+              <Select
+                value={form.versao_tabela || "__none__"}
+                onValueChange={(v) => handleVersaoChange(v === "__none__" ? "" : v)}
+                disabled={!form.numero_lote || versoesTabela.length === 0}
+              >
+                <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione a versão" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Selecione</SelectItem>
+                  {versoesTabela.map((v) => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Preço do Lote (R$)</Label>
-              <Input type="number" step="0.01" value={form.preco_lote ?? ""} onChange={(e) => update("preco_lote", e.target.value ? parseFloat(e.target.value) : null)} />
+              <Input type="number" step="0.01" value={form.preco_lote ?? ""} onChange={(e) => update("preco_lote", e.target.value ? parseFloat(e.target.value) : null)} readOnly={!!form.versao_tabela} className={form.versao_tabela ? "bg-muted" : ""} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Forma de Pagamento</Label>
-              <Select value={form.forma_pagamento ?? ""} onValueChange={(v) => update("forma_pagamento", v)}>
+              <Select value={form.forma_pagamento || "__none__"} onValueChange={(v) => update("forma_pagamento", v === "__none__" ? null : v)}>
                 <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="__none__">Selecione</SelectItem>
                   {FORMAS_PAGAMENTO.map((f) => <SelectItem key={f} value={f}>{f}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -273,17 +323,11 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
               <Input type="number" step="0.01" value={form.valor_entrada ?? ""} onChange={(e) => update("valor_entrada", e.target.value ? parseFloat(e.target.value) : null)} />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-xs">Versão da Tabela</Label>
-              <Input value={form.versao_tabela ?? ""} onChange={(e) => update("versao_tabela", e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
               <Label className="text-xs">Link do Contrato</Label>
               <Input value={form.link_contrato ?? ""} onChange={(e) => update("link_contrato", e.target.value)} placeholder="https://drive.google.com/..." />
             </div>
           </div>
         </div>
-
-        {/* Interesse & Satisfação */}
         <div className="space-y-4">
           <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Interesse e Satisfação</h4>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
