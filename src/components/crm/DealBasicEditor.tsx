@@ -137,7 +137,7 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
             <Select value={fonteId} onValueChange={setFonteId}>
               <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Nenhuma</SelectItem>
+                <SelectItem value="__none__">Nenhuma</SelectItem>
                 {fontes.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
               </SelectContent>
             </Select>
