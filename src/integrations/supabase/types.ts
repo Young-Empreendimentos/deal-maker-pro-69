@@ -14,6 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
+      aditivo_empreendimentos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          taxa_padrao: number
+          template_path: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          taxa_padrao: number
+          template_path?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          taxa_padrao?: number
+          template_path?: string | null
+        }
+        Relationships: []
+      }
+      aditivo_profiles: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string | null
+          role: string
+        }
+        Insert: {
+          created_at?: string
+          id: string
+          nome?: string | null
+          role?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string | null
+          role?: string
+        }
+        Relationships: []
+      }
+      aditivo_taxa_regras: {
+        Row: {
+          bracket_pago: string
+          created_at: string
+          data_contrato_fim: string | null
+          data_contrato_ini: string | null
+          empreendimento_id: string
+          id: string
+          taxa_mensal: number
+          terreno_registrado: boolean
+        }
+        Insert: {
+          bracket_pago: string
+          created_at?: string
+          data_contrato_fim?: string | null
+          data_contrato_ini?: string | null
+          empreendimento_id: string
+          id?: string
+          taxa_mensal: number
+          terreno_registrado: boolean
+        }
+        Update: {
+          bracket_pago?: string
+          created_at?: string
+          data_contrato_fim?: string | null
+          data_contrato_ini?: string | null
+          empreendimento_id?: string
+          id?: string
+          taxa_mensal?: number
+          terreno_registrado?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "aditivo_taxa_regras_empreendimento_id_fkey"
+            columns: ["empreendimento_id"]
+            isOneToOne: false
+            referencedRelation: "aditivo_empreendimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       atividades: {
         Row: {
           created_at: string
@@ -294,7 +380,7 @@ export type Database = {
           assunto: string | null
           cliente_id: number | null
           cliente_nome: string | null
-          created_at: string
+          created_at: string | null
           data_envio: string | null
           data_vencimento: string | null
           documento_titulo: string | null
@@ -319,7 +405,7 @@ export type Database = {
           assunto?: string | null
           cliente_id?: number | null
           cliente_nome?: string | null
-          created_at?: string
+          created_at?: string | null
           data_envio?: string | null
           data_vencimento?: string | null
           documento_titulo?: string | null
@@ -330,7 +416,7 @@ export type Database = {
           empresa_nome?: string | null
           enviou_email?: boolean | null
           enviou_sms?: boolean | null
-          id: number
+          id?: number
           mensagem_notificacao?: string | null
           origem?: string | null
           parcela_id?: number | null
@@ -344,7 +430,7 @@ export type Database = {
           assunto?: string | null
           cliente_id?: number | null
           cliente_nome?: string | null
-          created_at?: string
+          created_at?: string | null
           data_envio?: string | null
           data_vencimento?: string | null
           documento_titulo?: string | null
@@ -371,52 +457,67 @@ export type Database = {
         Row: {
           empreendimento_id: number | null
           empresa_id: number | null
-          executado_em: string
+          executado_em: string | null
           id: number
           mensagem: string | null
           registros_importados: number | null
-          status: string | null
+          status: string
         }
         Insert: {
           empreendimento_id?: number | null
           empresa_id?: number | null
-          executado_em?: string
-          id: number
+          executado_em?: string | null
+          id?: number
           mensagem?: string | null
           registros_importados?: number | null
-          status?: string | null
+          status: string
         }
         Update: {
           empreendimento_id?: number | null
           empresa_id?: number | null
-          executado_em?: string
+          executado_em?: string | null
           id?: number
           mensagem?: string | null
           registros_importados?: number | null
-          status?: string | null
+          status?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cobranca_historico_sincronizacao_empreendimento_id_fkey"
+            columns: ["empreendimento_id"]
+            isOneToOne: false
+            referencedRelation: "cobranca_empreendimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_historico_sincronizacao_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "cobranca_empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cobranca_inadimplencia: {
         Row: {
           acrescimos: number | null
           atraso_atualizado: number | null
           atraso_desde: string | null
-          atualizado_em: string
+          atualizado_em: string | null
           cliente_cpf: string | null
           cliente_email: string | null
           cliente_endereco: string | null
           cliente_id: number | null
           cliente_telefone: string | null
           contrato_id: number | null
-          criado_em: string
+          criado_em: string | null
           dados_originais: Json | null
           data_contrato: string | null
           data_venda: string | null
           documento_titulo: string | null
-          empreendimento_id: number | null
+          empreendimento_id: number
           empreendimento_nome: string | null
-          empresa_id: number | null
+          empresa_id: number
           id: number
           numero_contrato: string | null
           proprietario: string | null
@@ -432,22 +533,22 @@ export type Database = {
           acrescimos?: number | null
           atraso_atualizado?: number | null
           atraso_desde?: string | null
-          atualizado_em?: string
+          atualizado_em?: string | null
           cliente_cpf?: string | null
           cliente_email?: string | null
           cliente_endereco?: string | null
           cliente_id?: number | null
           cliente_telefone?: string | null
           contrato_id?: number | null
-          criado_em?: string
+          criado_em?: string | null
           dados_originais?: Json | null
           data_contrato?: string | null
           data_venda?: string | null
           documento_titulo?: string | null
-          empreendimento_id?: number | null
+          empreendimento_id: number
           empreendimento_nome?: string | null
-          empresa_id?: number | null
-          id: number
+          empresa_id: number
+          id?: number
           numero_contrato?: string | null
           proprietario?: string | null
           qtd_parcelas?: number | null
@@ -462,21 +563,21 @@ export type Database = {
           acrescimos?: number | null
           atraso_atualizado?: number | null
           atraso_desde?: string | null
-          atualizado_em?: string
+          atualizado_em?: string | null
           cliente_cpf?: string | null
           cliente_email?: string | null
           cliente_endereco?: string | null
           cliente_id?: number | null
           cliente_telefone?: string | null
           contrato_id?: number | null
-          criado_em?: string
+          criado_em?: string | null
           dados_originais?: Json | null
           data_contrato?: string | null
           data_venda?: string | null
           documento_titulo?: string | null
-          empreendimento_id?: number | null
+          empreendimento_id?: number
           empreendimento_nome?: string | null
-          empresa_id?: number | null
+          empresa_id?: number
           id?: number
           numero_contrato?: string | null
           proprietario?: string | null
@@ -488,7 +589,22 @@ export type Database = {
           valor_recebido?: number | null
           valor_total_contrato?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cobranca_inadimplencia_empreendimento_id_fkey"
+            columns: ["empreendimento_id"]
+            isOneToOne: false
+            referencedRelation: "cobranca_empreendimentos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cobranca_inadimplencia_empresa_id_fkey"
+            columns: ["empresa_id"]
+            isOneToOne: false
+            referencedRelation: "cobranca_empresas"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cobranca_indexadores_sienge: {
         Row: {
@@ -793,70 +909,122 @@ export type Database = {
         }
         Relationships: []
       }
-      cobranca_parcelas_inadimplencia: {
+      comercial_clientes_itaqui: {
         Row: {
-          atualizado_em: string | null
-          cliente_id: number | null
-          criado_em: string | null
-          data_vencimento: string
-          dias_atraso: number | null
-          documento_titulo: string | null
-          empreendimento_id: number
-          empresa_id: number
+          bairro: string | null
+          bairro2: string | null
+          cep: string | null
+          cep2: string | null
+          cidade: string | null
+          cidade2: string | null
+          cpf: string | null
+          cpf2: string | null
+          created_at: string | null
+          data_expedicao: string | null
+          data_expedicao2: string | null
+          data_nascimento: string | null
+          data_nascimento2: string | null
+          email: string | null
+          email2: string | null
+          estado_civil: string | null
+          estado_civil2: string | null
           id: number
-          inadimplencia_id: number | null
-          numero_parcela: string | null
-          saldo_atual: number | null
-          saldo_com_acrescimos: number | null
-          situacao: string | null
-          titulo_id: number | null
-          valor_original: number
+          logradouro: string | null
+          logradouro2: string | null
+          nacionalidade: string | null
+          nacionalidade2: string | null
+          nome: string
+          nome2: string | null
+          orgao_expedidor: string | null
+          orgao_expedidor2: string | null
+          profissao: string | null
+          profissao2: string | null
+          regime_bens: string | null
+          regime_bens2: string | null
+          rg: string | null
+          rg2: string | null
+          telefone: string | null
+          telefone2: string | null
+          uf: string | null
+          uf2: string | null
         }
         Insert: {
-          atualizado_em?: string | null
-          cliente_id?: number | null
-          criado_em?: string | null
-          data_vencimento: string
-          dias_atraso?: number | null
-          documento_titulo?: string | null
-          empreendimento_id: number
-          empresa_id: number
+          bairro?: string | null
+          bairro2?: string | null
+          cep?: string | null
+          cep2?: string | null
+          cidade?: string | null
+          cidade2?: string | null
+          cpf?: string | null
+          cpf2?: string | null
+          created_at?: string | null
+          data_expedicao?: string | null
+          data_expedicao2?: string | null
+          data_nascimento?: string | null
+          data_nascimento2?: string | null
+          email?: string | null
+          email2?: string | null
+          estado_civil?: string | null
+          estado_civil2?: string | null
           id?: number
-          inadimplencia_id?: number | null
-          numero_parcela?: string | null
-          saldo_atual?: number | null
-          saldo_com_acrescimos?: number | null
-          situacao?: string | null
-          titulo_id?: number | null
-          valor_original: number
+          logradouro?: string | null
+          logradouro2?: string | null
+          nacionalidade?: string | null
+          nacionalidade2?: string | null
+          nome: string
+          nome2?: string | null
+          orgao_expedidor?: string | null
+          orgao_expedidor2?: string | null
+          profissao?: string | null
+          profissao2?: string | null
+          regime_bens?: string | null
+          regime_bens2?: string | null
+          rg?: string | null
+          rg2?: string | null
+          telefone?: string | null
+          telefone2?: string | null
+          uf?: string | null
+          uf2?: string | null
         }
         Update: {
-          atualizado_em?: string | null
-          cliente_id?: number | null
-          criado_em?: string | null
-          data_vencimento?: string
-          dias_atraso?: number | null
-          documento_titulo?: string | null
-          empreendimento_id?: number
-          empresa_id?: number
+          bairro?: string | null
+          bairro2?: string | null
+          cep?: string | null
+          cep2?: string | null
+          cidade?: string | null
+          cidade2?: string | null
+          cpf?: string | null
+          cpf2?: string | null
+          created_at?: string | null
+          data_expedicao?: string | null
+          data_expedicao2?: string | null
+          data_nascimento?: string | null
+          data_nascimento2?: string | null
+          email?: string | null
+          email2?: string | null
+          estado_civil?: string | null
+          estado_civil2?: string | null
           id?: number
-          inadimplencia_id?: number | null
-          numero_parcela?: string | null
-          saldo_atual?: number | null
-          saldo_com_acrescimos?: number | null
-          situacao?: string | null
-          titulo_id?: number | null
-          valor_original?: number
+          logradouro?: string | null
+          logradouro2?: string | null
+          nacionalidade?: string | null
+          nacionalidade2?: string | null
+          nome?: string
+          nome2?: string | null
+          orgao_expedidor?: string | null
+          orgao_expedidor2?: string | null
+          profissao?: string | null
+          profissao2?: string | null
+          regime_bens?: string | null
+          regime_bens2?: string | null
+          rg?: string | null
+          rg2?: string | null
+          telefone?: string | null
+          telefone2?: string | null
+          uf?: string | null
+          uf2?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "cobranca_parcelas_inadimplencia_inadimplencia_id_fkey"
-            columns: ["inadimplencia_id"]
-            isOneToOne: false
-            referencedRelation: "cobranca_inadimplencia"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       comercial_corretores: {
         Row: {
@@ -951,6 +1119,77 @@ export type Database = {
         }
         Relationships: []
       }
+      comercial_promocoes: {
+        Row: {
+          ativa: boolean
+          created_at: string | null
+          data_fim: string | null
+          data_inicio: string
+          descricao: string | null
+          empreendimento: string
+          id: number
+          prazo_maximo: number | null
+          tipo_promocao: string
+        }
+        Insert: {
+          ativa?: boolean
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          empreendimento?: string
+          id?: number
+          prazo_maximo?: number | null
+          tipo_promocao?: string
+        }
+        Update: {
+          ativa?: boolean
+          created_at?: string | null
+          data_fim?: string | null
+          data_inicio?: string
+          descricao?: string | null
+          empreendimento?: string
+          id?: number
+          prazo_maximo?: number | null
+          tipo_promocao?: string
+        }
+        Relationships: []
+      }
+      comercial_promocoes_precos: {
+        Row: {
+          created_at: string | null
+          empreendimento: string
+          id: number
+          num_lote: string
+          preco_promocional: number
+          promocao_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          empreendimento: string
+          id?: number
+          num_lote: string
+          preco_promocional: number
+          promocao_id: number
+        }
+        Update: {
+          created_at?: string | null
+          empreendimento?: string
+          id?: number
+          num_lote?: string
+          preco_promocional?: number
+          promocao_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "comercial_promocoes_precos_promocao_id_fkey"
+            columns: ["promocao_id"]
+            isOneToOne: false
+            referencedRelation: "comercial_promocoes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       comercial_tabela_precos: {
         Row: {
           created_at: string | null
@@ -999,6 +1238,27 @@ export type Database = {
           id?: string
           id_doc_aprazo?: string
           id_doc_avista?: string
+        }
+        Relationships: []
+      }
+      crm_consultores: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          id?: string
+          nome?: string
         }
         Relationships: []
       }
@@ -1071,6 +1331,7 @@ export type Database = {
           cidade_cliente: string | null
           cliente_email: string | null
           cliente_nome: string
+          consultor_id: string | null
           created_at: string
           data_nascimento: string | null
           empreendimento_id: string | null
@@ -1078,6 +1339,7 @@ export type Database = {
           estado_civil: string | null
           filhos: string | null
           fonte_id: string | null
+          fonte_original: string | null
           forma_pagamento: string | null
           id: string
           interesse: string | null
@@ -1092,8 +1354,9 @@ export type Database = {
           preco_lote: number | null
           qualificacao: Database["public"]["Enums"]["crm_qualificacao"]
           renda_familiar: string | null
-          responsavel_id: string
+          responsavel_id: string | null
           responsavel_venda_imobiliaria_id: string | null
+          responsavel_venda_original: string | null
           responsavel_venda_user_id: string | null
           satisfacao_atendimento: number | null
           satisfacao_produto: number | null
@@ -1108,6 +1371,7 @@ export type Database = {
           cidade_cliente?: string | null
           cliente_email?: string | null
           cliente_nome: string
+          consultor_id?: string | null
           created_at?: string
           data_nascimento?: string | null
           empreendimento_id?: string | null
@@ -1115,6 +1379,7 @@ export type Database = {
           estado_civil?: string | null
           filhos?: string | null
           fonte_id?: string | null
+          fonte_original?: string | null
           forma_pagamento?: string | null
           id?: string
           interesse?: string | null
@@ -1129,8 +1394,9 @@ export type Database = {
           preco_lote?: number | null
           qualificacao?: Database["public"]["Enums"]["crm_qualificacao"]
           renda_familiar?: string | null
-          responsavel_id: string
+          responsavel_id?: string | null
           responsavel_venda_imobiliaria_id?: string | null
+          responsavel_venda_original?: string | null
           responsavel_venda_user_id?: string | null
           satisfacao_atendimento?: number | null
           satisfacao_produto?: number | null
@@ -1145,6 +1411,7 @@ export type Database = {
           cidade_cliente?: string | null
           cliente_email?: string | null
           cliente_nome?: string
+          consultor_id?: string | null
           created_at?: string
           data_nascimento?: string | null
           empreendimento_id?: string | null
@@ -1152,6 +1419,7 @@ export type Database = {
           estado_civil?: string | null
           filhos?: string | null
           fonte_id?: string | null
+          fonte_original?: string | null
           forma_pagamento?: string | null
           id?: string
           interesse?: string | null
@@ -1166,8 +1434,9 @@ export type Database = {
           preco_lote?: number | null
           qualificacao?: Database["public"]["Enums"]["crm_qualificacao"]
           renda_familiar?: string | null
-          responsavel_id?: string
+          responsavel_id?: string | null
           responsavel_venda_imobiliaria_id?: string | null
+          responsavel_venda_original?: string | null
           responsavel_venda_user_id?: string | null
           satisfacao_atendimento?: number | null
           satisfacao_produto?: number | null
@@ -1179,6 +1448,13 @@ export type Database = {
           versao_tabela?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "crm_deals_consultor_id_fkey"
+            columns: ["consultor_id"]
+            isOneToOne: false
+            referencedRelation: "crm_consultores"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "crm_deals_empreendimento_id_fkey"
             columns: ["empreendimento_id"]
@@ -1353,6 +1629,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      dashboard_comunicados: {
+        Row: {
+          autor_id: string
+          autor_nome: string
+          conteudo: string
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          autor_id: string
+          autor_nome?: string
+          conteudo: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          autor_id?: string
+          autor_nome?: string
+          conteudo?: string
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       esquadro_comentarios: {
         Row: {
@@ -2719,6 +3022,558 @@ export type Database = {
         }
         Relationships: []
       }
+      talents_activity_areas: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      talents_activity_log: {
+        Row: {
+          action: string
+          created_at: string | null
+          details: string | null
+          entity_id: string | null
+          entity_type: string | null
+          id: string
+          meta: Json | null
+          user_email: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          created_at?: string | null
+          details?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          meta?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          created_at?: string | null
+          details?: string | null
+          entity_id?: string | null
+          entity_type?: string | null
+          id?: string
+          meta?: Json | null
+          user_email?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
+      talents_applications: {
+        Row: {
+          applied_at: string | null
+          candidate_email: string | null
+          candidate_id: string
+          candidate_name: string | null
+          closed_at: string | null
+          closed_reason: string | null
+          created_at: string | null
+          created_by: string | null
+          id: string
+          job_company: string | null
+          job_id: string
+          job_title: string | null
+          last_activity: string | null
+          notes: Json | null
+          rating: number | null
+          status: string
+        }
+        Insert: {
+          applied_at?: string | null
+          candidate_email?: string | null
+          candidate_id: string
+          candidate_name?: string | null
+          closed_at?: string | null
+          closed_reason?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          job_company?: string | null
+          job_id: string
+          job_title?: string | null
+          last_activity?: string | null
+          notes?: Json | null
+          rating?: number | null
+          status?: string
+        }
+        Update: {
+          applied_at?: string | null
+          candidate_email?: string | null
+          candidate_id?: string
+          candidate_name?: string | null
+          closed_at?: string | null
+          closed_reason?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          id?: string
+          job_company?: string | null
+          job_id?: string
+          job_title?: string | null
+          last_activity?: string | null
+          notes?: Json | null
+          rating?: number | null
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talents_applications_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "talents_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talents_applications_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "talents_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talents_candidates: {
+        Row: {
+          age: number | null
+          birth_date: string | null
+          can_relocate: string | null
+          certifications: string | null
+          children_count: string | null
+          city: string | null
+          closed_at: string | null
+          courses: string | null
+          created_at: string | null
+          created_by: string | null
+          cv_url: string | null
+          deleted_at: string | null
+          education: string | null
+          email: string
+          email_secondary: string | null
+          experience: string | null
+          free_field: string | null
+          full_name: string | null
+          graduation_date: string | null
+          has_license: string | null
+          id: string
+          institution: string | null
+          interest_areas: string | null
+          interview1_date: string | null
+          interview1_notes: string | null
+          interview2_date: string | null
+          interview2_notes: string | null
+          is_studying: string | null
+          manager_feedback: string | null
+          marital_status: string | null
+          origin: string | null
+          original_timestamp: string | null
+          phone: string
+          photo_url: string | null
+          portfolio_url: string | null
+          professional_references: string | null
+          referral: string | null
+          rejection_reason: string | null
+          return_date: string | null
+          return_notes: string | null
+          return_sent: string | null
+          salary_expectation: string | null
+          schooling_level: string | null
+          source: string | null
+          starred: boolean | null
+          status: string | null
+          tags: string[] | null
+          test_results: string | null
+          type_of_app: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          age?: number | null
+          birth_date?: string | null
+          can_relocate?: string | null
+          certifications?: string | null
+          children_count?: string | null
+          city?: string | null
+          closed_at?: string | null
+          courses?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          cv_url?: string | null
+          deleted_at?: string | null
+          education?: string | null
+          email: string
+          email_secondary?: string | null
+          experience?: string | null
+          free_field?: string | null
+          full_name?: string | null
+          graduation_date?: string | null
+          has_license?: string | null
+          id?: string
+          institution?: string | null
+          interest_areas?: string | null
+          interview1_date?: string | null
+          interview1_notes?: string | null
+          interview2_date?: string | null
+          interview2_notes?: string | null
+          is_studying?: string | null
+          manager_feedback?: string | null
+          marital_status?: string | null
+          origin?: string | null
+          original_timestamp?: string | null
+          phone: string
+          photo_url?: string | null
+          portfolio_url?: string | null
+          professional_references?: string | null
+          referral?: string | null
+          rejection_reason?: string | null
+          return_date?: string | null
+          return_notes?: string | null
+          return_sent?: string | null
+          salary_expectation?: string | null
+          schooling_level?: string | null
+          source?: string | null
+          starred?: boolean | null
+          status?: string | null
+          tags?: string[] | null
+          test_results?: string | null
+          type_of_app?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          age?: number | null
+          birth_date?: string | null
+          can_relocate?: string | null
+          certifications?: string | null
+          children_count?: string | null
+          city?: string | null
+          closed_at?: string | null
+          courses?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          cv_url?: string | null
+          deleted_at?: string | null
+          education?: string | null
+          email?: string
+          email_secondary?: string | null
+          experience?: string | null
+          free_field?: string | null
+          full_name?: string | null
+          graduation_date?: string | null
+          has_license?: string | null
+          id?: string
+          institution?: string | null
+          interest_areas?: string | null
+          interview1_date?: string | null
+          interview1_notes?: string | null
+          interview2_date?: string | null
+          interview2_notes?: string | null
+          is_studying?: string | null
+          manager_feedback?: string | null
+          marital_status?: string | null
+          origin?: string | null
+          original_timestamp?: string | null
+          phone?: string
+          photo_url?: string | null
+          portfolio_url?: string | null
+          professional_references?: string | null
+          referral?: string | null
+          rejection_reason?: string | null
+          return_date?: string | null
+          return_notes?: string | null
+          return_sent?: string | null
+          salary_expectation?: string | null
+          schooling_level?: string | null
+          source?: string | null
+          starred?: boolean | null
+          status?: string | null
+          tags?: string[] | null
+          test_results?: string | null
+          type_of_app?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      talents_cities: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      talents_companies: {
+        Row: {
+          city: string | null
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      talents_job_levels: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      talents_jobs: {
+        Row: {
+          approved_by: string | null
+          benefits: string | null
+          city: string | null
+          code: string | null
+          company: string
+          contract_type: string | null
+          created_at: string | null
+          deadline: string | null
+          deleted_at: string | null
+          description: string | null
+          function: string | null
+          hiring_manager: string | null
+          id: string
+          interest_area: string | null
+          position: string | null
+          posting_channels: Json | null
+          priority: string | null
+          recruiter: string | null
+          requested_by_user_id: string | null
+          requirements: string | null
+          salary_range: string | null
+          sector: string | null
+          status: string
+          title: string
+          updated_at: string | null
+          vacancies: number | null
+          work_model: string | null
+          workload: string | null
+        }
+        Insert: {
+          approved_by?: string | null
+          benefits?: string | null
+          city?: string | null
+          code?: string | null
+          company: string
+          contract_type?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          function?: string | null
+          hiring_manager?: string | null
+          id?: string
+          interest_area?: string | null
+          position?: string | null
+          posting_channels?: Json | null
+          priority?: string | null
+          recruiter?: string | null
+          requested_by_user_id?: string | null
+          requirements?: string | null
+          salary_range?: string | null
+          sector?: string | null
+          status?: string
+          title: string
+          updated_at?: string | null
+          vacancies?: number | null
+          work_model?: string | null
+          workload?: string | null
+        }
+        Update: {
+          approved_by?: string | null
+          benefits?: string | null
+          city?: string | null
+          code?: string | null
+          company?: string
+          contract_type?: string | null
+          created_at?: string | null
+          deadline?: string | null
+          deleted_at?: string | null
+          description?: string | null
+          function?: string | null
+          hiring_manager?: string | null
+          id?: string
+          interest_area?: string | null
+          position?: string | null
+          posting_channels?: Json | null
+          priority?: string | null
+          recruiter?: string | null
+          requested_by_user_id?: string | null
+          requirements?: string | null
+          salary_range?: string | null
+          sector?: string | null
+          status?: string
+          title?: string
+          updated_at?: string | null
+          vacancies?: number | null
+          work_model?: string | null
+          workload?: string | null
+        }
+        Relationships: []
+      }
+      talents_positions: {
+        Row: {
+          activity_area_id: string | null
+          created_at: string | null
+          id: string
+          level: string | null
+          level_id: string | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          activity_area_id?: string | null
+          created_at?: string | null
+          id?: string
+          level?: string | null
+          level_id?: string | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          activity_area_id?: string | null
+          created_at?: string | null
+          id?: string
+          level?: string | null
+          level_id?: string | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talents_positions_activity_area_id_fkey"
+            columns: ["activity_area_id"]
+            isOneToOne: false
+            referencedRelation: "talents_activity_areas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talents_positions_level_id_fkey"
+            columns: ["level_id"]
+            isOneToOne: false
+            referencedRelation: "talents_job_levels"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      talents_sectors: {
+        Row: {
+          created_at: string | null
+          id: string
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      talents_user_roles: {
+        Row: {
+          created_at: string | null
+          email: string
+          id: string
+          last_login: string | null
+          name: string | null
+          photo: string | null
+          role: string
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          id?: string
+          last_login?: string | null
+          name?: string | null
+          photo?: string | null
+          role: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          id?: string
+          last_login?: string | null
+          name?: string | null
+          photo?: string | null
+          role?: string
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       user_profiles: {
         Row: {
           ativo: boolean
@@ -2816,6 +3671,16 @@ export type Database = {
         Args: { _role: string; _user_id: string }
         Returns: boolean
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
+      talents_has_privileged_role: {
+        Args: { p_min_role: string }
+        Returns: boolean
+      }
+      talents_has_staff_access: { Args: never; Returns: boolean }
+      talents_is_admin: { Args: never; Returns: boolean }
+      talents_is_developer: { Args: never; Returns: boolean }
+      talents_is_editor_or_admin: { Args: never; Returns: boolean }
     }
     Enums: {
       app_role: "admin" | "user"
