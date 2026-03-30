@@ -33,7 +33,13 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-background p-4">
       <Card className="w-full max-w-sm shadow-xl border-0 bg-card">
         <CardHeader className="text-center pb-2">
-          <CardTitle className="font-display text-2xl tracking-tight">CRM</CardTitle>
+          <div className="flex justify-center mb-3">
+            <img
+              src="/Logo 2 - Young Empreendimentos - Cinza e Laranja.png"
+              alt="Young Empreendimentos"
+              className="h-16 w-auto object-contain"
+            />
+          </div>
           <p className="text-sm text-muted-foreground">Entre com suas credenciais</p>
         </CardHeader>
         <CardContent>

@@ -17,11 +17,12 @@ export function AppSidebar() {
 
   return (
     <aside className="hidden md:flex flex-col w-64 min-h-screen bg-sidebar text-sidebar-foreground border-r border-sidebar-border">
-      <div className="p-6">
-        <h1 className="font-display text-xl font-bold text-sidebar-primary-foreground tracking-tight">
-          CRM
-        </h1>
-        <p className="text-xs text-sidebar-foreground/60 mt-1">Gestão de Vendas</p>
+      <div className="p-4">
+        <img
+          src="/Logo Caixa - Laranja e Cinza.png"
+          alt="Young Empreendimentos"
+          className="h-12 w-auto object-contain"
+        />
       </div>
 
       <nav className="flex-1 px-3 space-y-1">
