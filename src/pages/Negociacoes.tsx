@@ -99,10 +99,15 @@ export default function Negociacoes() {
   const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0;
 
   const fetchDeals = async () => {
+    // PostgREST/Supabase JS limita a 1000 rows por default. Como todos os deals
+    // têm ordem_kanban=0 até serem arrastados, ordenar por ordem_kanban retornava
+    // os 1000 mais antigos e escondia leads novos do funil. Ordenar por
+    // created_at DESC garante que os 1000 mais recentes vêm primeiro — cobre
+    // meses de operação de qualquer vendedor.
     const { data } = await supabase
       .from("crm_deals")
       .select("*")
-      .order("ordem_kanban", { ascending: true });
+      .order("created_at", { ascending: false });
     setDeals((data as Deal[]) ?? []);
     setLoading(false);
   };

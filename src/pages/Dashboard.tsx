@@ -29,7 +29,13 @@ export default function Dashboard() {
 
   useEffect(() => {
     const load = async () => {
-      const { data } = await supabase.from("crm_deals").select("*");
+      // Sem ordem explícita, o Supabase JS devolve no máximo 1000 rows na ordem
+      // natural (mais antigos primeiro), zerando métricas dos leads mais recentes.
+      // Ordenar por created_at DESC traz a janela ativa do funil.
+      const { data } = await supabase
+        .from("crm_deals")
+        .select("*")
+        .order("created_at", { ascending: false });
       setDeals((data as Deal[]) ?? []);
       if (isAdmin) {
         const { data: u } = await supabase.rpc("get_all_users_with_roles");
