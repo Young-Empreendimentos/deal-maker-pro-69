@@ -127,6 +127,8 @@ function EditableList({ title, items, onAdd, onToggle, onRename }: {
   );
 }
 
+type ConsultorLivre = { id: string; nome: string };
+
 function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
   const { toast } = useToast();
   const [email, setEmail] = useState("");
@@ -134,6 +136,32 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
   const [saving, setSaving] = useState(false);
+  const [consultorId, setConsultorId] = useState<string>("");
+  const [consultoresLivres, setConsultoresLivres] = useState<ConsultorLivre[]>([]);
+
+  const resetForm = () => {
+    setEmail(""); setNome(""); setPassword(""); setRole("user"); setConsultorId("");
+  };
+
+  // Fetch consultores ativos sem user_id quando o dialog abre com role=vendedor.
+  // Coluna user_id pode não existir ainda (depende da migration de #1) — nesse caso
+  // a query devolve erro silencioso e o Select fica vazio.
+  useEffect(() => {
+    if (!open || role !== "user") { setConsultoresLivres([]); return; }
+    let cancelled = false;
+    (async () => {
+      const { data, error } = await supabase
+        .from("crm_consultores")
+        .select("id, nome, user_id" as unknown as "id, nome")
+        .is("user_id" as unknown as "ativo", null)
+        .eq("ativo", true)
+        .order("nome");
+      if (cancelled) return;
+      if (error) { setConsultoresLivres([]); return; }
+      setConsultoresLivres(((data ?? []) as unknown as ConsultorLivre[]).map((c) => ({ id: c.id, nome: c.nome })));
+    })();
+    return () => { cancelled = true; };
+  }, [open, role]);
 
   const handleCreate = async () => {
     if (!email.trim() || !password.trim()) return;
@@ -146,8 +174,21 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
         toast({ title: "Erro ao criar usuário", description: error?.message || data?.error, variant: "destructive" });
         return;
       }
-      toast({ title: "Usuário criado com sucesso!" });
-      setEmail(""); setNome(""); setPassword(""); setRole("user");
+      const newUserId = (data as { user_id?: string } | null)?.user_id;
+      if (role === "user" && consultorId && newUserId) {
+        const { error: linkError } = await supabase
+          .from("crm_consultores")
+          .update({ user_id: newUserId } as unknown as { ativo: boolean })
+          .eq("id", consultorId);
+        if (linkError) {
+          toast({ title: "Usuário criado, mas não vinculado", description: linkError.message, variant: "destructive" });
+        } else {
+          toast({ title: "Usuário criado e vinculado ao consultor!" });
+        }
+      } else {
+        toast({ title: "Usuário criado com sucesso!" });
+      }
+      resetForm();
       onOpenChange(false);
       onCreated();
     } finally { setSaving(false); }
@@ -180,6 +221,21 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
               </SelectContent>
             </Select>
           </div>
+          {role === "user" && consultoresLivres.length > 0 && (
+            <div className="space-y-2">
+              <Label>Vincular a consultor existente (opcional)</Label>
+              <Select value={consultorId} onValueChange={(v) => setConsultorId(v === "__none__" ? "" : v)}>
+                <SelectTrigger><SelectValue placeholder="Não vincular" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Não vincular</SelectItem>
+                  {consultoresLivres.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>{c.nome}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">Vincular ao consultor faz com que os leads atribuídos a ele apareçam na conta do novo usuário.</p>
+            </div>
+          )}
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
