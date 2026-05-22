@@ -2502,33 +2502,6 @@ export type Database = {
         }
         Relationships: []
       }
-      crm_deal_atividades: {
-        Row: {
-          id: string
-          deal_id: string
-          user_id: string
-          tipo: string
-          descricao: string
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          deal_id: string
-          user_id: string
-          tipo: string
-          descricao: string
-          created_at?: string
-        }
-        Update: {
-          id?: string
-          deal_id?: string
-          user_id?: string
-          tipo?: string
-          descricao?: string
-          created_at?: string
-        }
-        Relationships: []
-      }
       crm_deal_images: {
         Row: {
           deal_id: string

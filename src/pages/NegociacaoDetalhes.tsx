@@ -18,7 +18,6 @@ import { KANBAN_COLUMNS, QUAL_COLORS } from "./Negociacoes";
 import { DealProposalForm, isProposalComplete } from "@/components/crm/DealProposalForm";
 import { DealBasicEditor } from "@/components/crm/DealBasicEditor";
 import { DealGallery } from "@/components/crm/DealGallery";
-import { DealAtividades, type Atividade } from "@/components/crm/DealAtividades";
 
 type DealDetail = {
   id: string;
@@ -81,7 +80,6 @@ export default function NegociacaoDetalhes() {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [taskImages, setTaskImages] = useState<TaskImage[]>([]);
   const [dealImages, setDealImages] = useState<DealImage[]>([]);
-  const [atividades, setAtividades] = useState<Atividade[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [showTaskForm, setShowTaskForm] = useState(false);
@@ -95,12 +93,11 @@ export default function NegociacaoDetalhes() {
   const fetchAll = async () => {
     if (!id) return;
 
-    const [dealRes, phonesRes, tasksRes, dealImgsRes, ativRes] = await Promise.all([
+    const [dealRes, phonesRes, tasksRes, dealImgsRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
       supabase.from("crm_tasks").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
-      supabase.from("crm_deal_atividades").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
 
     const dealData = dealRes.data as DealDetail | null;
@@ -109,7 +106,6 @@ export default function NegociacaoDetalhes() {
     const tasksData = (tasksRes.data as Task[]) ?? [];
     setTasks(tasksData);
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
-    setAtividades((ativRes.data as Atividade[]) ?? []);
 
     if (tasksData.length > 0) {
       const taskIds = tasksData.map((t) => t.id);
@@ -322,9 +318,6 @@ export default function NegociacaoDetalhes() {
 
         {/* Image Gallery */}
         <DealGallery dealId={deal.id} taskImages={taskImages} dealImages={dealImages} onRefresh={fetchAll} />
-
-        {/* Activity log */}
-        <DealAtividades atividades={atividades} />
       </div>
 
       {/* New Task Dialog */}

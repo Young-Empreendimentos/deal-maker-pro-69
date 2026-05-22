@@ -91,11 +91,12 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       const oldNome = userProfiles.find((u) => u.user_id === deal.responsavel_id)?.nome || "Desconhecido";
       const newNome = userProfiles.find((u) => u.user_id === responsavelId)?.nome || "Desconhecido";
       const quemFez = currentUserNome || currentUser.email || "Usuário";
-      await supabase.from("crm_deal_atividades").insert({
+      await supabase.from("crm_tasks").insert({
         deal_id: deal.id,
-        user_id: currentUser.id,
-        tipo: "transferencia",
-        descricao: `${quemFez} transferiu o negócio de ${oldNome} para ${newNome}`,
+        responsavel_id: currentUser.id,
+        titulo: `Negócio transferido de ${oldNome} para ${newNome}`,
+        descricao: `Transferido por ${quemFez}`,
+        concluida: true,
       } as any);
     }
 
