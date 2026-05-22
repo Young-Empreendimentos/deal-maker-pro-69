@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,9 +17,11 @@ type DealBasic = {
   qualificacao: string;
   empreendimento_id: string | null;
   fonte_id: string | null;
+  responsavel_id: string | null;
 };
 
 type DealPhone = { id: string; telefone: string };
+type UserProfile = { user_id: string; nome: string };
 
 interface Props {
   deal: DealBasic;
@@ -31,6 +34,7 @@ interface Props {
 
 export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar, autoValorEntrada, onSave }: Props) {
   const { toast } = useToast();
+  const { user: currentUser, nome: currentUserNome } = useAuth();
   const [saving, setSaving] = useState(false);
 
   const [nome, setNome] = useState(deal.cliente_nome);
@@ -38,16 +42,19 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   const [qualificacao, setQualificacao] = useState(deal.qualificacao);
   const [empId, setEmpId] = useState(deal.empreendimento_id ?? "");
   const [fonteId, setFonteId] = useState(deal.fonte_id ?? "");
+  const [responsavelId, setResponsavelId] = useState(deal.responsavel_id ?? "");
 
   const [localPhones, setLocalPhones] = useState<DealPhone[]>(phones);
   const [newPhone, setNewPhone] = useState("");
 
   const [fontes, setFontes] = useState<{ id: string; nome: string }[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<{ id: string; nome: string; cidade: string }[]>([]);
+  const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
 
   useEffect(() => {
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setFontes(data ?? []));
     supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome").then(({ data }) => setEmpreendimentos(data ?? []));
+    supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => setUserProfiles((data as UserProfile[]) ?? []));
   }, []);
 
   useEffect(() => {
@@ -56,25 +63,44 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     setQualificacao(deal.qualificacao);
     setEmpId(deal.empreendimento_id ?? "");
     setFonteId(deal.fonte_id ?? "");
+    setResponsavelId(deal.responsavel_id ?? "");
     setLocalPhones(phones);
   }, [deal, phones]);
 
   const handleSave = async () => {
     setSaving(true);
+
+    const responsavelChanged = responsavelId !== (deal.responsavel_id ?? "");
+
     const { error } = await supabase.from("crm_deals").update({
       cliente_nome: nome.trim(),
       cliente_email: email.trim() || null,
       qualificacao: qualificacao as any,
       empreendimento_id: empId || null,
       fonte_id: fonteId || null,
+      responsavel_id: responsavelId || null,
     } as any).eq("id", deal.id);
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-    } else {
-      toast({ title: "Dados atualizados!" });
-      onSave();
+      setSaving(false);
+      return;
     }
+
+    if (responsavelChanged && currentUser) {
+      const oldNome = userProfiles.find((u) => u.user_id === deal.responsavel_id)?.nome || "Desconhecido";
+      const newNome = userProfiles.find((u) => u.user_id === responsavelId)?.nome || "Desconhecido";
+      const quemFez = currentUserNome || currentUser.email || "Usuário";
+      await supabase.from("crm_deal_atividades").insert({
+        deal_id: deal.id,
+        user_id: currentUser.id,
+        tipo: "transferencia",
+        descricao: `${quemFez} transferiu o negócio de ${oldNome} para ${newNome}`,
+      } as any);
+    }
+
+    toast({ title: "Dados atualizados!" });
+    onSave();
     setSaving(false);
   };
 
@@ -143,6 +169,18 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
               <SelectContent>
                 <SelectItem value="__none__">Nenhuma</SelectItem>
                 {fontes.map((f) => <SelectItem key={f.id} value={f.id}>{f.nome}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Dono do negócio</Label>
+            <Select value={responsavelId || "__none__"} onValueChange={(v) => setResponsavelId(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Nenhum</SelectItem>
+                {userProfiles.map((u) => (
+                  <SelectItem key={u.user_id} value={u.user_id}>{u.nome || u.user_id}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
           </div>

@@ -116,10 +116,10 @@ export default function Negociacoes() {
     fetchDeals();
     supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
-    if (isAdmin) {
-      supabase.rpc("get_all_users_with_roles").then(({ data }) => setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome }))));
-    }
-  }, [isAdmin]);
+    supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
+      setUsers(((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome })));
+    });
+  }, []);
 
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));
@@ -228,7 +228,7 @@ export default function Negociacoes() {
             <CardContent className="p-4 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={setFStatusGroup} />
-                {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={setFConsultor} />}
+                <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={setFConsultor} />
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
                 <MultiSelectFilter label="Interesse" options={INTERESSE_OPTIONS} selected={fInteresse} onChange={setFInteresse} />
