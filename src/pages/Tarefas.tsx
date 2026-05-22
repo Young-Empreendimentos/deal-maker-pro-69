@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ type TaskImage = {
 };
 
 export default function Tarefas() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -152,6 +152,12 @@ export default function Tarefas() {
     e.target.value = "";
   };
 
+  const deleteTask = async (taskId: string) => {
+    await supabase.from("crm_tasks").delete().eq("id", taskId);
+    toast({ title: "Tarefa excluída" });
+    fetchTasks();
+  };
+
   const deleteImage = async (imageId: string) => {
     await supabase.from("crm_task_images").delete().eq("id", imageId);
     setTaskImages((prev) => prev.filter((i) => i.id !== imageId));
@@ -223,6 +229,11 @@ export default function Tarefas() {
                   <button onClick={() => openTaskImages(task)} className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                     <ImageIcon className="h-4 w-4" />
                   </button>
+                  {isAdmin && (
+                    <button onClick={() => deleteTask(task.id)} className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  )}
                 </CardContent>
               </Card>
             ))}
