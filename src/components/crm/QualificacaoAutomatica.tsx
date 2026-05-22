@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Bot } from "lucide-react";
 
 const INTERESSES_AUTO = ["moradia", "investimento", "presente ou doação", "negócio"] as const;
@@ -18,23 +19,10 @@ type Props = {
   valorEntrada: number | null;
 };
 
-function FieldDisplay({ label, value }: { label: string; value: string | null }) {
-  return (
-    <div className="space-y-1">
-      <p className="text-xs text-muted-foreground">{label}</p>
-      {value ? (
-        <Badge variant="secondary" className="text-xs font-normal capitalize">{value}</Badge>
-      ) : (
-        <p className="text-xs text-muted-foreground italic">Aguardando automação...</p>
-      )}
-    </div>
-  );
-}
-
 export function QualificacaoAutomatica({ interesse, rendaFamiliar, valorEntrada }: Props) {
   const entradaFormatada = valorEntrada != null
     ? valorEntrada.toLocaleString("pt-BR", { style: "currency", currency: "BRL" })
-    : null;
+    : "";
 
   return (
     <Card>
@@ -44,10 +32,19 @@ export function QualificacaoAutomatica({ interesse, rendaFamiliar, valorEntrada 
           Qualificação automática
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <FieldDisplay label="Interesse" value={interesse} />
-        <FieldDisplay label="Renda familiar" value={rendaFamiliar} />
-        <FieldDisplay label="Quanto pode pagar de entrada (R$)" value={entradaFormatada} />
+      <CardContent className="space-y-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Interesse</Label>
+          <Input value={interesse ?? ""} disabled className="text-sm" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Renda familiar</Label>
+          <Input value={rendaFamiliar ?? ""} disabled className="text-sm" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Quanto pode pagar de entrada (R$)</Label>
+          <Input value={entradaFormatada} disabled className="text-sm" />
+        </div>
       </CardContent>
     </Card>
   );
