@@ -183,9 +183,11 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
         </Card>
 
         <QualificacaoAutomatica
+          dealId={deal.id}
           interesse={autoInteresse}
           rendaFamiliar={autoRendaFamiliar}
           valorEntrada={autoValorEntrada}
+          onSave={onSave}
         />
       </div>
     </div>
