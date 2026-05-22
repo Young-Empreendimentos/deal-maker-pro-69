@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2 } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -72,7 +73,7 @@ const ALL_STATUSES = [
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { toast } = useToast();
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
@@ -86,6 +87,7 @@ export default function NegociacaoDetalhes() {
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "" });
   const [taskLoading, setTaskLoading] = useState(false);
 
+  const [showDeleteDealDialog, setShowDeleteDealDialog] = useState(false);
   const [showLossDialog, setShowLossDialog] = useState(false);
   const [motivosPerda, setMotivosPerda] = useState<MotivoPerda[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
@@ -198,6 +200,18 @@ export default function NegociacaoDetalhes() {
     e.target.value = "";
   };
 
+  const deleteDeal = async () => {
+    if (!id) return;
+    await supabase.from("crm_deals").delete().eq("id", id);
+    toast({ title: "Negociação excluída" });
+    navigate("/negociacoes");
+  };
+
+  const deleteTask = async (taskId: string) => {
+    await supabase.from("crm_tasks").delete().eq("id", taskId);
+    fetchAll();
+  };
+
   if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
   if (!deal) return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
 
@@ -221,6 +235,11 @@ export default function NegociacaoDetalhes() {
             <Badge variant={deal.status === "vendido" ? "default" : "destructive"} className="text-xs">
               {deal.status === "vendido" ? "✅ Vendido" : "❌ Perdido"}
             </Badge>
+          )}
+          {isAdmin && (
+            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setShowDeleteDealDialog(true)}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
           )}
         </div>
 
@@ -310,6 +329,11 @@ export default function NegociacaoDetalhes() {
                   <Upload className="h-4 w-4" />
                   <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleTaskImageUpload(task.id, e)} />
                 </label>
+                {isAdmin && (
+                  <button onClick={() => deleteTask(task.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 transition-colors">
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                )}
               </div>
             ))}
             {tasks.length === 0 && <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">Nenhuma tarefa criada</div>}
@@ -335,6 +359,24 @@ export default function NegociacaoDetalhes() {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Deal Dialog */}
+      <AlertDialog open={showDeleteDealDialog} onOpenChange={setShowDeleteDealDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir negociação</AlertDialogTitle>
+            <AlertDialogDescription>
+              Tem certeza que deseja excluir <strong>{deal?.cliente_nome}</strong>? Esta ação não pode ser desfeita e irá remover todos os dados vinculados (telefones, tarefas e imagens).
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteDeal} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Excluir
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Loss Reason Dialog */}
       <Dialog open={showLossDialog} onOpenChange={setShowLossDialog}>
