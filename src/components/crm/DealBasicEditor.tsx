@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { Save, Plus, Trash2 } from "lucide-react";
+import { QualificacaoAutomatica } from "./QualificacaoAutomatica";
 
 type DealBasic = {
   id: string;
@@ -22,10 +23,13 @@ type DealPhone = { id: string; telefone: string };
 interface Props {
   deal: DealBasic;
   phones: DealPhone[];
+  autoInteresse: string | null;
+  autoRendaFamiliar: string | null;
+  autoValorEntrada: number | null;
   onSave: () => void;
 }
 
-export function DealBasicEditor({ deal, phones, onSave }: Props) {
+export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar, autoValorEntrada, onSave }: Props) {
   const { toast } = useToast();
   const [saving, setSaving] = useState(false);
 
@@ -145,37 +149,45 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
         </CardContent>
       </Card>
 
-      {/* Phones Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold">Telefones</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {localPhones.map((p) => (
-            <div key={p.id} className="flex items-center gap-2">
-              <Input value={p.telefone} readOnly className="flex-1 text-sm" />
-              <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePhone(p.id)}>
-                <Trash2 className="h-4 w-4" />
+      {/* Right column: Phones + Qualificação automática */}
+      <div className="flex flex-col gap-4">
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold">Telefones</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {localPhones.map((p) => (
+              <div key={p.id} className="flex items-center gap-2">
+                <Input value={p.telefone} readOnly className="flex-1 text-sm" />
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePhone(p.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
+            ))}
+            <div className="flex gap-2">
+              <Input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="(00) 00000-0000"
+                className="flex-1"
+                onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhone())}
+              />
+              <Button size="sm" onClick={addPhone} disabled={!newPhone.trim()}>
+                <Plus className="h-4 w-4" />
               </Button>
             </div>
-          ))}
-          <div className="flex gap-2">
-            <Input
-              value={newPhone}
-              onChange={(e) => setNewPhone(e.target.value)}
-              placeholder="(00) 00000-0000"
-              className="flex-1"
-              onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addPhone())}
-            />
-            <Button size="sm" onClick={addPhone} disabled={!newPhone.trim()}>
-              <Plus className="h-4 w-4" />
-            </Button>
-          </div>
-          {localPhones.length === 0 && !newPhone && (
-            <p className="text-xs text-muted-foreground text-center py-2">Nenhum telefone cadastrado</p>
-          )}
-        </CardContent>
-      </Card>
+            {localPhones.length === 0 && !newPhone && (
+              <p className="text-xs text-muted-foreground text-center py-2">Nenhum telefone cadastrado</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <QualificacaoAutomatica
+          interesse={autoInteresse}
+          rendaFamiliar={autoRendaFamiliar}
+          valorEntrada={autoValorEntrada}
+        />
+      </div>
     </div>
   );
 }
