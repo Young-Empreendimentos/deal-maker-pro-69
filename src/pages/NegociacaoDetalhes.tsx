@@ -18,6 +18,7 @@ import { KANBAN_COLUMNS, QUAL_COLORS } from "./Negociacoes";
 import { DealProposalForm, isProposalComplete } from "@/components/crm/DealProposalForm";
 import { DealBasicEditor } from "@/components/crm/DealBasicEditor";
 import { DealGallery } from "@/components/crm/DealGallery";
+import { QualificacaoAutomatica } from "@/components/crm/QualificacaoAutomatica";
 
 type DealDetail = {
   id: string;
@@ -52,6 +53,9 @@ type DealDetail = {
   renda_familiar: string | null;
   filhos: string | null;
   interesses_pessoais: string[] | null;
+  auto_interesse: string | null;
+  auto_renda_familiar: string | null;
+  auto_valor_entrada: number | null;
 };
 
 type DealPhone = { id: string; telefone: string };
@@ -243,6 +247,13 @@ export default function NegociacaoDetalhes() {
 
         {/* Editable basic fields */}
         <DealBasicEditor deal={deal} phones={phones} onSave={fetchAll} />
+
+        {/* Auto qualification card */}
+        <QualificacaoAutomatica
+          interesse={deal.auto_interesse}
+          rendaFamiliar={deal.auto_renda_familiar}
+          valorEntrada={deal.auto_valor_entrada}
+        />
 
         {/* Proposal Form - always visible */}
         <DealProposalForm

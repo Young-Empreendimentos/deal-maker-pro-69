@@ -91,7 +91,7 @@ export function DealBasicEditor({ deal, phones, onSave }: Props) {
   };
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       {/* Info Card */}
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">

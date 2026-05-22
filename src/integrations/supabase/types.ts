@@ -2568,6 +2568,9 @@ export type Database = {
       }
       crm_deals: {
         Row: {
+          auto_interesse: string | null
+          auto_renda_familiar: string | null
+          auto_valor_entrada: number | null
           cidade_cliente: string | null
           cliente_email: string | null
           cliente_nome: string
@@ -2613,6 +2616,9 @@ export type Database = {
           versao_tabela: string | null
         }
         Insert: {
+          auto_interesse?: string | null
+          auto_renda_familiar?: string | null
+          auto_valor_entrada?: number | null
           cidade_cliente?: string | null
           cliente_email?: string | null
           cliente_nome: string
@@ -2658,6 +2664,9 @@ export type Database = {
           versao_tabela?: string | null
         }
         Update: {
+          auto_interesse?: string | null
+          auto_renda_familiar?: string | null
+          auto_valor_entrada?: number | null
           cidade_cliente?: string | null
           cliente_email?: string | null
           cliente_nome?: string
