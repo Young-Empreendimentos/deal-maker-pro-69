@@ -11,6 +11,7 @@ import Empreendimentos from "./pages/Empreendimentos";
 import Configuracoes from "./pages/Configuracoes";
 import Tarefas from "./pages/Tarefas";
 import NegociacaoDetalhes from "./pages/NegociacaoDetalhes";
+import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -38,6 +39,7 @@ function AppRoutes() {
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
       
       <Route path="/configuracoes" element={<ProtectedRoute adminOnly><Configuracoes /></ProtectedRoute>} />
+      <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
   );
