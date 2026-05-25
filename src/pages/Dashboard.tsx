@@ -173,6 +173,9 @@ export default function Dashboard() {
     [filteredDeals],
   );
 
+  const vendasCount  = useMemo(() => filteredDeals.filter((d) => d.status === "vendido").length,  [filteredDeals]);
+  const perdasCount  = useMemo(() => filteredDeals.filter((d) => d.status === "perdido").length,  [filteredDeals]);
+
   const funnelData = useMemo(
     () => KANBAN_COLUMNS.map((col, i) => ({
       name: col.label,
@@ -346,7 +349,7 @@ export default function Dashboard() {
         </div>
 
         {/* KPI Cards ------------------------------------------------------- */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
           {statusData.map((s) => (
             <Card key={s.name} className="border bg-card">
               <CardContent className="p-4 text-center">
@@ -355,6 +358,26 @@ export default function Dashboard() {
               </CardContent>
             </Card>
           ))}
+
+          {/* Vendas */}
+          <Card className="border bg-card">
+            <CardContent className="p-4 text-center">
+              <p className={cn("text-2xl font-bold", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "")}>
+                {vendasCount}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-tight">Vendas</p>
+            </CardContent>
+          </Card>
+
+          {/* Perdas */}
+          <Card className="border bg-card">
+            <CardContent className="p-4 text-center">
+              <p className={cn("text-2xl font-bold", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "")}>
+                {perdasCount}
+              </p>
+              <p className="text-xs text-muted-foreground mt-1 leading-tight">Perdidas</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Atividades Realizadas ------------------------------------------- */}
