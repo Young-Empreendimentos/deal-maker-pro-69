@@ -3,7 +3,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
 import { KANBAN_COLUMNS, type Deal } from "@/pages/Negociacoes";
 import { TASK_TIPOS, TIPO_CONFIG } from "@/pages/Tarefas";
 import {
@@ -15,55 +18,89 @@ import {
   startOfWeek, endOfWeek,
   startOfMonth, endOfMonth,
   startOfYear, endOfYear,
+  subWeeks, subMonths,
+  format,
 } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { CalendarIcon, Check, SlidersHorizontal } from "lucide-react";
+import { cn } from "@/lib/utils";
 
+// ── Types ────────────────────────────────────────────────────────────────────
 type UserOption = { id: string; nome: string };
-type Task = { id: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
+type Emp = { id: string; nome: string; cidade: string };
+type Task = { id: string; deal_id: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
+type DatePreset = "hoje" | "semana_passada" | "mes" | "mes_passado" | "4_meses" | "ano" | "custom";
 
+// ── Constants ─────────────────────────────────────────────────────────────────
 const FUNNEL_COLORS = [
-  "hsl(var(--primary))",
-  "hsl(var(--chart-2))",
-  "hsl(var(--chart-3))",
-  "hsl(var(--chart-4))",
-  "hsl(var(--chart-5))",
-  "hsl(var(--accent))",
+  "hsl(var(--primary))", "hsl(var(--chart-2))", "hsl(var(--chart-3))",
+  "hsl(var(--chart-4))", "hsl(var(--chart-5))", "hsl(var(--accent))",
 ];
 
-const PERIODS = [
-  { value: "hoje",   label: "Hoje" },
-  { value: "semana", label: "Esta semana" },
-  { value: "mes",    label: "Este mês" },
-  { value: "ano",    label: "Este ano" },
-  { value: "todos",  label: "Todos" },
+const DATE_PRESETS: { value: DatePreset; label: string }[] = [
+  { value: "hoje",          label: "Hoje" },
+  { value: "semana_passada",label: "Semana passada" },
+  { value: "mes",           label: "Este mês" },
+  { value: "mes_passado",   label: "Mês passado" },
+  { value: "4_meses",       label: "Últimos 4 meses" },
+  { value: "ano",           label: "Este ano" },
+  { value: "custom",        label: "Intervalo personalizado" },
 ];
 
-function getPeriodRange(period: string): [Date | null, Date | null] {
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function getPresetRange(preset: DatePreset): [Date, Date] {
   const now = new Date();
-  if (period === "hoje")   return [startOfDay(now),  endOfDay(now)];
-  if (period === "semana") return [startOfWeek(now, { weekStartsOn: 0 }), endOfWeek(now, { weekStartsOn: 0 })];
-  if (period === "mes")    return [startOfMonth(now), endOfMonth(now)];
-  if (period === "ano")    return [startOfYear(now),  endOfYear(now)];
-  return [null, null];
+  switch (preset) {
+    case "hoje":          return [startOfDay(now), endOfDay(now)];
+    case "semana_passada": {
+      const w = subWeeks(now, 1);
+      return [startOfWeek(w, { weekStartsOn: 0 }), endOfWeek(w, { weekStartsOn: 0 })];
+    }
+    case "mes":           return [startOfMonth(now), endOfMonth(now)];
+    case "mes_passado": {
+      const m = subMonths(now, 1);
+      return [startOfMonth(m), endOfMonth(m)];
+    }
+    case "4_meses":       return [startOfMonth(subMonths(now, 3)), endOfMonth(now)];
+    case "ano":           return [startOfYear(now), endOfYear(now)];
+    default:              return [startOfMonth(now), endOfMonth(now)];
+  }
 }
 
+function fmtDate(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }); }
+
+// ── Component ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
-  const [deals, setDeals]   = useState<Deal[]>([]);
-  const [tasks, setTasks]   = useState<Task[]>([]);
-  const [users, setUsers]   = useState<UserOption[]>([]);
+
+  const [deals,  setDeals]  = useState<Deal[]>([]);
+  const [tasks,  setTasks]  = useState<Task[]>([]);
+  const [users,  setUsers]  = useState<UserOption[]>([]);
+  const [emps,   setEmps]   = useState<Emp[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [period,     setPeriod]     = useState("mes");
-  const [filterUser, setFilterUser] = useState("todos");
+  // ── Applied filters ──────────────────────────────────────────────────────
+  const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
+  const [customRange,  setCustomRange]  = useState<{ from?: Date; to?: Date }>({});
+  const [filterUser,   setFilterUser]   = useState("todos");
+  const [filterEmp,    setFilterEmp]    = useState("todos");
+
+  // ── Pending (inside popover before saving) ────────────────────────────────
+  const [dateOpen,       setDateOpen]       = useState(false);
+  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>("mes");
+  const [pendingRange,   setPendingRange]   = useState<{ from?: Date; to?: Date }>({});
+  const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 
   useEffect(() => {
     const load = async () => {
-      const [dealsRes, tasksRes] = await Promise.all([
+      const [dealsRes, tasksRes, empsRes] = await Promise.all([
         supabase.from("crm_deals").select("*").order("created_at", { ascending: false }),
-        supabase.from("crm_tasks").select("id, responsavel_id, tipo, concluida, updated_at"),
+        supabase.from("crm_tasks").select("id, deal_id, responsavel_id, tipo, concluida, updated_at"),
+        supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
       ]);
       setDeals((dealsRes.data as Deal[]) ?? []);
       setTasks((tasksRes.data as Task[]) ?? []);
+      setEmps((empsRes.data as Emp[]) ?? []);
 
       if (isAdmin) {
         const { data: u } = await supabase.from("user_profiles").select("user_id, nome").order("nome");
@@ -74,42 +111,66 @@ export default function Dashboard() {
     load();
   }, [isAdmin]);
 
-  // ── filtered deals ──────────────────────────────────────────────────────────
-  const filteredDeals = useMemo(() => {
-    const [from, to] = getPeriodRange(period);
-    return deals.filter((d) => {
-      if (!isAdmin && d.responsavel_id !== user?.id) return false;
-      if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
-      if (from && to) {
-        const dt = new Date(d.created_at);
-        if (dt < from || dt > to) return false;
-      }
-      return true;
-    });
-  }, [deals, period, filterUser, isAdmin, user]);
+  // ── Computed date range ───────────────────────────────────────────────────
+  const [dateFrom, dateTo] = useMemo<[Date | null, Date | null]>(() => {
+    if (datePreset === "custom") {
+      return [customRange.from ? startOfDay(customRange.from) : null, customRange.to ? endOfDay(customRange.to) : null];
+    }
+    return getPresetRange(datePreset);
+  }, [datePreset, customRange]);
 
-  // ── filtered completed tasks ─────────────────────────────────────────────────
+  // ── Date button label ─────────────────────────────────────────────────────
+  const dateBtnLabel = useMemo(() => {
+    if (datePreset === "custom" && customRange.from && customRange.to) {
+      return `${fmtDate(customRange.from)} à ${fmtDate(customRange.to)}`;
+    }
+    return DATE_PRESETS.find((p) => p.value === datePreset)?.label ?? "Período";
+  }, [datePreset, customRange]);
+
+  // ── Open popover: seed pending from current ───────────────────────────────
+  const openDatePicker = () => {
+    setPendingPreset(datePreset);
+    setPendingRange(customRange);
+    setCalTab("from");
+    setDateOpen(true);
+  };
+
+  const applyDate = () => {
+    setDatePreset(pendingPreset);
+    if (pendingPreset === "custom") setCustomRange(pendingRange);
+    setDateOpen(false);
+  };
+
+  // ── Filtered deals ────────────────────────────────────────────────────────
+  const filteredDeals = useMemo(() => deals.filter((d) => {
+    if (!isAdmin && d.responsavel_id !== user?.id) return false;
+    if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+    if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
+    if (dateFrom && dateTo) {
+      const dt = new Date(d.created_at);
+      if (dt < dateFrom || dt > dateTo) return false;
+    }
+    return true;
+  }), [deals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
+
+  // ── Filtered completed tasks ──────────────────────────────────────────────
   const filteredTasks = useMemo(() => {
-    const [from, to] = getPeriodRange(period);
+    const dealSet = new Set(filteredDeals.map((d) => d.id));
     return tasks.filter((t) => {
       if (!t.concluida) return false;
-      if (!isAdmin && t.responsavel_id !== user?.id) return false;
-      if (isAdmin && filterUser !== "todos" && t.responsavel_id !== filterUser) return false;
-      if (from && to) {
+      if (!dealSet.has(t.deal_id)) return false;       // segue filtro de deals
+      if (dateFrom && dateTo) {
         const dt = new Date(t.updated_at);
-        if (dt < from || dt > to) return false;
+        if (dt < dateFrom || dt > dateTo) return false;
       }
       return true;
     });
-  }, [tasks, period, filterUser, isAdmin, user]);
+  }, [tasks, filteredDeals, dateFrom, dateTo]);
 
-  // ── chart data ───────────────────────────────────────────────────────────────
+  // ── Chart data ────────────────────────────────────────────────────────────
   const statusData = useMemo(
-    () => KANBAN_COLUMNS.map((col) => ({
-      name: col.label,
-      value: filteredDeals.filter((d) => d.status === col.value).length,
-    })),
-    [filteredDeals]
+    () => KANBAN_COLUMNS.map((col) => ({ name: col.label, value: filteredDeals.filter((d) => d.status === col.value).length })),
+    [filteredDeals],
   );
 
   const funnelData = useMemo(
@@ -118,16 +179,16 @@ export default function Dashboard() {
       value: filteredDeals.filter((d) => d.status === col.value).length,
       fill: FUNNEL_COLORS[i % FUNNEL_COLORS.length],
     })).filter((d) => d.value > 0),
-    [filteredDeals]
+    [filteredDeals],
   );
 
   const qualData = useMemo(() => {
-    const counts = { frio: 0, morno: 0, quente: 0 };
-    filteredDeals.forEach((d) => { if (d.qualificacao in counts) counts[d.qualificacao as keyof typeof counts]++; });
+    const c = { frio: 0, morno: 0, quente: 0 };
+    filteredDeals.forEach((d) => { if (d.qualificacao in c) c[d.qualificacao as keyof typeof c]++; });
     return [
-      { name: "Frio",    value: counts.frio,   fill: "hsl(var(--qual-frio))" },
-      { name: "Morno",   value: counts.morno,  fill: "hsl(var(--qual-morno))" },
-      { name: "Quente",  value: counts.quente, fill: "hsl(var(--qual-quente))" },
+      { name: "Frio",   value: c.frio,   fill: "hsl(var(--qual-frio))" },
+      { name: "Morno",  value: c.morno,  fill: "hsl(var(--qual-morno))" },
+      { name: "Quente", value: c.quente, fill: "hsl(var(--qual-quente))" },
     ];
   }, [filteredDeals]);
 
@@ -139,22 +200,19 @@ export default function Dashboard() {
       map[d.responsavel_id].total++;
       if (d.qualificacao === "quente") map[d.responsavel_id].quente++;
     });
-    return Object.entries(map).map(([uid, v]) => {
-      const u = users.find((x) => x.id === uid);
-      return { name: u?.nome || "—", ...v };
-    }).sort((a, b) => b.total - a.total);
+    return Object.entries(map).map(([uid, v]) => ({
+      name: users.find((x) => x.id === uid)?.nome ?? "—", ...v,
+    })).sort((a, b) => b.total - a.total);
   }, [filteredDeals, users, isAdmin]);
 
-  // ── activity data ─────────────────────────────────────────────────────────────
-  const activityData = useMemo(() =>
-    TASK_TIPOS.map((tipo) => ({
+  const activityData = useMemo(
+    () => TASK_TIPOS.map((tipo) => ({
       tipo,
       count: filteredTasks.filter((t) => t.tipo === tipo).length,
       cfg: TIPO_CONFIG[tipo],
     })),
-    [filteredTasks]
+    [filteredTasks],
   );
-  const totalAtividades = filteredTasks.length;
 
   if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
 
@@ -162,49 +220,149 @@ export default function Dashboard() {
     <AppLayout>
       <div className="space-y-6">
 
-        {/* Header + filters */}
-        <div className="flex items-start justify-between flex-wrap gap-4">
+        {/* Header ---------------------------------------------------------- */}
+        <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">Dashboard</h1>
             <p className="text-sm text-muted-foreground">{filteredDeals.length} negociações no período</p>
           </div>
+
+          {/* Filters row */}
           <div className="flex items-center gap-2 flex-wrap">
+
+            {/* Date picker ------------------------------------------------ */}
+            <Popover open={dateOpen} onOpenChange={(o) => { if (o) openDatePicker(); else setDateOpen(false); }}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="h-9 gap-2 font-normal">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  {dateBtnLabel}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end" sideOffset={6}>
+                <div className="flex divide-x">
+
+                  {/* Preset list */}
+                  <div className="flex flex-col py-2 min-w-[200px]">
+                    <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider px-4 pb-2">Data</p>
+                    {DATE_PRESETS.map((p) => (
+                      <button
+                        key={p.value}
+                        onClick={() => { setPendingPreset(p.value); if (p.value !== "custom") setCalTab("from"); }}
+                        className={cn(
+                          "flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-accent transition-colors",
+                          pendingPreset === p.value && "bg-primary text-primary-foreground hover:bg-primary/90",
+                        )}
+                      >
+                        <Check className={cn("h-3.5 w-3.5 flex-shrink-0", pendingPreset === p.value ? "opacity-100" : "opacity-0")} />
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Calendar (custom only) */}
+                  {pendingPreset === "custom" && (
+                    <div className="p-3 space-y-2">
+                      {/* Tabs */}
+                      <div className="flex border-b">
+                        {(["from", "to"] as const).map((tab) => (
+                          <button
+                            key={tab}
+                            onClick={() => setCalTab(tab)}
+                            className={cn(
+                              "px-4 py-2 text-sm border-b-2 -mb-px transition-colors",
+                              calTab === tab ? "border-primary text-primary font-medium" : "border-transparent text-muted-foreground",
+                            )}
+                          >
+                            {tab === "from" ? "Data Inicial" : "Data Final"}
+                          </button>
+                        ))}
+                      </div>
+                      {/* Range display */}
+                      {pendingRange.from && pendingRange.to && (
+                        <p className="text-xs text-center font-medium text-primary bg-primary/10 rounded-md py-1">
+                          {fmtDate(pendingRange.from)} à {fmtDate(pendingRange.to)}
+                        </p>
+                      )}
+                      <Calendar
+                        mode="single"
+                        locale={ptBR}
+                        selected={calTab === "from" ? pendingRange.from : pendingRange.to}
+                        onSelect={(date) => {
+                          if (!date) return;
+                          if (calTab === "from") {
+                            setPendingRange((r) => ({ ...r, from: date }));
+                            setCalTab("to");
+                          } else {
+                            setPendingRange((r) => ({ ...r, to: date }));
+                          }
+                        }}
+                        disabled={(date) =>
+                          calTab === "to" && !!pendingRange.from && date < pendingRange.from
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Footer */}
+                <div className="flex justify-end gap-2 px-4 py-3 border-t bg-muted/30">
+                  <Button variant="outline" size="sm" onClick={() => setDateOpen(false)}>Cancelar</Button>
+                  <Button
+                    size="sm"
+                    disabled={pendingPreset === "custom" && (!pendingRange.from || !pendingRange.to)}
+                    onClick={applyDate}
+                  >
+                    Salvar
+                  </Button>
+                </div>
+              </PopoverContent>
+            </Popover>
+
+            {/* Empreendimento -------------------------------------------- */}
+            <Select value={filterEmp} onValueChange={setFilterEmp}>
+              <SelectTrigger className="h-9 text-sm w-[180px]">
+                <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5 text-muted-foreground flex-shrink-0" />
+                <SelectValue placeholder="Empreendimento" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="todos">Todos os empreendimentos</SelectItem>
+                {emps.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>{e.nome}{e.cidade ? ` (${e.cidade})` : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Consultor (admin only) ------------------------------------- */}
             {isAdmin && (
               <Select value={filterUser} onValueChange={setFilterUser}>
-                <SelectTrigger className="w-[160px] h-9 text-sm"><SelectValue placeholder="Todos os usuários" /></SelectTrigger>
+                <SelectTrigger className="h-9 text-sm w-[170px]"><SelectValue placeholder="Consultor" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="todos">Todos os usuários</SelectItem>
+                  <SelectItem value="todos">Todos os consultores</SelectItem>
                   {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
                 </SelectContent>
               </Select>
             )}
-            <Select value={period} onValueChange={setPeriod}>
-              <SelectTrigger className="w-[140px] h-9 text-sm"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
-              </SelectContent>
-            </Select>
           </div>
         </div>
 
-        {/* KPI Cards */}
+        {/* KPI Cards ------------------------------------------------------- */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           {statusData.map((s) => (
             <Card key={s.name} className="border bg-card">
               <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold text-foreground">{s.value}</p>
+                <p className="text-2xl font-bold">{s.value}</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-tight">{s.name}</p>
               </CardContent>
             </Card>
           ))}
         </div>
 
-        {/* Atividades Realizadas */}
+        {/* Atividades Realizadas ------------------------------------------- */}
         <Card className="border bg-card">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <CardTitle className="text-base font-display">Atividades Realizadas</CardTitle>
-              <span className="text-sm font-semibold text-muted-foreground">{totalAtividades} total</span>
+              <span className="text-sm font-semibold text-muted-foreground">{filteredTasks.length} total</span>
             </div>
           </CardHeader>
           <CardContent>
@@ -212,7 +370,13 @@ export default function Dashboard() {
               {activityData.map(({ tipo, count, cfg }) => {
                 const Icon = cfg.icon;
                 return (
-                  <div key={tipo} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 ${count > 0 ? "border-transparent " + cfg.color : "border-dashed border-muted bg-muted/30 text-muted-foreground"}`}>
+                  <div
+                    key={tipo}
+                    className={cn(
+                      "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-colors",
+                      count > 0 ? "border-transparent " + cfg.color : "border-dashed border-muted bg-muted/30 text-muted-foreground",
+                    )}
+                  >
                     <Icon className="h-6 w-6" />
                     <span className="text-2xl font-bold leading-none">{count}</span>
                     <span className="text-xs font-medium">{tipo}</span>
@@ -223,12 +387,10 @@ export default function Dashboard() {
           </CardContent>
         </Card>
 
+        {/* Charts ---------------------------------------------------------- */}
         <div className="grid md:grid-cols-2 gap-6">
-          {/* Funnel */}
           <Card className="border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-display">Funil de Vendas</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base font-display">Funil de Vendas</CardTitle></CardHeader>
             <CardContent>
               {funnelData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
@@ -236,7 +398,7 @@ export default function Dashboard() {
                     <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }} />
                     <Funnel dataKey="value" data={funnelData} isAnimationActive>
                       <LabelList position="center" fill="hsl(var(--card-foreground))" fontSize={12} formatter={(v: number) => v > 0 ? v : ""} />
-                      {funnelData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                      {funnelData.map((e, i) => <Cell key={i} fill={e.fill} />)}
                     </Funnel>
                   </FunnelChart>
                 </ResponsiveContainer>
@@ -246,11 +408,8 @@ export default function Dashboard() {
             </CardContent>
           </Card>
 
-          {/* Qualificação */}
           <Card className="border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-display">Por Qualificação</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base font-display">Por Qualificação</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={qualData} layout="vertical" margin={{ left: 10 }}>
@@ -258,7 +417,7 @@ export default function Dashboard() {
                   <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--foreground))", fontSize: 13 }} width={60} />
                   <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }} />
                   <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={28}>
-                    {qualData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
+                    {qualData.map((e, i) => <Cell key={i} fill={e.fill} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -266,20 +425,18 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Performance por vendedor (admin only) */}
+        {/* Performance (admin only) ---------------------------------------- */}
         {isAdmin && performanceData.length > 0 && (
           <Card className="border bg-card">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base font-display">Performance por Vendedor</CardTitle>
-            </CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-base font-display">Performance por Vendedor</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={Math.max(200, performanceData.length * 50)}>
                 <BarChart data={performanceData} layout="vertical" margin={{ left: 20 }}>
                   <XAxis type="number" allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--foreground))", fontSize: 13 }} width={100} />
                   <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }} />
-                  <Bar dataKey="total"  name="Total"   fill="hsl(var(--primary))"      radius={[0, 6, 6, 0]} barSize={20} />
-                  <Bar dataKey="quente" name="Quentes" fill="hsl(var(--qual-quente))"  radius={[0, 6, 6, 0]} barSize={20} />
+                  <Bar dataKey="total"  name="Total"   fill="hsl(var(--primary))"     radius={[0, 6, 6, 0]} barSize={20} />
+                  <Bar dataKey="quente" name="Quentes" fill="hsl(var(--qual-quente))" radius={[0, 6, 6, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
