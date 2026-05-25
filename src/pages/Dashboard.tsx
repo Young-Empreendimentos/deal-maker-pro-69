@@ -191,7 +191,10 @@ export default function Dashboard() {
 
   // ── Chart data ────────────────────────────────────────────────────────────
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
-  const KPI_STAGES = ["lead_recebido", "ficha_assinada", "proposta_recebida"] as const;
+  const KPI_STAGES = [
+    "lead_recebido", "contato_feito", "visita_agendada",
+    "visita_realizada", "ficha_assinada", "proposta_recebida",
+  ] as const;
 
   const statusData = useMemo(
     () => KANBAN_COLUMNS
@@ -386,7 +389,7 @@ export default function Dashboard() {
         </div>
 
         {/* KPI Cards ------------------------------------------------------- */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
           {/* Estágios do funil (sem os que se sobrepõem com tarefas) */}
           {statusData.map((s) => {
             const col = KANBAN_COLUMNS.find((c) => c.label === s.name);
