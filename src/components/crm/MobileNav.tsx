@@ -3,6 +3,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
+import { GlobalSearch } from "./GlobalSearch";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -19,9 +20,12 @@ export function MobileNav() {
 
   return (
     <div className="md:hidden">
-      <div className="flex items-center justify-between p-4 border-b border-border bg-card">
-        <h1 className="font-display text-lg font-bold text-primary">CRM</h1>
-        <button onClick={() => setOpen(!open)} className="p-2">
+      <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card">
+        <h1 className="font-display text-lg font-bold text-primary flex-shrink-0">CRM</h1>
+        <div className="flex-1">
+          <GlobalSearch />
+        </div>
+        <button onClick={() => setOpen(!open)} className="p-2 flex-shrink-0">
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
       </div>
