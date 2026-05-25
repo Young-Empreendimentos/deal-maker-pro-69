@@ -15,7 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Save, Search, ChevronsUpDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const INTERESSES = ["moradia", "investimento", "comércio", "presente", "doação"] as const;
+const INTERESSES = ["moradia", "investimento", "comércio", "presente ou doação"] as const;
 const ESCOLARIDADES = ["Fundamental", "Médio", "Superior", "Pós-graduação", "Mestrado", "Doutorado"] as const;
 const ESTADOS_CIVIS = ["Solteiro(a)", "Casado(a)", "Divorciado(a)", "Viúvo(a)", "União Estável"] as const;
 const SEXOS = ["masculino", "feminino"] as const;

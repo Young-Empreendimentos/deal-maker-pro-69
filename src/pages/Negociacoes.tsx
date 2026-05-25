@@ -61,8 +61,7 @@ const INTERESSE_OPTIONS = [
   { value: "moradia", label: "Moradia" },
   { value: "investimento", label: "Investimento" },
   { value: "comércio", label: "Comércio" },
-  { value: "presente", label: "Presente" },
-  { value: "doação", label: "Doação" },
+  { value: "presente ou doação", label: "Presente ou doação" },
 ];
 
 const FUNNEL_STAGE_COLORS = [
@@ -169,7 +168,13 @@ export default function Negociacoes() {
       if (fConsultor.length > 0 && !fConsultor.includes(d.responsavel_id)) return false;
       if (fEmpreendimento.length > 0 && (!d.empreendimento_id || !fEmpreendimento.includes(d.empreendimento_id))) return false;
       if (fFonte.length > 0 && (!d.fonte_id || !fFonte.includes(d.fonte_id))) return false;
-      if (fInteresse.length > 0 && (!d.interesse || !fInteresse.includes(d.interesse))) return false;
+      if (fInteresse.length > 0) {
+        // Normaliza registros antigos que tinham "presente" ou "doação" separados
+        const normInteresse = (d.interesse === "presente" || d.interesse === "doação")
+          ? "presente ou doação"
+          : d.interesse;
+        if (!normInteresse || !fInteresse.includes(normInteresse)) return false;
+      }
       if (fPreco.length > 0) {
         if (!d.preco_lote) return false;
         const matches = fPreco.some((faixa) => {
