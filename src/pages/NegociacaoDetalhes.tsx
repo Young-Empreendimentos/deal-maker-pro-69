@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, StickyNote, Send } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -59,11 +59,12 @@ type DealDetail = {
   auto_valor_entrada: number | null;
 };
 
-type DealPhone = { id: string; telefone: string };
-type Task = { id: string; titulo: string; descricao: string; data_vencimento: string | null; concluida: boolean; created_at: string };
-type TaskImage = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
-type DealImage = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
+type DealPhone  = { id: string; telefone: string };
+type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; concluida: boolean; created_at: string };
+type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
+type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
+type Anotacao   = { id: string; texto: string; created_at: string; user_id: string; user_nome?: string };
 
 const ALL_STATUSES = [
   ...KANBAN_COLUMNS,
@@ -88,6 +89,10 @@ export default function NegociacaoDetalhes() {
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", tipo: "" });
   const [taskLoading, setTaskLoading] = useState(false);
 
+  const [anotacoes, setAnotacoes]         = useState<Anotacao[]>([]);
+  const [anotacaoTexto, setAnotacaoTexto] = useState("");
+  const [anotacaoLoading, setAnotacaoLoading] = useState(false);
+
   const [showDeleteDealDialog, setShowDeleteDealDialog] = useState(false);
   const [showLossDialog, setShowLossDialog] = useState(false);
   const [motivosPerda, setMotivosPerda] = useState<MotivoPerda[]>([]);
@@ -96,11 +101,12 @@ export default function NegociacaoDetalhes() {
   const fetchAll = async () => {
     if (!id) return;
 
-    const [dealRes, phonesRes, tasksRes, dealImgsRes] = await Promise.all([
+    const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
       supabase.from("crm_tasks").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
+      supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
 
     const dealData = dealRes.data as DealDetail | null;
@@ -109,6 +115,17 @@ export default function NegociacaoDetalhes() {
     const tasksData = (tasksRes.data as Task[]) ?? [];
     setTasks(tasksData);
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
+
+    // Anotações — busca nomes dos usuários via user_profiles
+    const anotacoesRaw = (anotacoesRes.data as Anotacao[]) ?? [];
+    if (anotacoesRaw.length > 0) {
+      const userIds = [...new Set(anotacoesRaw.map((a) => a.user_id))];
+      const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", userIds);
+      const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
+      setAnotacoes(anotacoesRaw.map((a) => ({ ...a, user_nome: profileMap.get(a.user_id) ?? "Usuário" })));
+    } else {
+      setAnotacoes([]);
+    }
 
     if (tasksData.length > 0) {
       const taskIds = tasksData.map((t) => t.id);
@@ -212,6 +229,29 @@ export default function NegociacaoDetalhes() {
   const deleteTask = async (taskId: string) => {
     await supabase.from("crm_tasks").delete().eq("id", taskId);
     fetchAll();
+  };
+
+  const createAnotacao = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !id || !anotacaoTexto.trim()) return;
+    setAnotacaoLoading(true);
+    const { error } = await supabase.from("crm_deal_anotacoes").insert({
+      deal_id: id,
+      user_id: user.id,
+      texto: anotacaoTexto.trim(),
+    });
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      setAnotacaoTexto("");
+      fetchAll();
+    }
+    setAnotacaoLoading(false);
+  };
+
+  const deleteAnotacao = async (anotacaoId: string) => {
+    await supabase.from("crm_deal_anotacoes").delete().eq("id", anotacaoId);
+    setAnotacoes((prev) => prev.filter((a) => a.id !== anotacaoId));
   };
 
   if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
@@ -355,6 +395,77 @@ export default function NegociacaoDetalhes() {
 
         {/* Image Gallery */}
         <DealGallery dealId={deal.id} taskImages={taskImages} dealImages={dealImages} onRefresh={fetchAll} />
+
+        {/* Anotações */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm font-semibold flex items-center gap-2">
+              <StickyNote className="h-4 w-4 text-muted-foreground" />
+              Anotações ({anotacoes.length})
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+
+            {/* Input de nova anotação */}
+            <form onSubmit={createAnotacao} className="flex gap-2 items-end">
+              <Textarea
+                value={anotacaoTexto}
+                onChange={(e) => setAnotacaoTexto(e.target.value)}
+                placeholder="Escreva uma anotação..."
+                rows={2}
+                className="flex-1 resize-none text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+                    e.preventDefault();
+                    createAnotacao(e as any);
+                  }
+                }}
+              />
+              <Button type="submit" size="sm" disabled={anotacaoLoading || !anotacaoTexto.trim()} className="flex-shrink-0">
+                <Send className="h-4 w-4" />
+              </Button>
+            </form>
+
+            {/* Lista de anotações */}
+            {anotacoes.length === 0 ? (
+              <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">
+                Nenhuma anotação ainda
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {anotacoes.map((a) => (
+                  <div key={a.id} className="group flex gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                    {/* Avatar inicial */}
+                    <div className="flex-shrink-0 h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary uppercase">
+                      {(a.user_nome ?? "U").charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                        <span className="text-xs font-semibold text-foreground">{a.user_nome ?? "Usuário"}</span>
+                        <span className="text-[10px] text-muted-foreground">
+                          {new Date(a.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                          {" às "}
+                          {new Date(a.created_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{a.texto}</p>
+                    </div>
+                    {/* Deletar — próprio usuário ou admin */}
+                    {(isAdmin || a.user_id === user?.id) && (
+                      <button
+                        onClick={() => deleteAnotacao(a.id)}
+                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+            <p className="text-[10px] text-muted-foreground">Ctrl+Enter para enviar</p>
+          </CardContent>
+        </Card>
       </div>
 
       {/* New Task Dialog */}
