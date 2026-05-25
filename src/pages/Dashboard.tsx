@@ -181,6 +181,16 @@ export default function Dashboard() {
   const vendasCount  = useMemo(() => filteredDeals.filter((d) => d.status === "vendido").length,  [filteredDeals]);
   const perdasCount  = useMemo(() => filteredDeals.filter((d) => d.status === "perdido").length,  [filteredDeals]);
 
+  const vgv = useMemo(
+    () => filteredDeals
+      .filter((d) => d.status === "vendido")
+      .reduce((sum, d) => sum + (d.preco_lote ?? 0), 0),
+    [filteredDeals],
+  );
+
+  const fmtBRL = (v: number) =>
+    v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+
   const funnelData = useMemo(
     () => KANBAN_COLUMNS.map((col, i) => ({
       name: col.label,
@@ -401,6 +411,35 @@ export default function Dashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* VGV --------------------------------------------------------------- */}
+        <Card className={cn(
+          "border-2 transition-colors",
+          vgv > 0
+            ? "border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 dark:border-green-600"
+            : "border-dashed border-muted bg-muted/20",
+        )}>
+          <CardContent className="p-5 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className={cn(
+                "flex items-center justify-center h-10 w-10 rounded-xl",
+                vgv > 0 ? "bg-green-100 dark:bg-green-900/50" : "bg-muted",
+              )}>
+                <TrendingUp className={cn("h-5 w-5", vgv > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")} />
+              </div>
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">VGV Realizado</p>
+                <p className="text-xs text-muted-foreground">{vendasCount} venda{vendasCount !== 1 ? "s" : ""} no período</p>
+              </div>
+            </div>
+            <p className={cn(
+              "text-2xl font-bold tabular-nums tracking-tight",
+              vgv > 0 ? "text-green-700 dark:text-green-400" : "text-muted-foreground",
+            )}>
+              {fmtBRL(vgv)}
+            </p>
+          </CardContent>
+        </Card>
 
         {/* Atividades Realizadas ------------------------------------------- */}
         <Card className="border bg-card">
