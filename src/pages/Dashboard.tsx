@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
@@ -7,7 +8,10 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
-import { KANBAN_COLUMNS, type Deal } from "@/pages/Negociacoes";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { KANBAN_COLUMNS, QUAL_COLORS, type Deal } from "@/pages/Negociacoes";
 import { TASK_TIPOS, TIPO_CONFIG } from "@/pages/Tarefas";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
@@ -22,14 +26,17 @@ import {
   format,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown } from "lucide-react";
+import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type UserOption = { id: string; nome: string };
 type Emp = { id: string; nome: string; cidade: string };
-type Task = { id: string; deal_id: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
+type Task = { id: string; deal_id: string; titulo?: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
 type DatePreset = "hoje" | "semana_passada" | "mes" | "mes_passado" | "4_meses" | "ano" | "custom";
+type DrillDown =
+  | { kind: "deals"; label: string; items: Deal[] }
+  | { kind: "tasks"; label: string; items: Task[] };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const FUNNEL_COLORS = [
@@ -72,9 +79,11 @@ function fmtDate(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }); }
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const [deals,  setDeals]  = useState<Deal[]>([]);
   const [tasks,  setTasks]  = useState<Task[]>([]);
+  const [drillDown, setDrillDown] = useState<DrillDown | null>(null);
   const [users,  setUsers]  = useState<UserOption[]>([]);
   const [emps,   setEmps]   = useState<Emp[]>([]);
   const [loading, setLoading] = useState(true);
@@ -95,7 +104,7 @@ export default function Dashboard() {
     const load = async () => {
       const [dealsRes, tasksRes, empsRes] = await Promise.all([
         supabase.from("crm_deals").select("*").order("created_at", { ascending: false }),
-        supabase.from("crm_tasks").select("id, deal_id, responsavel_id, tipo, concluida, updated_at"),
+        supabase.from("crm_tasks").select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at"),
         supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
       ]);
       setDeals((dealsRes.data as Deal[]) ?? []);
@@ -366,22 +375,36 @@ export default function Dashboard() {
         {/* KPI Cards ------------------------------------------------------- */}
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
           {/* Estágios do funil (sem os que se sobrepõem com tarefas) */}
-          {statusData.map((s) => (
-            <Card key={s.name} className="border bg-card">
-              <CardContent className="p-4 text-center">
-                <p className="text-2xl font-bold">{s.value}</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-tight">{s.name}</p>
-              </CardContent>
-            </Card>
-          ))}
+          {statusData.map((s) => {
+            const col = KANBAN_COLUMNS.find((c) => c.label === s.name);
+            return (
+              <Card
+                key={s.name}
+                className="border bg-card cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all"
+                onClick={() => col && setDrillDown({
+                  kind: "deals",
+                  label: s.name,
+                  items: filteredDeals.filter((d) => d.status === col.value),
+                })}
+              >
+                <CardContent className="p-4 text-center">
+                  <p className="text-2xl font-bold">{s.value}</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-tight">{s.name}</p>
+                </CardContent>
+              </Card>
+            );
+          })}
 
           {/* Vendas — destaque verde */}
-          <Card className={cn(
-            "border-2 transition-colors",
-            vendasCount > 0
-              ? "border-green-400 bg-green-50 dark:bg-green-950/40 dark:border-green-600"
-              : "border-dashed border-muted bg-muted/20",
-          )}>
+          <Card
+            className={cn(
+              "border-2 transition-all cursor-pointer",
+              vendasCount > 0
+                ? "border-green-400 bg-green-50 dark:bg-green-950/40 dark:border-green-600 hover:shadow-sm hover:border-green-500"
+                : "border-dashed border-muted bg-muted/20 hover:border-muted-foreground/30",
+            )}
+            onClick={() => setDrillDown({ kind: "deals", label: "Vendas", items: filteredDeals.filter((d) => d.status === "vendido") })}
+          >
             <CardContent className="p-4 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <TrendingUp className={cn("h-4 w-4", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")} />
@@ -394,12 +417,15 @@ export default function Dashboard() {
           </Card>
 
           {/* Perdidas — destaque vermelho */}
-          <Card className={cn(
-            "border-2 transition-colors",
-            perdasCount > 0
-              ? "border-red-400 bg-red-50 dark:bg-red-950/40 dark:border-red-600"
-              : "border-dashed border-muted bg-muted/20",
-          )}>
+          <Card
+            className={cn(
+              "border-2 transition-all cursor-pointer",
+              perdasCount > 0
+                ? "border-red-400 bg-red-50 dark:bg-red-950/40 dark:border-red-600 hover:shadow-sm hover:border-red-500"
+                : "border-dashed border-muted bg-muted/20 hover:border-muted-foreground/30",
+            )}
+            onClick={() => setDrillDown({ kind: "deals", label: "Perdidas", items: filteredDeals.filter((d) => d.status === "perdido") })}
+          >
             <CardContent className="p-4 text-center">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <TrendingDown className={cn("h-4 w-4", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")} />
@@ -413,12 +439,15 @@ export default function Dashboard() {
         </div>
 
         {/* VGV --------------------------------------------------------------- */}
-        <Card className={cn(
-          "border-2 transition-colors",
-          vgv > 0
-            ? "border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 dark:border-green-600"
-            : "border-dashed border-muted bg-muted/20",
-        )}>
+        <Card
+          className={cn(
+            "border-2 transition-all cursor-pointer",
+            vgv > 0
+              ? "border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 dark:border-green-600 hover:shadow-sm hover:border-green-500"
+              : "border-dashed border-muted bg-muted/20 hover:border-muted-foreground/30",
+          )}
+          onClick={() => setDrillDown({ kind: "deals", label: "VGV Realizado", items: filteredDeals.filter((d) => d.status === "vendido") })}
+        >
           <CardContent className="p-5 flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <div className={cn(
@@ -451,7 +480,11 @@ export default function Dashboard() {
               {activityData.map(({ tipo, count, cfg }) => {
                 const Icon = cfg.icon;
                 return (
-                  <div key={tipo} className="flex items-center gap-3 py-2.5">
+                  <div
+                    key={tipo}
+                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors"
+                    onClick={() => setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items: filteredTasks.filter((t) => t.tipo === tipo) })}
+                  >
                     <span className={cn("flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0", cfg.color)}>
                       <Icon className="h-4 w-4" />
                     </span>
@@ -525,6 +558,76 @@ export default function Dashboard() {
           </Card>
         )}
       </div>
+
+      {/* ── Drilldown Sheet ─────────────────────────────────────────────────── */}
+      <Sheet open={!!drillDown} onOpenChange={(o) => { if (!o) setDrillDown(null); }}>
+        <SheetContent className="w-full sm:max-w-md flex flex-col p-0">
+          <SheetHeader className="px-6 py-4 border-b">
+            <SheetTitle className="text-base font-display">{drillDown?.label}</SheetTitle>
+            <p className="text-xs text-muted-foreground">
+              {drillDown?.items.length ?? 0} {drillDown?.kind === "deals" ? "negociação" : "tarefa"}{(drillDown?.items.length ?? 0) !== 1 ? "s" : ""}
+            </p>
+          </SheetHeader>
+
+          <ScrollArea className="flex-1">
+            {drillDown?.kind === "deals" && (
+              <div className="divide-y">
+                {drillDown.items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-10">Nenhuma negociação</p>
+                ) : drillDown.items.map((deal) => (
+                  <button
+                    key={deal.id}
+                    className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
+                    onClick={() => { navigate(`/negociacoes/${deal.id}`); setDrillDown(null); }}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{deal.cliente_nome}</p>
+                      {deal.preco_lote != null && (
+                        <p className="text-xs text-muted-foreground mt-0.5">{fmtBRL(deal.preco_lote)}</p>
+                      )}
+                    </div>
+                    <Badge className={cn("text-xs flex-shrink-0", QUAL_COLORS[deal.qualificacao] ?? "bg-muted text-foreground")}>
+                      {deal.qualificacao}
+                    </Badge>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {drillDown?.kind === "tasks" && (
+              <div className="divide-y">
+                {drillDown.items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tarefa</p>
+                ) : drillDown.items.map((task) => {
+                  const deal = deals.find((d) => d.id === task.deal_id);
+                  const cfg  = task.tipo ? TIPO_CONFIG[task.tipo] : null;
+                  const Icon = cfg?.icon;
+                  return (
+                    <button
+                      key={task.id}
+                      className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
+                      onClick={() => { navigate(`/negociacoes/${task.deal_id}`); setDrillDown(null); }}
+                    >
+                      {Icon && cfg && (
+                        <span className={cn("flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0", cfg.color)}>
+                          <Icon className="h-4 w-4" />
+                        </span>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{task.titulo ?? "(sem título)"}</p>
+                        {deal && <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.cliente_nome}</p>}
+                      </div>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
     </AppLayout>
   );
 }
