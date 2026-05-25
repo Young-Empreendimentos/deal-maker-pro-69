@@ -359,30 +359,28 @@ export default function Dashboard() {
 
         {/* Atividades Realizadas ------------------------------------------- */}
         <Card className="border bg-card">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-base font-display">Atividades Realizadas</CardTitle>
-              <span className="text-sm font-semibold text-muted-foreground">{filteredTasks.length} total</span>
-            </div>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base font-display">Tarefas Finalizadas</CardTitle>
           </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+          <CardContent className="px-6 pb-4">
+            <div className="divide-y">
               {activityData.map(({ tipo, count, cfg }) => {
                 const Icon = cfg.icon;
                 return (
-                  <div
-                    key={tipo}
-                    className={cn(
-                      "flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 transition-colors",
-                      count > 0 ? "border-transparent " + cfg.color : "border-dashed border-muted bg-muted/30 text-muted-foreground",
-                    )}
-                  >
-                    <Icon className="h-6 w-6" />
-                    <span className="text-2xl font-bold leading-none">{count}</span>
-                    <span className="text-xs font-medium">{tipo}</span>
+                  <div key={tipo} className="flex items-center gap-3 py-2.5">
+                    <span className={cn("flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0", cfg.color)}>
+                      <Icon className="h-4 w-4" />
+                    </span>
+                    <span className="flex-1 text-sm text-foreground">{tipo}</span>
+                    <span className="text-sm font-semibold tabular-nums">{count}</span>
                   </div>
                 );
               })}
+            </div>
+            {/* Total */}
+            <div className="flex items-center gap-3 pt-3 mt-1 border-t">
+              <span className="flex-1 text-sm font-semibold text-foreground">Total</span>
+              <span className="text-sm font-bold tabular-nums">{filteredTasks.length}</span>
             </div>
           </CardContent>
         </Card>
