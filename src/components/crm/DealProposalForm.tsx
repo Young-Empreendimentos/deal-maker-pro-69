@@ -80,6 +80,9 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
   const [saving, setSaving] = useState(false);
   const [users, setUsers] = useState<UserOption[]>([]);
   const [imobiliarias, setImobiliarias] = useState<ImobOption[]>([]);
+  const [respTypeLocal, setRespTypeLocal] = useState<"" | "usuario" | "imobiliaria">(
+    initialData.responsavel_venda_imobiliaria_id ? "imobiliaria" : initialData.responsavel_venda_user_id ? "usuario" : ""
+  );
 
   // Tabela de preços state
   const [tabelaPrecos, setTabelaPrecos] = useState<TabelaPreco[]>([]);
@@ -233,9 +236,6 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     setSaving(false);
   };
 
-  // Determine responsible sale type
-  const respType = form.responsavel_venda_imobiliaria_id ? "imobiliaria" : form.responsavel_venda_user_id ? "usuario" : "";
-
   return (
     <Card>
       <CardHeader className="pb-3 flex flex-row items-center justify-between">
@@ -357,33 +357,35 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs">Tipo</Label>
-              <Select value={respType} onValueChange={(v) => {
-                if (v === "usuario") { update("responsavel_venda_imobiliaria_id", null); }
-                else if (v === "imobiliaria") { update("responsavel_venda_user_id", null); }
+              <Select value={respTypeLocal} onValueChange={(v) => {
+                const tipo = v as "" | "usuario" | "imobiliaria";
+                setRespTypeLocal(tipo);
+                if (tipo === "usuario") { update("responsavel_venda_imobiliaria_id", null); }
+                else if (tipo === "imobiliaria") { update("responsavel_venda_user_id", null); }
               }}>
                 <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="usuario">Usuário</SelectItem>
+                  <SelectItem value="usuario">Usuário interno</SelectItem>
                   <SelectItem value="imobiliaria">Imobiliária</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-1.5">
-              {respType === "usuario" ? (
+              {respTypeLocal === "usuario" ? (
                 <>
                   <Label className="text-xs">Usuário</Label>
                   <Select value={form.responsavel_venda_user_id ?? ""} onValueChange={(v) => update("responsavel_venda_user_id", v)}>
-                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione o usuário" /></SelectTrigger>
                     <SelectContent>
                       {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome || u.email}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </>
-              ) : respType === "imobiliaria" ? (
+              ) : respTypeLocal === "imobiliaria" ? (
                 <>
                   <Label className="text-xs">Imobiliária</Label>
                   <Select value={form.responsavel_venda_imobiliaria_id ?? ""} onValueChange={(v) => update("responsavel_venda_imobiliaria_id", v)}>
-                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+                    <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione a imobiliária" /></SelectTrigger>
                     <SelectContent>
                       {imobiliarias.map((i) => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}
                     </SelectContent>
