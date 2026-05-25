@@ -12,9 +12,20 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2 } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+
+export const TASK_TIPOS = ["Ligação", "E-mail", "Visita", "Whatsapp", "Reunião"] as const;
+export type TaskTipo = typeof TASK_TIPOS[number];
+
+export const TIPO_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
+  "Ligação":  { icon: Phone,          color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
+  "E-mail":   { icon: Mail,           color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
+  "Visita":   { icon: MapPin,         color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  "Whatsapp": { icon: MessageCircle,  color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
+  "Reunião":  { icon: UsersIcon,      color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" },
+};
 
 type Task = {
   id: string;
@@ -24,7 +35,9 @@ type Task = {
   data_vencimento: string | null;
   concluida: boolean;
   responsavel_id: string;
+  tipo: string | null;
   created_at: string;
+  updated_at: string;
   deal_nome?: string;
 };
 
@@ -48,7 +61,7 @@ export default function Tarefas() {
   const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas">("pendentes");
 
   // Form state
-  const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", tipo: "" });
   const [formLoading, setFormLoading] = useState(false);
 
   // Image viewer
@@ -90,6 +103,7 @@ export default function Tarefas() {
       deal_id: form.deal_id,
       data_vencimento: form.data_vencimento || null,
       responsavel_id: user.id,
+      tipo: form.tipo || null,
     });
 
     if (error) {
@@ -97,7 +111,7 @@ export default function Tarefas() {
     } else {
       toast({ title: "Tarefa criada!" });
       setShowForm(false);
-      setForm({ titulo: "", descricao: "", deal_id: "", data_vencimento: "" });
+      setForm({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", tipo: "" });
       fetchTasks();
     }
     setFormLoading(false);
@@ -213,6 +227,15 @@ export default function Tarefas() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <p className={cn("font-medium text-sm", task.concluida && "line-through")}>{task.titulo}</p>
+                      {task.tipo && (() => {
+                        const cfg = TIPO_CONFIG[task.tipo];
+                        const Icon = cfg?.icon;
+                        return (
+                          <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full", cfg?.color ?? "bg-muted text-muted-foreground")}>
+                            {Icon && <Icon className="h-3 w-3" />}{task.tipo}
+                          </span>
+                        );
+                      })()}
                       {isOverdue(task) && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Atrasada</Badge>}
                     </div>
                     {task.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.descricao}</p>}
@@ -260,6 +283,16 @@ export default function Tarefas() {
             <div className="space-y-2">
               <Label>Descrição</Label>
               <Textarea value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={form.tipo || "__none__"} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem tipo</SelectItem>
+                  {TASK_TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">

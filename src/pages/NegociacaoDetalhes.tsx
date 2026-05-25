@@ -16,6 +16,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { KANBAN_COLUMNS, QUAL_COLORS } from "./Negociacoes";
+import { TASK_TIPOS, TIPO_CONFIG } from "./Tarefas";
 import { DealProposalForm, isProposalComplete } from "@/components/crm/DealProposalForm";
 import { DealBasicEditor } from "@/components/crm/DealBasicEditor";
 import { DealGallery } from "@/components/crm/DealGallery";
@@ -84,7 +85,7 @@ export default function NegociacaoDetalhes() {
   const [loading, setLoading] = useState(true);
 
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "" });
+  const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", tipo: "" });
   const [taskLoading, setTaskLoading] = useState(false);
 
   const [showDeleteDealDialog, setShowDeleteDealDialog] = useState(false);
@@ -174,13 +175,14 @@ export default function NegociacaoDetalhes() {
       deal_id: id,
       data_vencimento: taskForm.data_vencimento || null,
       responsavel_id: user.id,
+      tipo: taskForm.tipo || null,
     });
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       toast({ title: "Tarefa criada!" });
       setShowTaskForm(false);
-      setTaskForm({ titulo: "", descricao: "", data_vencimento: "" });
+      setTaskForm({ titulo: "", descricao: "", data_vencimento: "", tipo: "" });
       fetchAll();
     }
     setTaskLoading(false);
@@ -317,7 +319,18 @@ export default function NegociacaoDetalhes() {
                   {task.concluida ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
                 </button>
                 <div className="flex-1 min-w-0">
-                  <p className={cn("font-medium text-sm", task.concluida && "line-through")}>{task.titulo}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <p className={cn("font-medium text-sm", task.concluida && "line-through")}>{task.titulo}</p>
+                    {(task as any).tipo && (() => {
+                      const cfg = TIPO_CONFIG[(task as any).tipo];
+                      const Icon = cfg?.icon;
+                      return (
+                        <span className={cn("inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full", cfg?.color ?? "bg-muted text-muted-foreground")}>
+                          {Icon && <Icon className="h-3 w-3" />}{(task as any).tipo}
+                        </span>
+                      );
+                    })()}
+                  </div>
                   {task.descricao && <p className="text-xs text-muted-foreground mt-0.5">{task.descricao}</p>}
                   {task.data_vencimento && (
                     <span className={cn("text-xs flex items-center gap-1 mt-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
@@ -350,6 +363,16 @@ export default function NegociacaoDetalhes() {
           <DialogHeader><DialogTitle className="font-display">Nova Tarefa</DialogTitle></DialogHeader>
           <form onSubmit={createTask} className="space-y-4">
             <div className="space-y-2"><Label>Título *</Label><Input value={taskForm.titulo} onChange={(e) => setTaskForm((f) => ({ ...f, titulo: e.target.value }))} required /></div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={taskForm.tipo || "__none__"} onValueChange={(v) => setTaskForm((f) => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem tipo</SelectItem>
+                  {TASK_TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={taskForm.descricao} onChange={(e) => setTaskForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} /></div>
             <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={taskForm.data_vencimento} onChange={(e) => setTaskForm((f) => ({ ...f, data_vencimento: e.target.value }))} /></div>
             <div className="flex justify-end gap-2">

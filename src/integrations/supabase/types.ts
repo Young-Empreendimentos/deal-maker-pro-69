@@ -2935,6 +2935,7 @@ export type Database = {
           descricao: string | null
           id: string
           responsavel_id: string
+          tipo: string | null
           titulo: string
           updated_at: string
         }
@@ -2946,6 +2947,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           responsavel_id: string
+          tipo?: string | null
           titulo: string
           updated_at?: string
         }
@@ -2957,6 +2959,7 @@ export type Database = {
           descricao?: string | null
           id?: string
           responsavel_id?: string
+          tipo?: string | null
           titulo?: string
           updated_at?: string
         }

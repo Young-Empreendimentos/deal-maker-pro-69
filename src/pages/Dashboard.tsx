@@ -3,14 +3,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { KANBAN_COLUMNS, QUAL_COLORS, type Deal } from "@/pages/Negociacoes";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { KANBAN_COLUMNS, type Deal } from "@/pages/Negociacoes";
+import { TASK_TIPOS, TIPO_CONFIG } from "@/pages/Tarefas";
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer,
   FunnelChart, Funnel, LabelList, Cell,
 } from "recharts";
+import {
+  startOfDay, endOfDay,
+  startOfWeek, endOfWeek,
+  startOfMonth, endOfMonth,
+  startOfYear, endOfYear,
+} from "date-fns";
 
-type UserOption = { id: string; email: string; nome: string };
+type UserOption = { id: string; nome: string };
+type Task = { id: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
 
 const FUNNEL_COLORS = [
   "hsl(var(--primary))",
@@ -21,86 +29,162 @@ const FUNNEL_COLORS = [
   "hsl(var(--accent))",
 ];
 
+const PERIODS = [
+  { value: "hoje",   label: "Hoje" },
+  { value: "semana", label: "Esta semana" },
+  { value: "mes",    label: "Este mês" },
+  { value: "ano",    label: "Este ano" },
+  { value: "todos",  label: "Todos" },
+];
+
+function getPeriodRange(period: string): [Date | null, Date | null] {
+  const now = new Date();
+  if (period === "hoje")   return [startOfDay(now),  endOfDay(now)];
+  if (period === "semana") return [startOfWeek(now, { weekStartsOn: 0 }), endOfWeek(now, { weekStartsOn: 0 })];
+  if (period === "mes")    return [startOfMonth(now), endOfMonth(now)];
+  if (period === "ano")    return [startOfYear(now),  endOfYear(now)];
+  return [null, null];
+}
+
 export default function Dashboard() {
-  const { isAdmin } = useAuth();
-  const [deals, setDeals] = useState<Deal[]>([]);
-  const [users, setUsers] = useState<UserOption[]>([]);
+  const { user, isAdmin } = useAuth();
+  const [deals, setDeals]   = useState<Deal[]>([]);
+  const [tasks, setTasks]   = useState<Task[]>([]);
+  const [users, setUsers]   = useState<UserOption[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const [period,     setPeriod]     = useState("mes");
+  const [filterUser, setFilterUser] = useState("todos");
 
   useEffect(() => {
     const load = async () => {
-      // Sem ordem explícita, o Supabase JS devolve no máximo 1000 rows na ordem
-      // natural (mais antigos primeiro), zerando métricas dos leads mais recentes.
-      // Ordenar por created_at DESC traz a janela ativa do funil.
-      const { data } = await supabase
-        .from("crm_deals")
-        .select("*")
-        .order("created_at", { ascending: false });
-      setDeals((data as Deal[]) ?? []);
+      const [dealsRes, tasksRes] = await Promise.all([
+        supabase.from("crm_deals").select("*").order("created_at", { ascending: false }),
+        supabase.from("crm_tasks").select("id, responsavel_id, tipo, concluida, updated_at"),
+      ]);
+      setDeals((dealsRes.data as Deal[]) ?? []);
+      setTasks((tasksRes.data as Task[]) ?? []);
+
       if (isAdmin) {
-        const { data: u } = await supabase.rpc("get_all_users_with_roles");
-        setUsers(((u as any[]) ?? []).map((x) => ({ id: x.id, email: x.email, nome: x.nome })));
+        const { data: u } = await supabase.from("user_profiles").select("user_id, nome").order("nome");
+        setUsers(((u as any[]) ?? []).map((x) => ({ id: x.user_id, nome: x.nome })));
       }
       setLoading(false);
     };
     load();
   }, [isAdmin]);
 
+  // ── filtered deals ──────────────────────────────────────────────────────────
+  const filteredDeals = useMemo(() => {
+    const [from, to] = getPeriodRange(period);
+    return deals.filter((d) => {
+      if (!isAdmin && d.responsavel_id !== user?.id) return false;
+      if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+      if (from && to) {
+        const dt = new Date(d.created_at);
+        if (dt < from || dt > to) return false;
+      }
+      return true;
+    });
+  }, [deals, period, filterUser, isAdmin, user]);
+
+  // ── filtered completed tasks ─────────────────────────────────────────────────
+  const filteredTasks = useMemo(() => {
+    const [from, to] = getPeriodRange(period);
+    return tasks.filter((t) => {
+      if (!t.concluida) return false;
+      if (!isAdmin && t.responsavel_id !== user?.id) return false;
+      if (isAdmin && filterUser !== "todos" && t.responsavel_id !== filterUser) return false;
+      if (from && to) {
+        const dt = new Date(t.updated_at);
+        if (dt < from || dt > to) return false;
+      }
+      return true;
+    });
+  }, [tasks, period, filterUser, isAdmin, user]);
+
+  // ── chart data ───────────────────────────────────────────────────────────────
   const statusData = useMemo(
     () => KANBAN_COLUMNS.map((col) => ({
       name: col.label,
-      value: deals.filter((d) => d.status === col.value).length,
+      value: filteredDeals.filter((d) => d.status === col.value).length,
     })),
-    [deals]
+    [filteredDeals]
   );
 
   const funnelData = useMemo(
     () => KANBAN_COLUMNS.map((col, i) => ({
       name: col.label,
-      value: deals.filter((d) => d.status === col.value).length,
+      value: filteredDeals.filter((d) => d.status === col.value).length,
       fill: FUNNEL_COLORS[i % FUNNEL_COLORS.length],
     })).filter((d) => d.value > 0),
-    [deals]
+    [filteredDeals]
   );
 
   const qualData = useMemo(() => {
     const counts = { frio: 0, morno: 0, quente: 0 };
-    deals.forEach((d) => { if (d.qualificacao in counts) counts[d.qualificacao as keyof typeof counts]++; });
+    filteredDeals.forEach((d) => { if (d.qualificacao in counts) counts[d.qualificacao as keyof typeof counts]++; });
     return [
-      { name: "Frio", value: counts.frio, fill: "hsl(var(--qual-frio))" },
-      { name: "Morno", value: counts.morno, fill: "hsl(var(--qual-morno))" },
-      { name: "Quente", value: counts.quente, fill: "hsl(var(--qual-quente))" },
+      { name: "Frio",    value: counts.frio,   fill: "hsl(var(--qual-frio))" },
+      { name: "Morno",   value: counts.morno,  fill: "hsl(var(--qual-morno))" },
+      { name: "Quente",  value: counts.quente, fill: "hsl(var(--qual-quente))" },
     ];
-  }, [deals]);
+  }, [filteredDeals]);
 
   const performanceData = useMemo(() => {
     if (!isAdmin || users.length === 0) return [];
     const map: Record<string, { total: number; quente: number }> = {};
-    deals.forEach((d) => {
+    filteredDeals.forEach((d) => {
       if (!map[d.responsavel_id]) map[d.responsavel_id] = { total: 0, quente: 0 };
       map[d.responsavel_id].total++;
       if (d.qualificacao === "quente") map[d.responsavel_id].quente++;
     });
     return Object.entries(map).map(([uid, v]) => {
       const u = users.find((x) => x.id === uid);
-      return { name: u?.nome || u?.email?.split("@")[0] || "—", ...v };
+      return { name: u?.nome || "—", ...v };
     }).sort((a, b) => b.total - a.total);
-  }, [deals, users, isAdmin]);
+  }, [filteredDeals, users, isAdmin]);
 
-  if (loading) {
-    return (
-      <AppLayout>
-        <div className="text-center text-muted-foreground py-12">Carregando...</div>
-      </AppLayout>
-    );
-  }
+  // ── activity data ─────────────────────────────────────────────────────────────
+  const activityData = useMemo(() =>
+    TASK_TIPOS.map((tipo) => ({
+      tipo,
+      count: filteredTasks.filter((t) => t.tipo === tipo).length,
+      cfg: TIPO_CONFIG[tipo],
+    })),
+    [filteredTasks]
+  );
+  const totalAtividades = filteredTasks.length;
+
+  if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
 
   return (
     <AppLayout>
       <div className="space-y-6">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">Dashboard</h1>
-          <p className="text-sm text-muted-foreground">{deals.length} negociações no total</p>
+
+        {/* Header + filters */}
+        <div className="flex items-start justify-between flex-wrap gap-4">
+          <div>
+            <h1 className="font-display text-2xl font-bold tracking-tight">Dashboard</h1>
+            <p className="text-sm text-muted-foreground">{filteredDeals.length} negociações no período</p>
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            {isAdmin && (
+              <Select value={filterUser} onValueChange={setFilterUser}>
+                <SelectTrigger className="w-[160px] h-9 text-sm"><SelectValue placeholder="Todos os usuários" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos os usuários</SelectItem>
+                  {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            )}
+            <Select value={period} onValueChange={setPeriod}>
+              <SelectTrigger className="w-[140px] h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {PERIODS.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
 
         {/* KPI Cards */}
@@ -115,6 +199,30 @@ export default function Dashboard() {
           ))}
         </div>
 
+        {/* Atividades Realizadas */}
+        <Card className="border bg-card">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base font-display">Atividades Realizadas</CardTitle>
+              <span className="text-sm font-semibold text-muted-foreground">{totalAtividades} total</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+              {activityData.map(({ tipo, count, cfg }) => {
+                const Icon = cfg.icon;
+                return (
+                  <div key={tipo} className={`flex flex-col items-center justify-center gap-2 p-4 rounded-xl border-2 ${count > 0 ? "border-transparent " + cfg.color : "border-dashed border-muted bg-muted/30 text-muted-foreground"}`}>
+                    <Icon className="h-6 w-6" />
+                    <span className="text-2xl font-bold leading-none">{count}</span>
+                    <span className="text-xs font-medium">{tipo}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+
         <div className="grid md:grid-cols-2 gap-6">
           {/* Funnel */}
           <Card className="border bg-card">
@@ -125,15 +233,10 @@ export default function Dashboard() {
               {funnelData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
                   <FunnelChart>
-                    <Tooltip
-                      contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }}
-                      labelStyle={{ color: "hsl(var(--foreground))" }}
-                    />
+                    <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }} />
                     <Funnel dataKey="value" data={funnelData} isAnimationActive>
                       <LabelList position="center" fill="hsl(var(--card-foreground))" fontSize={12} formatter={(v: number) => v > 0 ? v : ""} />
-                      {funnelData.map((entry, i) => (
-                        <Cell key={i} fill={entry.fill} />
-                      ))}
+                      {funnelData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                     </Funnel>
                   </FunnelChart>
                 </ResponsiveContainer>
@@ -153,13 +256,9 @@ export default function Dashboard() {
                 <BarChart data={qualData} layout="vertical" margin={{ left: 10 }}>
                   <XAxis type="number" allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--foreground))", fontSize: 13 }} width={60} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }}
-                  />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }} />
                   <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={28}>
-                    {qualData.map((entry, i) => (
-                      <Cell key={i} fill={entry.fill} />
-                    ))}
+                    {qualData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
                   </Bar>
                 </BarChart>
               </ResponsiveContainer>
@@ -178,11 +277,9 @@ export default function Dashboard() {
                 <BarChart data={performanceData} layout="vertical" margin={{ left: 20 }}>
                   <XAxis type="number" allowDecimals={false} tick={{ fill: "hsl(var(--muted-foreground))", fontSize: 12 }} />
                   <YAxis type="category" dataKey="name" tick={{ fill: "hsl(var(--foreground))", fontSize: 13 }} width={100} />
-                  <Tooltip
-                    contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }}
-                  />
-                  <Bar dataKey="total" name="Total" fill="hsl(var(--primary))" radius={[0, 6, 6, 0]} barSize={20} />
-                  <Bar dataKey="quente" name="Quentes" fill="hsl(var(--qual-quente))" radius={[0, 6, 6, 0]} barSize={20} />
+                  <Tooltip contentStyle={{ background: "hsl(var(--card))", border: "1px solid hsl(var(--border))", borderRadius: 8, fontSize: 13 }} />
+                  <Bar dataKey="total"  name="Total"   fill="hsl(var(--primary))"      radius={[0, 6, 6, 0]} barSize={20} />
+                  <Bar dataKey="quente" name="Quentes" fill="hsl(var(--qual-quente))"  radius={[0, 6, 6, 0]} barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </CardContent>
