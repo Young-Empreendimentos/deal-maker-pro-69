@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { Search, X, User, Phone, Mail, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -154,7 +153,7 @@ export function GlobalSearch() {
           ) : results.length === 0 ? (
             <div className="px-4 py-3 text-sm text-muted-foreground">Nenhum lead encontrado</div>
           ) : (
-            <ScrollArea className="max-h-80">
+            <div className="overflow-y-auto max-h-72">
               <div className="py-1">
                 <p className="px-3 py-1.5 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">
                   {results.length} resultado{results.length !== 1 ? "s" : ""}
@@ -194,7 +193,7 @@ export function GlobalSearch() {
                   </button>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           )}
         </div>
       )}
