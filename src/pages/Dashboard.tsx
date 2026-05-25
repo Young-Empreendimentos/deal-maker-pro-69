@@ -163,18 +163,30 @@ export default function Dashboard() {
   }), [deals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
 
   // ── Filtered completed tasks ──────────────────────────────────────────────
+  // Filtra consultor/empreendimento via deal, mas usa updated_at da TAREFA
+  // para data — não o created_at do deal (que cortaria tarefas de deals antigos).
+  const dealsForTasks = useMemo(() =>
+    new Set(
+      deals.filter((d) => {
+        if (!isAdmin && d.responsavel_id !== user?.id) return false;
+        if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+        if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
+        return true;
+      }).map((d) => d.id),
+    ),
+  [deals, isAdmin, user, filterUser, filterEmp]);
+
   const filteredTasks = useMemo(() => {
-    const dealSet = new Set(filteredDeals.map((d) => d.id));
     return tasks.filter((t) => {
       if (!t.concluida) return false;
-      if (!dealSet.has(t.deal_id)) return false;       // segue filtro de deals
+      if (!dealsForTasks.has(t.deal_id)) return false;
       if (dateFrom && dateTo) {
         const dt = new Date(t.updated_at);
         if (dt < dateFrom || dt > dateTo) return false;
       }
       return true;
     });
-  }, [tasks, filteredDeals, dateFrom, dateTo]);
+  }, [tasks, dealsForTasks, dateFrom, dateTo]);
 
   // ── Chart data ────────────────────────────────────────────────────────────
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
