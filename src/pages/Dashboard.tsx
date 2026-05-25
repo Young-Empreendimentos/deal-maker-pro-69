@@ -266,8 +266,8 @@ export default function Dashboard() {
         {/* Header ---------------------------------------------------------- */}
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="font-display text-2xl font-bold tracking-tight">Dashboard</h1>
-            <p className="text-sm text-muted-foreground">{filteredDeals.length} negociações no período</p>
+            <h1 className="text-xl font-semibold tracking-tight">Dashboard</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">{filteredDeals.length} negociações no período</p>
           </div>
 
           {/* Filters row */}
@@ -389,139 +389,98 @@ export default function Dashboard() {
         </div>
 
         {/* KPI Cards ------------------------------------------------------- */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3">
-          {/* Estágios do funil (sem os que se sobrepõem com tarefas) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {statusData.map((s) => {
             const col = KANBAN_COLUMNS.find((c) => c.label === s.name);
             return (
-              <Card
+              <button
                 key={s.name}
-                className="border bg-card cursor-pointer hover:border-primary/50 hover:shadow-sm transition-all"
+                className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
                 onClick={() => col && setDrillDown({
                   kind: "deals",
                   label: s.name,
                   items: filteredDeals.filter((d) => d.status === col.value),
                 })}
               >
-                <CardContent className="p-4 text-center">
-                  <p className="text-2xl font-bold">{s.value}</p>
-                  <p className="text-xs text-muted-foreground mt-1 leading-tight">{s.name}</p>
-                </CardContent>
-              </Card>
+                <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground truncate">{s.name}</p>
+                <p className="text-3xl font-bold mt-1 tabular-nums">{s.value}</p>
+              </button>
             );
           })}
 
-          {/* Vendas — destaque verde */}
-          <Card
-            className={cn(
-              "border-2 transition-all cursor-pointer",
-              vendasCount > 0
-                ? "border-green-400 bg-green-50 dark:bg-green-950/40 dark:border-green-600 hover:shadow-sm hover:border-green-500"
-                : "border-dashed border-muted bg-muted/20 hover:border-muted-foreground/30",
-            )}
+          {/* Vendas */}
+          <button
+            className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
             onClick={() => setDrillDown({ kind: "deals", label: "Vendas", items: filteredDeals.filter((d) => d.status === "vendido") })}
           >
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <TrendingUp className={cn("h-4 w-4", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")} />
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vendas</p>
-              </div>
-              <p className={cn("text-3xl font-bold", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")}>
-                {vendasCount}
-              </p>
-            </CardContent>
-          </Card>
+            <div className="flex items-center gap-1.5">
+              <TrendingUp className="h-3 w-3 text-green-500" />
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Vendas</p>
+            </div>
+            <p className={cn("text-3xl font-bold mt-1 tabular-nums", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "")}>
+              {vendasCount}
+            </p>
+          </button>
 
-          {/* Perdidas — destaque vermelho */}
-          <Card
-            className={cn(
-              "border-2 transition-all cursor-pointer",
-              perdasCount > 0
-                ? "border-red-400 bg-red-50 dark:bg-red-950/40 dark:border-red-600 hover:shadow-sm hover:border-red-500"
-                : "border-dashed border-muted bg-muted/20 hover:border-muted-foreground/30",
-            )}
+          {/* Perdidas */}
+          <button
+            className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
             onClick={() => setDrillDown({ kind: "deals", label: "Perdidas", items: filteredDeals.filter((d) => d.status === "perdido") })}
           >
-            <CardContent className="p-4 text-center">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <TrendingDown className={cn("h-4 w-4", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")} />
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Perdidas</p>
-              </div>
-              <p className={cn("text-3xl font-bold", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
-                {perdasCount}
-              </p>
-            </CardContent>
-          </Card>
+            <div className="flex items-center gap-1.5">
+              <TrendingDown className="h-3 w-3 text-red-500" />
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Perdidas</p>
+            </div>
+            <p className={cn("text-3xl font-bold mt-1 tabular-nums", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "")}>
+              {perdasCount}
+            </p>
+          </button>
         </div>
 
         {/* VGV --------------------------------------------------------------- */}
-        <Card
-          className={cn(
-            "border-2 transition-all cursor-pointer",
-            vgv > 0
-              ? "border-green-400 bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/40 dark:to-emerald-950/40 dark:border-green-600 hover:shadow-sm hover:border-green-500"
-              : "border-dashed border-muted bg-muted/20 hover:border-muted-foreground/30",
-          )}
+        <button
+          className="w-full text-left rounded-xl border bg-card px-5 py-4 flex items-center justify-between hover:bg-accent/40 transition-colors"
           onClick={() => setDrillDown({ kind: "deals", label: "VGV Realizado", items: filteredDeals.filter((d) => d.status === "vendido") })}
         >
-          <CardContent className="p-5 flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className={cn(
-                "flex items-center justify-center h-10 w-10 rounded-xl",
-                vgv > 0 ? "bg-green-100 dark:bg-green-900/50" : "bg-muted",
-              )}>
-                <TrendingUp className={cn("h-5 w-5", vgv > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")} />
-              </div>
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">VGV Realizado</p>
-                <p className="text-xs text-muted-foreground">{vendasCount} venda{vendasCount !== 1 ? "s" : ""} no período</p>
-              </div>
-            </div>
-            <p className={cn(
-              "text-2xl font-bold tabular-nums tracking-tight",
-              vgv > 0 ? "text-green-700 dark:text-green-400" : "text-muted-foreground",
-            )}>
-              {fmtBRL(vgv)}
-            </p>
-          </CardContent>
-        </Card>
+          <div>
+            <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">VGV Realizado</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{vendasCount} venda{vendasCount !== 1 ? "s" : ""} no período</p>
+          </div>
+          <p className={cn("text-2xl font-bold tabular-nums", vgv > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")}>
+            {fmtBRL(vgv)}
+          </p>
+        </button>
 
         {/* Atividades Realizadas ------------------------------------------- */}
-        <Card className="border bg-card">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base font-display">Tarefas Finalizadas</CardTitle>
-          </CardHeader>
-          <CardContent className="px-6 pb-4">
-            <div className="divide-y">
-              {activityData.map(({ tipo, count, cfg }) => {
-                const Icon = cfg.icon;
-                return (
-                  <div
-                    key={tipo}
-                    className="flex items-center gap-3 py-2.5 cursor-pointer hover:bg-accent/50 rounded-md px-2 -mx-2 transition-colors"
-                    onClick={() => setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items: filteredTasks.filter((t) => t.tipo === tipo) })}
-                  >
-                    <span className={cn("flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0", cfg.color)}>
-                      <Icon className="h-4 w-4" />
-                    </span>
-                    <span className="flex-1 text-sm text-foreground">{tipo}</span>
-                    <span className="text-sm font-semibold tabular-nums">{count}</span>
-                  </div>
-                );
-              })}
-            </div>
-            {/* Total */}
-            <div className="flex items-center gap-3 pt-3 mt-1 border-t">
-              <span className="flex-1 text-sm font-semibold text-foreground">Total</span>
-              <span className="text-sm font-bold tabular-nums">{filteredTasks.length}</span>
-            </div>
-          </CardContent>
-        </Card>
+        <div className="rounded-xl border bg-card">
+          <div className="px-5 pt-4 pb-2 flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">Tarefas Finalizadas</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{filteredTasks.length} total</p>
+          </div>
+          <div className="px-3 pb-3">
+            {activityData.map(({ tipo, count, cfg }) => {
+              const Icon = cfg.icon;
+              return (
+                <button
+                  key={tipo}
+                  className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors text-left"
+                  onClick={() => setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items: filteredTasks.filter((t) => t.tipo === tipo) })}
+                >
+                  <span className={cn("flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0", cfg.color)}>
+                    <Icon className="h-3.5 w-3.5" />
+                  </span>
+                  <span className="flex-1 text-sm text-foreground">{tipo}</span>
+                  <span className="text-sm font-semibold tabular-nums text-muted-foreground">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
 
         {/* Charts ---------------------------------------------------------- */}
         <div className="grid md:grid-cols-2 gap-6">
           <Card className="border bg-card">
-            <CardHeader className="pb-2"><CardTitle className="text-base font-display">Funil de Vendas</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Funil de Vendas</CardTitle></CardHeader>
             <CardContent>
               {funnelData.length > 0 ? (
                 <ResponsiveContainer width="100%" height={300}>
@@ -540,7 +499,7 @@ export default function Dashboard() {
           </Card>
 
           <Card className="border bg-card">
-            <CardHeader className="pb-2"><CardTitle className="text-base font-display">Por Qualificação</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Por Qualificação</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={300}>
                 <BarChart data={qualData} layout="vertical" margin={{ left: 10 }}>
@@ -559,7 +518,7 @@ export default function Dashboard() {
         {/* Performance (admin only) ---------------------------------------- */}
         {isAdmin && performanceData.length > 0 && (
           <Card className="border bg-card">
-            <CardHeader className="pb-2"><CardTitle className="text-base font-display">Performance por Vendedor</CardTitle></CardHeader>
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Performance por Vendedor</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={Math.max(200, performanceData.length * 50)}>
                 <BarChart data={performanceData} layout="vertical" margin={{ left: 20 }}>
