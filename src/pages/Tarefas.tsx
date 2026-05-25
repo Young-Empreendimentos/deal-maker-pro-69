@@ -53,6 +53,7 @@ type TaskImage = {
 
 export default function Tarefas() {
   const { user, isAdmin } = useAuth();
+
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
   const [deals, setDeals] = useState<Deal[]>([]);
@@ -70,16 +71,28 @@ export default function Tarefas() {
   const [uploading, setUploading] = useState(false);
 
   const fetchTasks = async () => {
-    const { data: tasksData } = await supabase
-      .from("crm_tasks")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    const { data: dealsData } = await supabase
-      .from("crm_deals")
-      .select("id, cliente_nome");
-
+    // Deals: admins veem todos; usuários comuns só os seus
+    let dealsQuery = supabase.from("crm_deals").select("id, cliente_nome").order("cliente_nome");
+    if (!isAdmin && user) {
+      dealsQuery = dealsQuery.eq("responsavel_id", user.id);
+    }
+    const { data: dealsData } = await dealsQuery;
     setDeals((dealsData as Deal[]) ?? []);
+
+    // Tarefas: admins veem todas; usuários comuns só as dos seus negócios
+    let tasksQuery = supabase.from("crm_tasks").select("*").order("created_at", { ascending: false });
+    if (!isAdmin && user) {
+      const dealIds = ((dealsData as Deal[]) ?? []).map((d) => d.id);
+      if (dealIds.length > 0) {
+        tasksQuery = tasksQuery.in("deal_id", dealIds);
+      } else {
+        // Usuário sem negócios — retorna lista vazia
+        setTasks([]);
+        setLoading(false);
+        return;
+      }
+    }
+    const { data: tasksData } = await tasksQuery;
 
     const dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
     const enriched = ((tasksData as Task[]) ?? []).map((t) => ({
@@ -90,7 +103,7 @@ export default function Tarefas() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchTasks(); }, []);
+  useEffect(() => { fetchTasks(); }, [isAdmin, user?.id]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
