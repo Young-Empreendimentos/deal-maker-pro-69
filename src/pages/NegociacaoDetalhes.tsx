@@ -148,8 +148,11 @@ export default function NegociacaoDetalhes() {
   };
 
   const handleMarkSold = async () => {
-    if (!deal) return;
-    const { complete, missing } = isProposalComplete(deal);
+    if (!deal || !id) return;
+    // Re-busca o deal mais recente para garantir que os dados salvos estão sendo verificados
+    const { data: freshData } = await supabase.from("crm_deals").select("*").eq("id", id).single();
+    const checkDeal = (freshData as DealDetail) ?? deal;
+    const { complete, missing } = isProposalComplete(checkDeal);
     if (!complete) {
       toast({
         title: "Campos obrigatórios",

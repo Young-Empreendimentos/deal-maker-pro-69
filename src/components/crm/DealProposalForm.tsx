@@ -201,7 +201,18 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from("crm_deals").update({
+
+    // Resolve nome do responsável para salvar como texto (usado pelo n8n)
+    let responsavelNome: string | null = null;
+    if (form.responsavel_venda_user_id) {
+      const found = users.find((u) => u.id === form.responsavel_venda_user_id);
+      if (found) responsavelNome = found.nome || found.email;
+    } else if (form.responsavel_venda_imobiliaria_id) {
+      const found = imobiliarias.find((i) => i.id === form.responsavel_venda_imobiliaria_id);
+      if (found) responsavelNome = found.nome;
+    }
+
+    const { data: updated, error } = await supabase.from("crm_deals").update({
       numero_lote: form.numero_lote || null,
       preco_lote: form.preco_lote || null,
       forma_pagamento: form.forma_pagamento || null,
@@ -212,6 +223,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       satisfacao_produto: form.satisfacao_produto,
       responsavel_venda_user_id: form.responsavel_venda_user_id || null,
       responsavel_venda_imobiliaria_id: form.responsavel_venda_imobiliaria_id || null,
+      responsavel_venda_original: responsavelNome,
       valor_entrada: form.valor_entrada || null,
       data_nascimento: form.data_nascimento || null,
       escolaridade: form.escolaridade || null,
@@ -225,10 +237,16 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       renda_familiar: form.renda_familiar || null,
       filhos: form.filhos || null,
       interesses_pessoais: form.interesses_pessoais ?? [],
-    } as any).eq("id", dealId);
+    } as any).eq("id", dealId).select("id");
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
+    } else if (!updated || updated.length === 0) {
+      toast({
+        title: "Sem permissão para salvar",
+        description: "Você não tem permissão para editar este negócio. Verifique se é o responsável ou peça ao admin.",
+        variant: "destructive",
+      });
     } else {
       toast({ title: "Dados salvos com sucesso!" });
       onSave();
