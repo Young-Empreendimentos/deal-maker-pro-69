@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown } from "lucide-react";
+import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown, ChevronDown, ChevronRight, TrendingDown } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -65,6 +65,15 @@ const INTERESSE_OPTIONS = [
   { value: "doação", label: "Doação" },
 ];
 
+const FUNNEL_STAGE_COLORS = [
+  { bar: "bg-violet-500",  light: "bg-violet-50  dark:bg-violet-950/30", border: "border-violet-200 dark:border-violet-800",  text: "text-violet-700 dark:text-violet-300" },
+  { bar: "bg-indigo-500",  light: "bg-indigo-50  dark:bg-indigo-950/30", border: "border-indigo-200 dark:border-indigo-800",  text: "text-indigo-700 dark:text-indigo-300" },
+  { bar: "bg-blue-500",    light: "bg-blue-50    dark:bg-blue-950/30",   border: "border-blue-200   dark:border-blue-800",    text: "text-blue-700   dark:text-blue-300" },
+  { bar: "bg-cyan-500",    light: "bg-cyan-50    dark:bg-cyan-950/30",   border: "border-cyan-200   dark:border-cyan-800",    text: "text-cyan-700   dark:text-cyan-300" },
+  { bar: "bg-teal-500",    light: "bg-teal-50    dark:bg-teal-950/30",   border: "border-teal-200   dark:border-teal-800",    text: "text-teal-700   dark:text-teal-300" },
+  { bar: "bg-emerald-500", light: "bg-emerald-50 dark:bg-emerald-950/30",border: "border-emerald-200 dark:border-emerald-800", text: "text-emerald-700 dark:text-emerald-300" },
+];
+
 const PRECO_FAIXAS = [
   { value: "0-100000", label: "Até R$ 100 mil" },
   { value: "100000-200000", label: "R$ 100 - 200 mil" },
@@ -77,7 +86,8 @@ export default function Negociacoes() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [view, setView] = useState<"kanban" | "table">("kanban");
+  const [view, setView] = useState<"kanban" | "table" | "funil">("kanban");
+  const [openStages, setOpenStages] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
   const [showFilters, setShowFilters] = useState(false);
@@ -244,10 +254,13 @@ export default function Negociacoes() {
               {sortDir === "asc" ? "↑" : "↓"}
             </button>
             <div className="flex bg-muted rounded-md p-0.5">
-              <button onClick={() => setView("kanban")} className={cn("p-2 rounded-sm transition-colors", view === "kanban" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
+              <button onClick={() => setView("kanban")} className={cn("p-2 rounded-sm transition-colors", view === "kanban" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")} title="Kanban">
                 <LayoutGrid className="h-4 w-4" />
               </button>
-              <button onClick={() => setView("table")} className={cn("p-2 rounded-sm transition-colors", view === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")}>
+              <button onClick={() => setView("funil")} className={cn("p-2 rounded-sm transition-colors", view === "funil" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")} title="Funil">
+                <TrendingDown className="h-4 w-4" />
+              </button>
+              <button onClick={() => setView("table")} className={cn("p-2 rounded-sm transition-colors", view === "table" ? "bg-card shadow-sm text-foreground" : "text-muted-foreground")} title="Tabela">
                 <TableIcon className="h-4 w-4" />
               </button>
             </div>
@@ -284,7 +297,137 @@ export default function Negociacoes() {
         {/* Content */}
         {loading ? (
           <div className="text-center text-muted-foreground py-12">Carregando...</div>
-        ) : view === "kanban" ? (
+        ) : view === "funil" ? (() => {
+          const maxCount = Math.max(1, ...KANBAN_COLUMNS.map((col) => filtered.filter((d) => d.status === col.value).length));
+          const toggleStage = (v: string) => setOpenStages((prev) => {
+            const next = new Set(prev);
+            next.has(v) ? next.delete(v) : next.add(v);
+            return next;
+          });
+          return (
+            <div className="space-y-2 max-w-3xl mx-auto">
+              {KANBAN_COLUMNS.map((col, i) => {
+                const colDeals  = filtered.filter((d) => d.status === col.value);
+                const count     = colDeals.length;
+                const pct       = Math.round((count / maxCount) * 100);
+                const isOpen    = openStages.has(col.value);
+                const clr       = FUNNEL_STAGE_COLORS[i % FUNNEL_STAGE_COLORS.length];
+                return (
+                  <div key={col.value} className={cn("rounded-xl border-2 overflow-hidden transition-all duration-200", clr.border)}>
+                    {/* Stage header — clicável */}
+                    <button
+                      onClick={() => toggleStage(col.value)}
+                      className={cn("w-full flex items-center gap-4 px-5 py-4 text-left transition-colors", clr.light, "hover:brightness-95")}
+                    >
+                      {/* Chevron */}
+                      <span className={cn("flex-shrink-0 transition-transform duration-200", isOpen && "rotate-90")}>
+                        <ChevronRight className={cn("h-4 w-4", clr.text)} />
+                      </span>
+
+                      {/* Label + barra proporcional */}
+                      <div className="flex-1 min-w-0 space-y-1.5">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={cn("text-sm font-semibold", clr.text)}>{col.label}</span>
+                          <span className={cn("text-xs font-bold tabular-nums px-2 py-0.5 rounded-full", clr.bar, "text-white")}>
+                            {count}
+                          </span>
+                        </div>
+                        {/* Barra proporcional — cria o efeito visual de funil */}
+                        <div className="h-1.5 rounded-full bg-black/10 dark:bg-white/10">
+                          <div
+                            className={cn("h-full rounded-full transition-all duration-500", clr.bar)}
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Deals expandidos */}
+                    {isOpen && (
+                      <div className="border-t border-inherit px-4 py-4 bg-card">
+                        {colDeals.length === 0 ? (
+                          <p className="text-sm text-muted-foreground text-center py-4">Nenhuma negociação neste estágio</p>
+                        ) : (
+                          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                            {colDeals.map((deal) => (
+                              <Card
+                                key={deal.id}
+                                className="cursor-pointer hover:shadow-md transition-shadow border"
+                                onClick={() => navigate(`/negociacoes/${deal.id}`)}
+                              >
+                                <CardContent className="p-3 space-y-2">
+                                  <p className="font-medium text-sm leading-snug">{deal.cliente_nome}</p>
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge className={cn("text-[10px] px-1.5 py-0", QUAL_COLORS[deal.qualificacao])}>
+                                      {deal.qualificacao}
+                                    </Badge>
+                                    {deal.preco_lote && (
+                                      <span className="text-[10px] text-muted-foreground font-medium">
+                                        {deal.preco_lote.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+                                      </span>
+                                    )}
+                                    <span className="text-[10px] text-muted-foreground ml-auto">
+                                      {new Date(deal.created_at).toLocaleDateString("pt-BR")}
+                                    </span>
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+
+              {/* Resumo final: vendidos + perdidos */}
+              <div className="grid grid-cols-2 gap-2 pt-2">
+                {[
+                  { status: "vendido", label: "Vendidos", bar: "bg-green-500", border: "border-green-200 dark:border-green-800", light: "bg-green-50 dark:bg-green-950/30", text: "text-green-700 dark:text-green-300" },
+                  { status: "perdido", label: "Perdidos",  bar: "bg-red-500",   border: "border-red-200   dark:border-red-800",   light: "bg-red-50   dark:bg-red-950/30",   text: "text-red-700   dark:text-red-300" },
+                ].map(({ status, label, bar, border, light, text }) => {
+                  const colDeals = filtered.filter((d) => d.status === status);
+                  const isOpen   = openStages.has(status);
+                  return (
+                    <div key={status} className={cn("rounded-xl border-2 overflow-hidden", border)}>
+                      <button
+                        onClick={() => toggleStage(status)}
+                        className={cn("w-full flex items-center gap-3 px-4 py-3 text-left", light)}
+                      >
+                        <span className={cn("transition-transform duration-200 flex-shrink-0", isOpen && "rotate-90")}>
+                          <ChevronRight className={cn("h-4 w-4", text)} />
+                        </span>
+                        <span className={cn("flex-1 text-sm font-semibold", text)}>{label}</span>
+                        <span className={cn("text-xs font-bold px-2 py-0.5 rounded-full text-white", bar)}>
+                          {colDeals.length}
+                        </span>
+                      </button>
+                      {isOpen && (
+                        <div className="border-t border-inherit px-4 py-4 bg-card">
+                          {colDeals.length === 0 ? (
+                            <p className="text-sm text-muted-foreground text-center py-2">Nenhuma negociação</p>
+                          ) : (
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              {colDeals.map((deal) => (
+                                <Card key={deal.id} className="cursor-pointer hover:shadow-md transition-shadow border" onClick={() => navigate(`/negociacoes/${deal.id}`)}>
+                                  <CardContent className="p-3">
+                                    <p className="font-medium text-sm truncate">{deal.cliente_nome}</p>
+                                    <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(deal.created_at).toLocaleDateString("pt-BR")}</p>
+                                  </CardContent>
+                                </Card>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })() : view === "kanban" ? (
           <DragDropContext onDragEnd={onDragEnd}>
             <div className="flex gap-4 overflow-x-auto pb-4">
               {KANBAN_COLUMNS.map((col) => {
