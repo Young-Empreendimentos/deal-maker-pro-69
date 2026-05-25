@@ -83,10 +83,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
+    // Sempre usa o domínio de produção para o callback do OAuth
+    const isProd = window.location.hostname !== "localhost";
+    const callbackUrl = isProd
+      ? "https://pingolead.youngempreendimentos.com.br/auth/callback"
+      : `${window.location.origin}/auth/callback`;
+
     const { data, error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: callbackUrl,
         skipBrowserRedirect: true,
       },
     });
