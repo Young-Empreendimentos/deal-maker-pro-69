@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
+import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,6 +39,7 @@ export type Deal = {
   status: string;
   responsavel_id: string;
   created_at: string;
+  updated_at: string;
   empreendimento_id: string | null;
   fonte_id: string | null;
   ordem_kanban: number;
@@ -93,10 +95,17 @@ export default function Negociacoes() {
   const [fInteresse, setFInteresse] = useState<string[]>([]);
   const [fPreco, setFPreco] = useState<string[]>([]);
 
+  const EMPTY_RANGE: DateRange = { from: "", to: "" };
+  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(EMPTY_RANGE);
+  const [fDateContato,  setFDateContato]  = useState<DateRange>(EMPTY_RANGE);
+  const [fDateVenda,    setFDateVenda]    = useState<DateRange>(EMPTY_RANGE);
+
   const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0;
+  const hasDateFilter = (r: DateRange) => r.from !== "" || r.to !== "";
+  const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
+    || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda);
 
   const fetchDeals = async () => {
     // PostgREST/Supabase JS limita a 1000 rows por default. Como todos os deals
@@ -127,6 +136,15 @@ export default function Negociacoes() {
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));
 
+  // Helper: checa se uma data ISO cai dentro de um DateRange
+  const inRange = (iso: string, r: DateRange) => {
+    if (!r.from && !r.to) return true;
+    const d = new Date(iso);
+    if (r.from && d < new Date(r.from + "T00:00:00")) return false;
+    if (r.to   && d > new Date(r.to   + "T23:59:59")) return false;
+    return true;
+  };
+
   const filtered = useMemo(() => {
     const list = deals.filter((d) => {
       // Status group filter
@@ -150,17 +168,26 @@ export default function Negociacoes() {
         });
         if (!matches) return false;
       }
+      // Filtros de data
+      if (hasDateFilter(fDateCriacao) && !inRange(d.created_at, fDateCriacao)) return false;
+      if (hasDateFilter(fDateContato) && !inRange(d.updated_at, fDateContato)) return false;
+      if (hasDateFilter(fDateVenda)) {
+        if (d.status !== "vendido") return false;
+        if (!inRange(d.updated_at, fDateVenda)) return false;
+      }
       return true;
     });
     list.sort((a, b) => {
       let cmp = 0;
       if (sortBy === "cliente_nome") cmp = a.cliente_nome.localeCompare(b.cliente_nome);
       else if (sortBy === "qualificacao") cmp = (qualOrder[a.qualificacao] ?? 0) - (qualOrder[b.qualificacao] ?? 0);
+      else if (sortBy === "updated_at") cmp = new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       else cmp = new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [deals, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, sortBy, sortDir]);
+  }, [deals, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+      fDateCriacao, fDateContato, fDateVenda, sortBy, sortDir]);
 
   const clearFilters = () => {
     setFConsultor([]);
@@ -168,6 +195,9 @@ export default function Negociacoes() {
     setFFonte([]);
     setFInteresse([]);
     setFPreco([]);
+    setFDateCriacao(EMPTY_RANGE);
+    setFDateContato(EMPTY_RANGE);
+    setFDateVenda(EMPTY_RANGE);
   };
 
   const onDragEnd = async (result: DropResult) => {
@@ -236,6 +266,11 @@ export default function Negociacoes() {
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
                 <MultiSelectFilter label="Interesse" options={INTERESSE_OPTIONS} selected={fInteresse} onChange={setFInteresse} />
                 <MultiSelectFilter label="Preço" options={PRECO_FAIXAS} selected={fPreco} onChange={setFPreco} />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t">
+                <DateRangeFilter label="Data de Criação" value={fDateCriacao} onChange={setFDateCriacao} />
+                <DateRangeFilter label="Último Contato"  value={fDateContato} onChange={setFDateContato} />
+                <DateRangeFilter label="Data da Venda"   value={fDateVenda}   onChange={setFDateVenda} />
               </div>
               {hasFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-muted-foreground">
