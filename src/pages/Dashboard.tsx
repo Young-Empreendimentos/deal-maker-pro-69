@@ -163,30 +163,31 @@ export default function Dashboard() {
   }), [deals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
 
   // ── Filtered completed tasks ──────────────────────────────────────────────
-  // Filtra consultor/empreendimento via deal, mas usa updated_at da TAREFA
-  // para data — não o created_at do deal (que cortaria tarefas de deals antigos).
-  const dealsForTasks = useMemo(() =>
-    new Set(
-      deals.filter((d) => {
-        if (!isAdmin && d.responsavel_id !== user?.id) return false;
-        if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
-        if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
-        return true;
-      }).map((d) => d.id),
-    ),
-  [deals, isAdmin, user, filterUser, filterEmp]);
+  // Filtro de usuário → responsavel_id da TAREFA (quem criou/completou)
+  // Filtro de empreendimento → passa pelo deal (tarefa não tem emp direto)
+  // Filtro de data → updated_at da TAREFA (momento da conclusão)
+  const empDealsSet = useMemo(() =>
+    filterEmp !== "todos"
+      ? new Set(deals.filter((d) => d.empreendimento_id === filterEmp).map((d) => d.id))
+      : null,
+  [deals, filterEmp]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (!t.concluida) return false;
-      if (!dealsForTasks.has(t.deal_id)) return false;
+      // Filtro de usuário pela tarefa
+      if (!isAdmin && t.responsavel_id !== user?.id) return false;
+      if (isAdmin && filterUser !== "todos" && t.responsavel_id !== filterUser) return false;
+      // Filtro de empreendimento pelo deal
+      if (empDealsSet !== null && !empDealsSet.has(t.deal_id)) return false;
+      // Filtro de data
       if (dateFrom && dateTo) {
         const dt = new Date(t.updated_at);
         if (dt < dateFrom || dt > dateTo) return false;
       }
       return true;
     });
-  }, [tasks, dealsForTasks, dateFrom, dateTo]);
+  }, [tasks, isAdmin, user, filterUser, empDealsSet, dateFrom, dateTo]);
 
   // ── Chart data ────────────────────────────────────────────────────────────
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
