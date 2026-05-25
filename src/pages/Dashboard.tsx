@@ -22,7 +22,7 @@ import {
   format,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Check, SlidersHorizontal } from "lucide-react";
+import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -168,8 +168,13 @@ export default function Dashboard() {
   }, [tasks, filteredDeals, dateFrom, dateTo]);
 
   // ── Chart data ────────────────────────────────────────────────────────────
+  // Apenas os estágios que não se sobrepõem com tipos de tarefa
+  const KPI_STAGES = ["lead_recebido", "ficha_assinada", "proposta_recebida"] as const;
+
   const statusData = useMemo(
-    () => KANBAN_COLUMNS.map((col) => ({ name: col.label, value: filteredDeals.filter((d) => d.status === col.value).length })),
+    () => KANBAN_COLUMNS
+      .filter((col) => (KPI_STAGES as readonly string[]).includes(col.value))
+      .map((col) => ({ name: col.label, value: filteredDeals.filter((d) => d.status === col.value).length })),
     [filteredDeals],
   );
 
@@ -349,7 +354,8 @@ export default function Dashboard() {
         </div>
 
         {/* KPI Cards ------------------------------------------------------- */}
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+          {/* Estágios do funil (sem os que se sobrepõem com tarefas) */}
           {statusData.map((s) => (
             <Card key={s.name} className="border bg-card">
               <CardContent className="p-4 text-center">
@@ -359,23 +365,39 @@ export default function Dashboard() {
             </Card>
           ))}
 
-          {/* Vendas */}
-          <Card className="border bg-card">
+          {/* Vendas — destaque verde */}
+          <Card className={cn(
+            "border-2 transition-colors",
+            vendasCount > 0
+              ? "border-green-400 bg-green-50 dark:bg-green-950/40 dark:border-green-600"
+              : "border-dashed border-muted bg-muted/20",
+          )}>
             <CardContent className="p-4 text-center">
-              <p className={cn("text-2xl font-bold", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "")}>
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <TrendingUp className={cn("h-4 w-4", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")} />
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Vendas</p>
+              </div>
+              <p className={cn("text-3xl font-bold", vendasCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")}>
                 {vendasCount}
               </p>
-              <p className="text-xs text-muted-foreground mt-1 leading-tight">Vendas</p>
             </CardContent>
           </Card>
 
-          {/* Perdas */}
-          <Card className="border bg-card">
+          {/* Perdidas — destaque vermelho */}
+          <Card className={cn(
+            "border-2 transition-colors",
+            perdasCount > 0
+              ? "border-red-400 bg-red-50 dark:bg-red-950/40 dark:border-red-600"
+              : "border-dashed border-muted bg-muted/20",
+          )}>
             <CardContent className="p-4 text-center">
-              <p className={cn("text-2xl font-bold", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "")}>
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <TrendingDown className={cn("h-4 w-4", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")} />
+                <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Perdidas</p>
+              </div>
+              <p className={cn("text-3xl font-bold", perdasCount > 0 ? "text-red-600 dark:text-red-400" : "text-muted-foreground")}>
                 {perdasCount}
               </p>
-              <p className="text-xs text-muted-foreground mt-1 leading-tight">Perdidas</p>
             </CardContent>
           </Card>
         </div>
