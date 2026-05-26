@@ -19,8 +19,29 @@ import { Label } from "@/components/ui/label";
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
 type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
+type EmpreendimentoSigla = { id: string; codigo: string; nome: string };
+type Imobiliaria = {
+  id: string;
+  nome: string;
+  contato_nome: string | null;
+  telefone: string | null;
+  link_social: string | null;
+  ativo: boolean;
+};
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
+
+// "SIGLA - Nome" → { sigla, nome }. Imobiliárias legadas (sem prefixo) caem em sigla="".
+function parseNomeImobiliaria(full: string): { sigla: string; nome: string } {
+  const idx = full.indexOf(" - ");
+  if (idx === -1) return { sigla: "", nome: full };
+  return { sigla: full.slice(0, idx).trim(), nome: full.slice(idx + 3).trim() };
+}
+function montarNomeImobiliaria(sigla: string, nome: string): string {
+  const s = sigla.trim();
+  const n = nome.trim();
+  return s ? `${s} - ${n}` : n;
+}
 
 function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<boolean> }) {
   const [nome, setNome] = useState("");
@@ -124,6 +145,179 @@ function EditableList({ title, items, onAdd, onToggle, onRename }: {
         {items.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum item cadastrado</p>}
       </CardContent>
     </Card>
+  );
+}
+
+function ImobiliariaForm({
+  siglas,
+  onAdd,
+}: {
+  siglas: EmpreendimentoSigla[];
+  onAdd: (input: {
+    sigla: string;
+    nome: string;
+    contato_nome: string;
+    telefone: string;
+    link_social: string;
+  }) => Promise<boolean>;
+}) {
+  const [sigla, setSigla] = useState("");
+  const [nome, setNome] = useState("");
+  const [contato, setContato] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [linkSocial, setLinkSocial] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const reset = () => {
+    setSigla("");
+    setNome("");
+    setContato("");
+    setTelefone("");
+    setLinkSocial("");
+  };
+
+  const handleAdd = async () => {
+    const n = nome.trim();
+    const s = sigla.trim();
+    if (!n || !s || saving) return;
+    setSaving(true);
+    try {
+      const created = await onAdd({ sigla: s, nome: n, contato_nome: contato.trim(), telefone: telefone.trim(), link_social: linkSocial.trim() });
+      if (created) reset();
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex gap-2 items-center">
+        <Select value={sigla} onValueChange={setSigla}>
+          <SelectTrigger className="w-[120px]"><SelectValue placeholder="Sigla" /></SelectTrigger>
+          <SelectContent>
+            {siglas.length === 0 ? (
+              <SelectItem value="__empty__" disabled>Nenhum empreendimento com código</SelectItem>
+            ) : (
+              siglas.map((e) => (
+                <SelectItem key={e.id} value={e.codigo}>{e.codigo} — {e.nome}</SelectItem>
+              ))
+            )}
+          </SelectContent>
+        </Select>
+        <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da imobiliária / corretor" className="flex-1" />
+        <Button size="sm" type="button" disabled={!sigla || !nome.trim() || saving} onClick={() => void handleAdd()}>
+          <Plus className="h-4 w-4" />
+        </Button>
+      </div>
+      <div className="flex gap-2 items-center">
+        <Input value={contato} onChange={(e) => setContato(e.target.value)} placeholder="Contato (opcional)" className="flex-1" />
+        <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="Telefone (opcional)" className="flex-1" />
+        <Input value={linkSocial} onChange={(e) => setLinkSocial(e.target.value)} placeholder="Link social (opcional)" className="flex-1" />
+      </div>
+    </div>
+  );
+}
+
+function ImobiliariaRow({
+  imo,
+  siglas,
+  onToggle,
+  onSave,
+}: {
+  imo: Imobiliaria;
+  siglas: EmpreendimentoSigla[];
+  onToggle: () => void;
+  onSave: (patch: { nome: string; contato_nome: string; telefone: string; link_social: string }) => Promise<void>;
+}) {
+  const parsed = parseNomeImobiliaria(imo.nome);
+  const [editing, setEditing] = useState(false);
+  const [sigla, setSigla] = useState(parsed.sigla);
+  const [nome, setNome] = useState(parsed.nome);
+  const [contato, setContato] = useState(imo.contato_nome ?? "");
+  const [telefone, setTelefone] = useState(imo.telefone ?? "");
+  const [linkSocial, setLinkSocial] = useState(imo.link_social ?? "");
+
+  const cancel = () => {
+    setEditing(false);
+    setSigla(parsed.sigla);
+    setNome(parsed.nome);
+    setContato(imo.contato_nome ?? "");
+    setTelefone(imo.telefone ?? "");
+    setLinkSocial(imo.link_social ?? "");
+  };
+
+  const save = async () => {
+    const novoNome = montarNomeImobiliaria(sigla, nome);
+    if (!novoNome) return;
+    await onSave({
+      nome: novoNome,
+      contato_nome: contato.trim(),
+      telefone: telefone.trim(),
+      link_social: linkSocial.trim(),
+    });
+    setEditing(false);
+  };
+
+  // Linha legada (sem sigla) recebe destaque para ajudar limpeza canônica via #11.
+  const legacy = !parsed.sigla;
+
+  return (
+    <TableRow className={!imo.ativo ? "opacity-50" : ""}>
+      <TableCell className="w-[110px]">
+        {editing ? (
+          <Select value={sigla} onValueChange={setSigla}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              {siglas.map((e) => (<SelectItem key={e.id} value={e.codigo}>{e.codigo}</SelectItem>))}
+            </SelectContent>
+          </Select>
+        ) : (
+          <Badge variant={legacy ? "destructive" : "secondary"} className="text-xs">
+            {parsed.sigla || "sem-sigla"}
+          </Badge>
+        )}
+      </TableCell>
+      <TableCell>
+        {editing ? (
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-8 text-sm" />
+        ) : (
+          <span className="text-sm">{parsed.nome}</span>
+        )}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {editing ? (
+          <Input value={contato} onChange={(e) => setContato(e.target.value)} className="h-8 text-sm" placeholder="Contato" />
+        ) : (
+          imo.contato_nome || "—"
+        )}
+      </TableCell>
+      <TableCell className="text-sm text-muted-foreground">
+        {editing ? (
+          <Input value={telefone} onChange={(e) => setTelefone(e.target.value)} className="h-8 text-sm" placeholder="Telefone" />
+        ) : (
+          imo.telefone || "—"
+        )}
+      </TableCell>
+      <TableCell className="w-[60px]">
+        <Switch checked={imo.ativo} onCheckedChange={onToggle} />
+      </TableCell>
+      <TableCell className="w-[80px]">
+        {editing ? (
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void save()} disabled={!nome.trim() || !sigla}>
+              <Check className="h-3.5 w-3.5 text-success" />
+            </Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancel}>
+              <X className="h-3.5 w-3.5 text-destructive" />
+            </Button>
+          </div>
+        ) : (
+          <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(true)}>
+            <Pencil className="h-3.5 w-3.5" />
+          </Button>
+        )}
+      </TableCell>
+    </TableRow>
   );
 }
 
@@ -252,6 +446,8 @@ export default function Configuracoes() {
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [motivos, setMotivos] = useState<MotivoPerda[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
+  const [imobiliarias, setImobiliarias] = useState<Imobiliaria[]>([]);
+  const [siglas, setSiglas] = useState<EmpreendimentoSigla[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [profiles, setProfiles] = useState<Map<string, UserProfile>>(new Map());
   const [showAddUser, setShowAddUser] = useState(false);
@@ -263,6 +459,25 @@ export default function Configuracoes() {
   const fetchFontes = async () => { const { data } = await supabase.from("crm_fontes_lead").select("*").order("nome"); setFontes((data as FonteLead[]) ?? []); };
   const fetchMotivos = async () => { const { data } = await supabase.from("crm_motivos_perda").select("*").order("nome"); setMotivos((data as MotivoPerda[]) ?? []); };
   const fetchEmpreendimentos = async () => { const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome"); setEmpreendimentos((data as Empreendimento[]) ?? []); };
+  const fetchSiglas = async () => {
+    const { data } = await supabase
+      .from("crm_empreendimentos")
+      .select("id, codigo, nome")
+      .eq("ativo", true)
+      .not("codigo", "is", null)
+      .order("codigo");
+    setSiglas(((data ?? []) as { id: string; codigo: string | null; nome: string }[])
+      .filter((e) => !!e.codigo)
+      .map((e) => ({ id: e.id, codigo: e.codigo as string, nome: e.nome })));
+  };
+  const fetchImobiliarias = async () => {
+    const { data, error } = await supabase
+      .from("imobiliarias")
+      .select("id, nome, contato_nome, telefone, link_social, ativo")
+      .order("nome");
+    if (error) { setImobiliarias([]); return; }
+    setImobiliarias((data as Imobiliaria[]) ?? []);
+  };
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
@@ -272,7 +487,16 @@ export default function Configuracoes() {
     setProfiles(map);
   };
 
-  useEffect(() => { fetchFontes(); fetchMotivos(); fetchEmpreendimentos(); if (isAdmin) fetchUsers(); }, [isAdmin]);
+  useEffect(() => {
+    fetchFontes();
+    fetchMotivos();
+    fetchEmpreendimentos();
+    if (isAdmin) {
+      fetchUsers();
+      fetchImobiliarias();
+      fetchSiglas();
+    }
+  }, [isAdmin]);
 
   const toggleUserAtivo = async (userId: string, currentAtivo: boolean) => {
     const { error } = await supabase.from("user_profiles").update({ ativo: !currentAtivo }).eq("user_id", userId);
@@ -307,6 +531,7 @@ export default function Configuracoes() {
             <TabsTrigger value="empreendimentos">Empreendimentos</TabsTrigger>
             <TabsTrigger value="fontes">Fontes de Lead</TabsTrigger>
             <TabsTrigger value="motivos">Motivos de Perda</TabsTrigger>
+            {isAdmin && <TabsTrigger value="imobiliarias">Imobiliárias</TabsTrigger>}
             {isAdmin && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
           </TabsList>
 
@@ -350,6 +575,85 @@ export default function Configuracoes() {
               onRename={async (id, nome) => { if (!nome.trim()) return; await supabase.from("crm_motivos_perda").update({ nome: nome.trim() }).eq("id", id); fetchMotivos(); }}
             />
           </TabsContent>
+
+          {isAdmin && (
+            <TabsContent value="imobiliarias" className="mt-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Imobiliárias / Corretores parceiros</CardTitle>
+                  <p className="text-xs text-muted-foreground">
+                    Opções do dropdown <strong>Responsável pela venda → Imobiliária</strong>. Padrão canônico: <code>SIGLA - Nome</code> (sigla do empreendimento). Registros sem sigla aparecem destacados — normalize via edição.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ImobiliariaForm
+                    siglas={siglas}
+                    onAdd={async (input) => {
+                      const nomeFinal = montarNomeImobiliaria(input.sigla, input.nome);
+                      const { error } = await supabase.from("imobiliarias").insert({
+                        nome: nomeFinal,
+                        contato_nome: input.contato_nome || null,
+                        telefone: input.telefone || null,
+                        link_social: input.link_social || null,
+                      });
+                      if (error) {
+                        toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
+                        return false;
+                      }
+                      toast({ title: "Imobiliária adicionada!" });
+                      await fetchImobiliarias();
+                      return true;
+                    }}
+                  />
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[110px]">Sigla</TableHead>
+                        <TableHead>Nome</TableHead>
+                        <TableHead>Contato</TableHead>
+                        <TableHead>Telefone</TableHead>
+                        <TableHead className="w-[60px]">Ativo</TableHead>
+                        <TableHead className="w-[80px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {imobiliarias.map((imo) => (
+                        <ImobiliariaRow
+                          key={imo.id}
+                          imo={imo}
+                          siglas={siglas}
+                          onToggle={async () => {
+                            const { error } = await supabase
+                              .from("imobiliarias")
+                              .update({ ativo: !imo.ativo })
+                              .eq("id", imo.id);
+                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            else fetchImobiliarias();
+                          }}
+                          onSave={async (patch) => {
+                            const { error } = await supabase
+                              .from("imobiliarias")
+                              .update({
+                                nome: patch.nome,
+                                contato_nome: patch.contato_nome || null,
+                                telefone: patch.telefone || null,
+                                link_social: patch.link_social || null,
+                              })
+                              .eq("id", imo.id);
+                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            else { toast({ title: "Imobiliária atualizada!" }); fetchImobiliarias(); }
+                          }}
+                        />
+                      ))}
+                    </TableBody>
+                  </Table>
+                  {imobiliarias.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma imobiliária cadastrada</p>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          )}
 
           {isAdmin && (
             <TabsContent value="usuarios" className="mt-4">
