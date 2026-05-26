@@ -20,7 +20,10 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const ALLOWED_DOMAIN = "@youngempreendimentos.com.br";
+const ALLOWED_DOMAINS = [
+  "@youngempreendimentos.com.br",
+  "@adventurelabs.com.br",
+];
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -53,13 +56,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const email = session.user.email ?? "";
 
         // Restrição de domínio apenas para Google OAuth
-        if (provider === "google" && !email.endsWith(ALLOWED_DOMAIN)) {
+        if (provider === "google" && !ALLOWED_DOMAINS.some((d) => email.endsWith(d))) {
           await supabase.auth.signOut();
           setSession(null);
           setUser(null);
           setRole("user");
           setNome("");
-          setAuthError(`Apenas e-mails ${ALLOWED_DOMAIN} têm acesso via Google.`);
+          setAuthError(
+            `Apenas e-mails ${ALLOWED_DOMAINS.join(" ou ")} têm acesso via Google.`,
+          );
           return;
         }
 
