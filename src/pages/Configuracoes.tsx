@@ -31,6 +31,12 @@ type Imobiliaria = {
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
 
+// Siglas guarda-chuva que não são empreendimentos individuais (vivem em pseudo-grupos
+// no padrão canônico Young/RD): SAP = região Santo Antônio da Patrulha, SBY = grupo
+// Parque Lorena I+II. Sempre disponíveis no datalist mesmo sem registro em
+// crm_empreendimentos.
+const SIGLAS_EXTRAS_CANONICAS = ["SAP", "SBY"] as const;
+
 // "SIGLA - Nome" → { sigla, nome }. Imobiliárias legadas (sem prefixo) caem em sigla="".
 function parseNomeImobiliaria(full: string): { sigla: string; nome: string } {
   const idx = full.indexOf(" - ");
@@ -189,23 +195,32 @@ function ImobiliariaForm({
     }
   };
 
+  // Datalist agrega códigos de empreendimentos + extras canônicas (SAP, SBY).
+  // dedupe preserva ordem dos códigos, com extras no fim.
+  const siglaOptions = Array.from(new Set([
+    ...siglas.map((e) => e.codigo),
+    ...SIGLAS_EXTRAS_CANONICAS,
+  ]));
+
   return (
     <div className="space-y-2">
       <div className="flex gap-2 items-center">
-        <Select value={sigla} onValueChange={setSigla}>
-          <SelectTrigger className="w-[120px]"><SelectValue placeholder="Sigla" /></SelectTrigger>
-          <SelectContent>
-            {siglas.length === 0 ? (
-              <SelectItem value="__empty__" disabled>Nenhum empreendimento com código</SelectItem>
-            ) : (
-              siglas.map((e) => (
-                <SelectItem key={e.id} value={e.codigo}>{e.codigo} — {e.nome}</SelectItem>
-              ))
-            )}
-          </SelectContent>
-        </Select>
+        <Input
+          list="imobiliaria-siglas-form"
+          value={sigla}
+          onChange={(e) => setSigla(e.target.value.toUpperCase())}
+          placeholder="Sigla"
+          className="w-[120px] uppercase"
+          maxLength={6}
+        />
+        <datalist id="imobiliaria-siglas-form">
+          {siglaOptions.map((code) => {
+            const meta = siglas.find((e) => e.codigo === code);
+            return <option key={code} value={code}>{meta ? `${code} — ${meta.nome}` : code}</option>;
+          })}
+        </datalist>
         <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome da imobiliária / corretor" className="flex-1" />
-        <Button size="sm" type="button" disabled={!sigla || !nome.trim() || saving} onClick={() => void handleAdd()}>
+        <Button size="sm" type="button" disabled={!sigla.trim() || !nome.trim() || saving} onClick={() => void handleAdd()}>
           <Plus className="h-4 w-4" />
         </Button>
       </div>
@@ -265,12 +280,22 @@ function ImobiliariaRow({
     <TableRow className={!imo.ativo ? "opacity-50" : ""}>
       <TableCell className="w-[110px]">
         {editing ? (
-          <Select value={sigla} onValueChange={setSigla}>
-            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
-            <SelectContent>
-              {siglas.map((e) => (<SelectItem key={e.id} value={e.codigo}>{e.codigo}</SelectItem>))}
-            </SelectContent>
-          </Select>
+          <>
+            <Input
+              list="imobiliaria-siglas-row"
+              value={sigla}
+              onChange={(e) => setSigla(e.target.value.toUpperCase())}
+              className="h-8 text-sm uppercase"
+              placeholder="—"
+              maxLength={6}
+            />
+            <datalist id="imobiliaria-siglas-row">
+              {Array.from(new Set([...siglas.map((e) => e.codigo), ...SIGLAS_EXTRAS_CANONICAS])).map((code) => {
+                const meta = siglas.find((e) => e.codigo === code);
+                return <option key={code} value={code}>{meta ? `${code} — ${meta.nome}` : code}</option>;
+              })}
+            </datalist>
+          </>
         ) : (
           <Badge variant={legacy ? "destructive" : "secondary"} className="text-xs">
             {parsed.sigla || "sem-sigla"}
@@ -304,7 +329,7 @@ function ImobiliariaRow({
       <TableCell className="w-[80px]">
         {editing ? (
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void save()} disabled={!nome.trim() || !sigla}>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => void save()} disabled={!nome.trim() || !sigla.trim()}>
               <Check className="h-3.5 w-3.5 text-success" />
             </Button>
             <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancel}>
