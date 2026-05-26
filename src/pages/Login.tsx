@@ -78,7 +78,7 @@ export default function Login() {
           </Button>
 
           <p className="text-center text-xs text-muted-foreground pt-1">
-            Apenas e-mails @youngempreendimentos.com.br
+            Apenas e-mails @youngempreendimentos.com.br ou @adventurelabs.com.br
           </p>
         </CardContent>
       </Card>
