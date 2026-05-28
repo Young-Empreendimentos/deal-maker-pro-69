@@ -27,6 +27,9 @@ type Imobiliaria = {
   telefone: string | null;
   link_social: string | null;
   ativo: boolean;
+  // #17 multi-app: visibilidade independente por app Lovable consumidor da tabela.
+  ativo_crm: boolean; // Pingolead (este app)
+  ativo_nn: boolean;  // Novos Negocios (Perdigueiro Lovable)
 };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
@@ -237,11 +240,15 @@ function ImobiliariaRow({
   imo,
   siglas,
   onToggle,
+  onToggleCrm,
+  onToggleNn,
   onSave,
 }: {
   imo: Imobiliaria;
   siglas: EmpreendimentoSigla[];
   onToggle: () => void;
+  onToggleCrm: () => void;
+  onToggleNn: () => void;
   onSave: (patch: { nome: string; contato_nome: string; telefone: string; link_social: string }) => Promise<void>;
 }) {
   const parsed = parseNomeImobiliaria(imo.nome);
@@ -323,7 +330,13 @@ function ImobiliariaRow({
           imo.telefone || "—"
         )}
       </TableCell>
-      <TableCell className="w-[60px]">
+      <TableCell className="w-[60px]" title="Visivel no dropdown CRM (Pingolead)">
+        <Switch checked={imo.ativo_crm} onCheckedChange={onToggleCrm} disabled={!imo.ativo} />
+      </TableCell>
+      <TableCell className="w-[60px]" title="Visivel no dropdown Novos Negocios (Perdigueiro)">
+        <Switch checked={imo.ativo_nn} onCheckedChange={onToggleNn} disabled={!imo.ativo} />
+      </TableCell>
+      <TableCell className="w-[60px]" title="Soft-delete (oculta de todas as apps)">
         <Switch checked={imo.ativo} onCheckedChange={onToggle} />
       </TableCell>
       <TableCell className="w-[80px]">
@@ -498,7 +511,7 @@ export default function Configuracoes() {
   const fetchImobiliarias = async () => {
     const { data, error } = await supabase
       .from("imobiliarias")
-      .select("id, nome, contato_nome, telefone, link_social, ativo")
+      .select("id, nome, contato_nome, telefone, link_social, ativo, ativo_crm, ativo_nn")
       .order("nome");
     if (error) { setImobiliarias([]); return; }
     setImobiliarias((data as Imobiliaria[]) ?? []);
@@ -620,6 +633,10 @@ export default function Configuracoes() {
                         contato_nome: input.contato_nome || null,
                         telefone: input.telefone || null,
                         link_social: input.link_social || null,
+                        // #17 multi-app: novos cadastros via admin do CRM entram visiveis
+                        // no Pingolead por default. Admin marca o toggle NN se aplicavel.
+                        ativo_crm: true,
+                        ativo_nn: false,
                       });
                       if (error) {
                         toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
@@ -637,7 +654,9 @@ export default function Configuracoes() {
                         <TableHead>Nome</TableHead>
                         <TableHead>Contato</TableHead>
                         <TableHead>Telefone</TableHead>
-                        <TableHead className="w-[60px]">Ativo</TableHead>
+                        <TableHead className="w-[60px]" title="Visivel no dropdown CRM (Pingolead)">CRM</TableHead>
+                        <TableHead className="w-[60px]" title="Visivel no dropdown Novos Negocios">NN</TableHead>
+                        <TableHead className="w-[60px]" title="Soft-delete global">Ativo</TableHead>
                         <TableHead className="w-[80px]"></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -651,6 +670,22 @@ export default function Configuracoes() {
                             const { error } = await supabase
                               .from("imobiliarias")
                               .update({ ativo: !imo.ativo })
+                              .eq("id", imo.id);
+                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            else fetchImobiliarias();
+                          }}
+                          onToggleCrm={async () => {
+                            const { error } = await supabase
+                              .from("imobiliarias")
+                              .update({ ativo_crm: !imo.ativo_crm })
+                              .eq("id", imo.id);
+                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
+                            else fetchImobiliarias();
+                          }}
+                          onToggleNn={async () => {
+                            const { error } = await supabase
+                              .from("imobiliarias")
+                              .update({ ativo_nn: !imo.ativo_nn })
                               .eq("id", imo.id);
                             if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
                             else fetchImobiliarias();
