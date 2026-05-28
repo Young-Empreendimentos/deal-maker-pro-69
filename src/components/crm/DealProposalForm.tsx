@@ -98,9 +98,17 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     supabase.rpc("get_all_users_with_roles").then(({ data }) => {
       setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome })));
     });
-    supabase.from("imobiliarias").select("id, nome").order("nome").then(({ data }) => {
-      setImobiliarias((data as ImobOption[]) ?? []);
-    });
+    // #17 multi-app: dropdown CRM ve apenas imobiliarias com ativo_crm=true.
+    // Novos Negocios (Perdigueiro Lovable) filtra por ativo_nn em app separada.
+    supabase
+      .from("imobiliarias")
+      .select("id, nome")
+      .eq("ativo_crm", true)
+      .eq("ativo", true)
+      .order("nome")
+      .then(({ data }) => {
+        setImobiliarias((data as ImobOption[]) ?? []);
+      });
     // Load all tabela precos
     supabase.from("comercial_tabela_precos").select("empreendimento, num_lote, data_preco, preco_av")
       .not("empreendimento", "is", null)
