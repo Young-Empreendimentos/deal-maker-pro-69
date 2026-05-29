@@ -3953,6 +3953,8 @@ export type Database = {
       imobiliarias: {
         Row: {
           ativo: boolean
+          ativo_crm: boolean
+          ativo_nn: boolean
           contato_nome: string | null
           created_at: string
           id: string
@@ -3963,6 +3965,8 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
+          ativo_crm?: boolean
+          ativo_nn?: boolean
           contato_nome?: string | null
           created_at?: string
           id?: string
@@ -3973,6 +3977,8 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
+          ativo_crm?: boolean
+          ativo_nn?: boolean
           contato_nome?: string | null
           created_at?: string
           id?: string
@@ -5207,6 +5213,7 @@ export type Database = {
           contas_a_receber_url: string | null
           contas_recebidas_url: string | null
           contrato_url: string | null
+          criado_por_id: number | null
           custo_consolidacao_ri: number | null
           custo_intimacao_edital: number | null
           custo_intimacao_ri: number | null
@@ -5257,6 +5264,7 @@ export type Database = {
           contas_a_receber_url?: string | null
           contas_recebidas_url?: string | null
           contrato_url?: string | null
+          criado_por_id?: number | null
           custo_consolidacao_ri?: number | null
           custo_intimacao_edital?: number | null
           custo_intimacao_ri?: number | null
@@ -5307,6 +5315,7 @@ export type Database = {
           contas_a_receber_url?: string | null
           contas_recebidas_url?: string | null
           contrato_url?: string | null
+          criado_por_id?: number | null
           custo_consolidacao_ri?: number | null
           custo_intimacao_edital?: number | null
           custo_intimacao_ri?: number | null
@@ -5342,7 +5351,15 @@ export type Database = {
           valor_terreno_corrigido?: number | null
           valor_terreno_original?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "posvenda_leilao_criado_por_id_fkey"
+            columns: ["criado_por_id"]
+            isOneToOne: false
+            referencedRelation: "posvenda_user"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       posvenda_notificacao_processo: {
         Row: {
@@ -5449,6 +5466,7 @@ export type Database = {
           aprovacao_calculo: string | null
           aprovacao_cliente: string | null
           aprovacao_interna: string | null
+          concluido_manual: boolean | null
           criado_por_id: number | null
           data_aprovacao_rejeicao: string | null
           data_atualizacao_gatilho: string | null
@@ -5466,11 +5484,13 @@ export type Database = {
           motivo: string | null
           nome_cliente: string | null
           numero_lote: string | null
+          pago: boolean | null
           registrado: string | null
           relatorio_contas_a_receber_url: string | null
           relatorio_contas_recebidas_url: string | null
           revisao: string | null
           status: string | null
+          tipo_operacao: string | null
         }
         Insert: {
           aditivo_assinado_url?: string | null
@@ -5478,6 +5498,7 @@ export type Database = {
           aprovacao_calculo?: string | null
           aprovacao_cliente?: string | null
           aprovacao_interna?: string | null
+          concluido_manual?: boolean | null
           criado_por_id?: number | null
           data_aprovacao_rejeicao?: string | null
           data_atualizacao_gatilho?: string | null
@@ -5495,11 +5516,13 @@ export type Database = {
           motivo?: string | null
           nome_cliente?: string | null
           numero_lote?: string | null
+          pago?: boolean | null
           registrado?: string | null
           relatorio_contas_a_receber_url?: string | null
           relatorio_contas_recebidas_url?: string | null
           revisao?: string | null
           status?: string | null
+          tipo_operacao?: string | null
         }
         Update: {
           aditivo_assinado_url?: string | null
@@ -5507,6 +5530,7 @@ export type Database = {
           aprovacao_calculo?: string | null
           aprovacao_cliente?: string | null
           aprovacao_interna?: string | null
+          concluido_manual?: boolean | null
           criado_por_id?: number | null
           data_aprovacao_rejeicao?: string | null
           data_atualizacao_gatilho?: string | null
@@ -5524,11 +5548,13 @@ export type Database = {
           motivo?: string | null
           nome_cliente?: string | null
           numero_lote?: string | null
+          pago?: boolean | null
           registrado?: string | null
           relatorio_contas_a_receber_url?: string | null
           relatorio_contas_recebidas_url?: string | null
           revisao?: string | null
           status?: string | null
+          tipo_operacao?: string | null
         }
         Relationships: [
           {
@@ -6085,6 +6111,323 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      registros_comprovantes: {
+        Row: {
+          created_at: string
+          descricao: string | null
+          id: string
+          lote_id: string
+          registro_id: string
+          uploaded_by: string | null
+          url: string
+        }
+        Insert: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          lote_id: string
+          registro_id: string
+          uploaded_by?: string | null
+          url: string
+        }
+        Update: {
+          created_at?: string
+          descricao?: string | null
+          id?: string
+          lote_id?: string
+          registro_id?: string
+          uploaded_by?: string | null
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_comprovantes_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "registros_lotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_comprovantes_registro_id_fkey"
+            columns: ["registro_id"]
+            isOneToOne: false
+            referencedRelation: "registros_registros"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_comprovantes_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "registros_usuarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registros_contratos: {
+        Row: {
+          ativo: boolean
+          cliente_email: string | null
+          cliente_nome: string
+          created_at: string
+          data_contrato: string | null
+          dias_em_atraso: number | null
+          id: string
+          lote_id: string
+          numero_contrato: string | null
+          sienge_contract_id: number
+          ultima_atualizacao_valor: string | null
+          valor_ja_pago: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          ativo?: boolean
+          cliente_email?: string | null
+          cliente_nome?: string
+          created_at?: string
+          data_contrato?: string | null
+          dias_em_atraso?: number | null
+          id?: string
+          lote_id: string
+          numero_contrato?: string | null
+          sienge_contract_id: number
+          ultima_atualizacao_valor?: string | null
+          valor_ja_pago?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          ativo?: boolean
+          cliente_email?: string | null
+          cliente_nome?: string
+          created_at?: string
+          data_contrato?: string | null
+          dias_em_atraso?: number | null
+          id?: string
+          lote_id?: string
+          numero_contrato?: string | null
+          sienge_contract_id?: number
+          ultima_atualizacao_valor?: string | null
+          valor_ja_pago?: number | null
+          valor_total?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_contratos_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "registros_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registros_empreendimentos: {
+        Row: {
+          created_at: string
+          id: string
+          nome: string
+          sienge_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          nome: string
+          sienge_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          nome?: string
+          sienge_id?: number
+        }
+        Relationships: []
+      }
+      registros_lotes: {
+        Row: {
+          created_at: string
+          empreendimento_id: string
+          id: string
+          numero: string
+          sienge_unit_id: number
+          valor_avista: number | null
+        }
+        Insert: {
+          created_at?: string
+          empreendimento_id: string
+          id?: string
+          numero: string
+          sienge_unit_id: number
+          valor_avista?: number | null
+        }
+        Update: {
+          created_at?: string
+          empreendimento_id?: string
+          id?: string
+          numero?: string
+          sienge_unit_id?: number
+          valor_avista?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_lotes_empreendimento_id_fkey"
+            columns: ["empreendimento_id"]
+            isOneToOne: false
+            referencedRelation: "registros_empreendimentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registros_registros: {
+        Row: {
+          andamento: string | null
+          boleto_itbi_url: string | null
+          comprovante_itbi_url: string | null
+          contrato_id: string | null
+          created_at: string
+          data_entrega_ri: string | null
+          data_gatilho: string | null
+          data_recebimento_ri: string | null
+          data_recolhimento_itbi: string | null
+          data_solicitacao_itbi: string | null
+          etapa_analise: string | null
+          financiamento_caixa: boolean
+          id: string
+          impugnado: boolean
+          lote_id: string
+          matricula_url: string | null
+          nf_registro_url: string | null
+          observacoes: string | null
+          op_registro_url: string | null
+          responsabilidade_cliente: boolean
+          segurar_registro: boolean
+          updated_at: string
+          valor_itbi: number | null
+        }
+        Insert: {
+          andamento?: string | null
+          boleto_itbi_url?: string | null
+          comprovante_itbi_url?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          data_entrega_ri?: string | null
+          data_gatilho?: string | null
+          data_recebimento_ri?: string | null
+          data_recolhimento_itbi?: string | null
+          data_solicitacao_itbi?: string | null
+          etapa_analise?: string | null
+          financiamento_caixa?: boolean
+          id?: string
+          impugnado?: boolean
+          lote_id: string
+          matricula_url?: string | null
+          nf_registro_url?: string | null
+          observacoes?: string | null
+          op_registro_url?: string | null
+          responsabilidade_cliente?: boolean
+          segurar_registro?: boolean
+          updated_at?: string
+          valor_itbi?: number | null
+        }
+        Update: {
+          andamento?: string | null
+          boleto_itbi_url?: string | null
+          comprovante_itbi_url?: string | null
+          contrato_id?: string | null
+          created_at?: string
+          data_entrega_ri?: string | null
+          data_gatilho?: string | null
+          data_recebimento_ri?: string | null
+          data_recolhimento_itbi?: string | null
+          data_solicitacao_itbi?: string | null
+          etapa_analise?: string | null
+          financiamento_caixa?: boolean
+          id?: string
+          impugnado?: boolean
+          lote_id?: string
+          matricula_url?: string | null
+          nf_registro_url?: string | null
+          observacoes?: string | null
+          op_registro_url?: string | null
+          responsabilidade_cliente?: boolean
+          segurar_registro?: boolean
+          updated_at?: string
+          valor_itbi?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "registros_registros_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "registros_registros_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: true
+            referencedRelation: "registros_lotes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      registros_sync_logs: {
+        Row: {
+          detalhes: Json | null
+          finished_at: string | null
+          id: string
+          registros_atualizados: number | null
+          started_at: string
+          status: string
+        }
+        Insert: {
+          detalhes?: Json | null
+          finished_at?: string | null
+          id?: string
+          registros_atualizados?: number | null
+          started_at?: string
+          status?: string
+        }
+        Update: {
+          detalhes?: Json | null
+          finished_at?: string | null
+          id?: string
+          registros_atualizados?: number | null
+          started_at?: string
+          status?: string
+        }
+        Relationships: []
+      }
+      registros_usuarios: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          email: string
+          id: string
+          nome: string
+          role: Database["public"]["Enums"]["registros_user_role"]
+          senha_hash: string
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          email: string
+          id?: string
+          nome: string
+          role?: Database["public"]["Enums"]["registros_user_role"]
+          senha_hash: string
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          email?: string
+          id?: string
+          nome?: string
+          role?: Database["public"]["Enums"]["registros_user_role"]
+          senha_hash?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       report_configs: {
         Row: {
@@ -7877,19 +8220,31 @@ export type Database = {
       }
       sienge_unidades: {
         Row: {
+          commercial_stock: string | null
+          contract_id: number | null
+          enterprise_id: number | null
           id: number
           name: string | null
           synced_at: string | null
+          terrain_value: number | null
         }
         Insert: {
+          commercial_stock?: string | null
+          contract_id?: number | null
+          enterprise_id?: number | null
           id: number
           name?: string | null
           synced_at?: string | null
+          terrain_value?: number | null
         }
         Update: {
+          commercial_stock?: string | null
+          contract_id?: number | null
+          enterprise_id?: number | null
           id?: number
           name?: string | null
           synced_at?: string | null
+          terrain_value?: number | null
         }
         Relationships: []
       }
@@ -8435,6 +8790,66 @@ export type Database = {
         }
         Relationships: []
       }
+      talents_mappings: {
+        Row: {
+          candidate_id: string
+          city: string | null
+          created_at: string | null
+          id: string
+          mapped_by: string | null
+          mapped_by_name: string | null
+          notes: string | null
+          position_id: string | null
+          position_name: string | null
+          priority: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          candidate_id: string
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          mapped_by?: string | null
+          mapped_by_name?: string | null
+          notes?: string | null
+          position_id?: string | null
+          position_name?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          candidate_id?: string
+          city?: string | null
+          created_at?: string | null
+          id?: string
+          mapped_by?: string | null
+          mapped_by_name?: string | null
+          notes?: string | null
+          position_id?: string | null
+          position_name?: string | null
+          priority?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "talents_mappings_candidate_id_fkey"
+            columns: ["candidate_id"]
+            isOneToOne: false
+            referencedRelation: "talents_candidates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "talents_mappings_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "talents_positions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       talents_positions: {
         Row: {
           activity_area_id: string | null
@@ -8886,6 +9301,23 @@ export type Database = {
         Returns: boolean
       }
       public_submit_candidate: { Args: { candidate_data: Json }; Returns: Json }
+      registros_get_lotes_without_registros: {
+        Args: never
+        Returns: {
+          created_at: string
+          empreendimento_id: string
+          id: string
+          numero: string
+          sienge_unit_id: number
+          valor_avista: number | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "registros_lotes"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       rh_get_all_users_with_roles: {
         Args: never
         Returns: {
@@ -8954,6 +9386,7 @@ export type Database = {
         | "minuta_enviada"
       paver_app_role: "admin" | "engenharia"
       permuta_status: "incerto" | "nao" | "sim"
+      registros_user_role: "gestor" | "operador" | "leitor"
       rh_app_role: "admin" | "coordenador" | "usuario"
       tipo_anexo_gleba:
         | "pesquisa_mercado"
@@ -9129,6 +9562,7 @@ export const Constants = {
       ],
       paver_app_role: ["admin", "engenharia"],
       permuta_status: ["incerto", "nao", "sim"],
+      registros_user_role: ["gestor", "operador", "leitor"],
       rh_app_role: ["admin", "coordenador", "usuario"],
       tipo_anexo_gleba: [
         "pesquisa_mercado",
