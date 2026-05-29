@@ -28,7 +28,7 @@ const RENDAS_FAMILIARES = [
   "15 a 20 mil mensais",
   "Acima de 20 mil mensais",
 ] as const;
-const FILHOS_OPTIONS = ["1", "2", "3", "4 ou mais"] as const;
+const FILHOS_OPTIONS = ["Nenhum", "1", "2", "3", "4 ou mais"] as const;
 const INTERESSES_PESSOAIS = [
   "Animais de estimação", "Automóveis", "Casa e decoração", "Ciências/Tecnologia",
   "Cinema/Televisão/Jornalismo", "Educação/Cultura", "Esportes/Fitness/Saúde",
