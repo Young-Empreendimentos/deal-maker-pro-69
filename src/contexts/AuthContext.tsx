@@ -118,6 +118,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!popup) {
       throw new Error("Popup bloqueado pelo navegador. Permita popups para este site e tente novamente.");
     }
+
+    // Monitora o fechamento do popup e força a re-leitura da sessão
+    // Necessário para novos usuários, onde a criação da conta demora mais
+    const checkClosed = setInterval(async () => {
+      if (popup.closed) {
+        clearInterval(checkClosed);
+        // Aguarda um pouco para garantir que a sessão foi gravada no localStorage
+        await new Promise((res) => setTimeout(res, 500));
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session) {
+          // Dispara o onAuthStateChange manualmente se necessário
+          setSession(session);
+          setUser(session.user);
+          fetchUserMeta(session.user.id);
+        }
+      }
+    }, 500);
   };
 
   const signOut = async () => {
