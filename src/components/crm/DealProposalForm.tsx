@@ -330,7 +330,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Preço do Lote (R$)</Label>
-              <Input type="number" step="0.01" value={form.preco_lote ?? ""} onChange={(e) => update("preco_lote", e.target.value ? parseFloat(e.target.value) : null)} readOnly={!!form.versao_tabela} className={form.versao_tabela ? "bg-muted" : ""} />
+              <Input type="number" step="0.01" value={form.preco_lote ?? ""} onChange={(e) => update("preco_lote", e.target.value ? parseFloat(e.target.value) : null)} />
             </div>
             <div className="space-y-1.5">
               <Label className="text-xs">Forma de Pagamento</Label>
