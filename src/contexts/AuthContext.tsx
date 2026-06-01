@@ -88,53 +88,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithGoogle = async () => {
-    // Sempre usa o domínio de produção para o callback do OAuth
-    const isProd = window.location.hostname !== "localhost";
-    const callbackUrl = isProd
-      ? "https://pingolead.youngempreendimentos.com.br/auth/callback"
-      : `${window.location.origin}/auth/callback`;
+    const callbackUrl = `${window.location.origin}/auth/callback`;
 
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
         redirectTo: callbackUrl,
-        skipBrowserRedirect: true,
       },
     });
     if (error) throw error;
-    if (!data.url) throw new Error("Não foi possível obter a URL de login.");
-
-    const w = 500;
-    const h = 600;
-    const left = Math.round(window.screen.width / 2 - w / 2);
-    const top = Math.round(window.screen.height / 2 - h / 2);
-
-    const popup = window.open(
-      data.url,
-      "google-signin",
-      `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes`
-    );
-
-    if (!popup) {
-      throw new Error("Popup bloqueado pelo navegador. Permita popups para este site e tente novamente.");
-    }
-
-    // Monitora o fechamento do popup e força a re-leitura da sessão
-    // Necessário para novos usuários, onde a criação da conta demora mais
-    const checkClosed = setInterval(async () => {
-      if (popup.closed) {
-        clearInterval(checkClosed);
-        // Aguarda um pouco para garantir que a sessão foi gravada no localStorage
-        await new Promise((res) => setTimeout(res, 500));
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session) {
-          // Dispara o onAuthStateChange manualmente se necessário
-          setSession(session);
-          setUser(session.user);
-          fetchUserMeta(session.user.id);
-        }
-      }
-    }, 500);
   };
 
   const signOut = async () => {
