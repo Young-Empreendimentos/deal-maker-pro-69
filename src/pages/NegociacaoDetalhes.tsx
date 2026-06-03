@@ -306,23 +306,21 @@ export default function NegociacaoDetalhes() {
     setAnotacoes((prev) => prev.filter((a) => a.id !== anotacaoId));
   };
 
-  if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
-  if (!deal) return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
-
   const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && new Date(t.data_vencimento) < new Date();
 
-  // Filtrar tarefas
+  // Filtrar tarefas (precisa ficar antes dos early returns para respeitar regras de hooks)
   const filteredTasks = useMemo(() => {
-    // Separar tarefas ativas e deletadas
     const activeTasks = tasks.filter((t) => !t.deleted_at);
     const deletedTasks = tasks.filter((t) => t.deleted_at);
 
     if (taskFilter === "deletadas") return deletedTasks;
-
     if (taskFilter === "pendentes") return activeTasks.filter((t) => !t.concluida);
     if (taskFilter === "concluidas") return activeTasks.filter((t) => t.concluida);
     return activeTasks;
   }, [tasks, taskFilter]);
+
+  if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
+  if (!deal) return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
 
   const isFinal = deal.status === "vendido" || deal.status === "perdido";
 
