@@ -15,6 +15,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { CidadeCombobox } from "@/components/crm/CidadeCombobox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { CorretorRow, useCorretores } from "@/components/corretores/CorretorRow";
+import { CorretorCadastroContratualDialog } from "@/components/corretores/CorretorCadastroContratualDialog";
+import type { CorretorCadastro } from "@/components/corretores/CorretorCadastroContratualDialog";
 
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
