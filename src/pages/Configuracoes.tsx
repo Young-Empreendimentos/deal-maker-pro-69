@@ -622,99 +622,80 @@ export default function Configuracoes() {
 
           {isAdmin && (
             <TabsContent value="imobiliarias" className="mt-4">
+              <CorretorCadastroContratualDialog
+                corretor={corretorParaEditar}
+                open={!!corretorParaEditar}
+                onOpenChange={(open) => {
+                  if (!open) setCorretorParaEditar(null);
+                }}
+                onSaved={refetchCorretores}
+              />
               <Card>
                 <CardHeader>
                   <CardTitle className="text-lg">Imobiliárias / Corretores parceiros</CardTitle>
                   <p className="text-xs text-muted-foreground">
-                    Opções do dropdown <strong>Responsável pela venda → Imobiliária</strong>. Padrão canônico: <code>SIGLA - Nome</code> (sigla do empreendimento). Registros sem sigla aparecem destacados — normalize via edição.
+                    Cadastro de parceiros do Pingolead. Use o botão Contrato para preencher os dados contratuais completos.
                   </p>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  <ImobiliariaForm
-                    siglas={siglas}
-                    onAdd={async (input) => {
-                      const nomeFinal = montarNomeImobiliaria(input.sigla, input.nome);
-                      const { error } = await supabase.from("imobiliarias").insert({
-                        nome: nomeFinal,
-                        contato_nome: input.contato_nome || null,
-                        telefone: input.telefone || null,
-                        link_social: input.link_social || null,
-                        // #17 multi-app: novos cadastros via admin do CRM entram visiveis
-                        // no Pingolead por default. Admin marca o toggle NN se aplicavel.
-                        ativo_crm: true,
-                        ativo_nn: false,
-                      });
-                      if (error) {
-                        toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });
-                        return false;
-                      }
-                      toast({ title: "Imobiliária adicionada!" });
-                      await fetchImobiliarias();
-                      return true;
-                    }}
-                  />
+                  <div className="flex gap-2 items-center">
+                    <Input
+                      id="novo-corretor-nome"
+                      placeholder="Nome da imobiliária / corretor"
+                      className="flex-1"
+                    />
+                    <Select defaultValue="PJ">
+                      <SelectTrigger className="w-[140px]">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PJ">PJ</SelectItem>
+                        <SelectItem value="PF">PF</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <Button
+                      size="sm"
+                      type="button"
+                      onClick={async () => {
+                        const input = document.getElementById("novo-corretor-nome") as HTMLInputElement;
+                        const nome = input?.value?.trim();
+                        const tipo = (document.querySelector("[data-radix-select-value]") as HTMLElement)?.textContent?.trim() ?? "PJ";
+                        if (!nome) return;
+                        const ok = await addCorretor({ nome, tipo });
+                        if (ok) input.value = "";
+                      }}
+                    >
+                      <Plus className="h-4 w-4" />
+                    </Button>
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[110px]">Sigla</TableHead>
                         <TableHead>Nome</TableHead>
-                        <TableHead>Contato</TableHead>
-                        <TableHead>Telefone</TableHead>
-                        <TableHead className="w-[60px]" title="Visivel no dropdown CRM (Pingolead)">CRM</TableHead>
-                        <TableHead className="w-[60px]" title="Visivel no dropdown Novos Negocios">NN</TableHead>
-                        <TableHead className="w-[60px]" title="Soft-delete global">Ativo</TableHead>
-                        <TableHead className="w-[80px]"></TableHead>
+                        <TableHead>Tipo</TableHead>
+                        <TableHead className="w-[60px]">Ativo</TableHead>
+                        <TableHead className="w-[130px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {imobiliarias.map((imo) => (
-                        <ImobiliariaRow
-                          key={imo.id}
-                          imo={imo}
-                          siglas={siglas}
-                          onToggle={async () => {
-                            const { error } = await supabase
-                              .from("imobiliarias")
-                              .update({ ativo: !imo.ativo })
-                              .eq("id", imo.id);
-                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-                            else fetchImobiliarias();
-                          }}
-                          onToggleCrm={async () => {
-                            const { error } = await supabase
-                              .from("imobiliarias")
-                              .update({ ativo_crm: !imo.ativo_crm })
-                              .eq("id", imo.id);
-                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-                            else fetchImobiliarias();
-                          }}
-                          onToggleNn={async () => {
-                            const { error } = await supabase
-                              .from("imobiliarias")
-                              .update({ ativo_nn: !imo.ativo_nn })
-                              .eq("id", imo.id);
-                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-                            else fetchImobiliarias();
-                          }}
-                          onSave={async (patch) => {
-                            const { error } = await supabase
-                              .from("imobiliarias")
-                              .update({
-                                nome: patch.nome,
-                                contato_nome: patch.contato_nome || null,
-                                telefone: patch.telefone || null,
-                                link_social: patch.link_social || null,
-                              })
-                              .eq("id", imo.id);
-                            if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
-                            else { toast({ title: "Imobiliária atualizada!" }); fetchImobiliarias(); }
+                      {corretores.map((c) => (
+                        <CorretorRow
+                          key={c.id}
+                          corretor={c}
+                          onToggle={() => toggleAtivoCorretor(c.id, c.ativo)}
+                          onOpenCadastro={() => setCorretorParaEditar(c)}
+                          onRename={async (id, novoNome) => {
+                            await refetchCorretores();
                           }}
                         />
                       ))}
                     </TableBody>
                   </Table>
-                  {imobiliarias.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">Nenhuma imobiliária cadastrada</p>
+                  {isLoadingCorretores && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
+                  )}
+                  {!isLoadingCorretores && corretores.length === 0 && (
+                    <p className="text-sm text-muted-foreground text-center py-4">Nenhum corretor/imobiliária cadastrado</p>
                   )}
                 </CardContent>
               </Card>
