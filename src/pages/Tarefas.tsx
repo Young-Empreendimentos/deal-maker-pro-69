@@ -41,6 +41,7 @@ type Task = {
   updated_at: string;
   deleted_at: string | null;
   deal_nome?: string;
+  responsavel_nome?: string;
 };
 
 type Deal = { id: string; cliente_nome: string };
@@ -82,7 +83,7 @@ export default function Tarefas() {
     setDeals((dealsData as Deal[]) ?? []);
 
     // Tarefas: admins veem todas; usuários comuns só as dos seus negócios
-    let tasksQuery = supabase.from("crm_tasks").select("*").order("created_at", { ascending: false });
+    let tasksQuery = supabase.from("crm_tasks").select("*, user_profiles!inner(nome)").order("created_at", { ascending: false });
     if (!isAdmin && user) {
       const dealIds = ((dealsData as Deal[]) ?? []).map((d) => d.id);
       if (dealIds.length > 0) {
@@ -97,9 +98,10 @@ export default function Tarefas() {
     const { data: tasksData } = await tasksQuery;
 
     const dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
-    const enriched = ((tasksData as Task[]) ?? []).map((t) => ({
+    const enriched = ((tasksData as any[]) ?? []).map((t: any) => ({
       ...t,
       deal_nome: dealsMap.get(t.deal_id) ?? "—",
+      responsavel_nome: t.user_profiles?.nome || "—",
     }));
     setTasks(enriched);
     setLoading(false);
@@ -240,7 +242,7 @@ export default function Tarefas() {
                 <SelectItem value="pendentes">Pendentes</SelectItem>
                 <SelectItem value="concluidas">Concluídas</SelectItem>
                 <SelectItem value="todas">Todas</SelectItem>
-                {isAdmin && <SelectItem value="deletadas">🗑️ Deletadas</SelectItem>}
+                {isAdmin && <SelectItem value="deletadas">Deletadas</SelectItem>}
               </SelectContent>
             </Select>
             <Button onClick={() => setShowForm(true)} size="sm">
@@ -278,13 +280,18 @@ export default function Tarefas() {
                       {isOverdue(task) && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Atrasada</Badge>}
                     </div>
                     {task.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.descricao}</p>}
-                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
-                      <span>📋 {task.deal_nome}</span>
+                    <div className="flex items-center gap-4 mt-2 flex-wrap text-xs text-muted-foreground">
+                      <span>{task.deal_nome}</span>
                       {task.data_vencimento && (
                         <span className={cn("flex items-center gap-1", isOverdue(task) && "text-destructive")}>
                           <Calendar className="h-3 w-3" />
                           {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
-                          {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
+                          {task.hora_vencimento && <span>às {task.hora_vencimento}</span>}
+                        </span>
+                      )}
+                      {task.responsavel_nome && (
+                        <span>
+                          Responsável: <span className="font-medium text-foreground">{task.responsavel_nome}</span>
                         </span>
                       )}
                     </div>

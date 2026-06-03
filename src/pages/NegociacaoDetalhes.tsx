@@ -60,7 +60,7 @@ type DealDetail = {
 };
 
 type DealPhone  = { id: string; telefone: string };
-type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; deleted_at: string | null; tipo?: string };
+type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; deleted_at: string | null; tipo?: string; responsavel_id?: string; responsavel_nome?: string };
 type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
 type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
@@ -106,7 +106,7 @@ export default function NegociacaoDetalhes() {
     const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
-      supabase.from("crm_tasks").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
+      supabase.from("crm_tasks").select("*, user_profiles!inner(nome)").eq("deal_id", id).order("created_at", { ascending: false }),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
@@ -114,7 +114,13 @@ export default function NegociacaoDetalhes() {
     const dealData = dealRes.data as DealDetail | null;
     setDeal(dealData);
     setPhones((phonesRes.data as DealPhone[]) ?? []);
-    const tasksData = (tasksRes.data as Task[]) ?? [];
+
+    // Processar tarefas para extrair responsavel_nome
+    const rawTasks = (tasksRes.data as any[]) ?? [];
+    const tasksData = rawTasks.map((t: any) => ({
+      ...t,
+      responsavel_nome: t.user_profiles?.nome || "—",
+    })) as Task[];
     setTasks(tasksData);
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
 
@@ -452,7 +458,7 @@ export default function NegociacaoDetalhes() {
                     onClick={() => setTaskFilter("deletadas")}
                     className="text-xs px-2 h-7"
                   >
-                    🗑️ Deletadas
+                    Deletadas
                   </Button>
                 )}
               </div>
@@ -479,12 +485,19 @@ export default function NegociacaoDetalhes() {
                     })()}
                   </div>
                   {task.descricao && <p className="text-xs text-muted-foreground mt-0.5">{task.descricao}</p>}
-                  {task.data_vencimento && (
-                    <span className={cn("text-xs flex items-center gap-1 mt-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
-                      <Calendar className="h-3 w-3" /> {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
-                      {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
-                    </span>
-                  )}
+                  <div className="flex items-center gap-4 mt-2 flex-wrap text-xs">
+                    {task.data_vencimento && (
+                      <span className={cn("flex items-center gap-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
+                        <Calendar className="h-3 w-3" /> {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
+                        {task.hora_vencimento && <span>às {task.hora_vencimento}</span>}
+                      </span>
+                    )}
+                    {task.responsavel_nome && (
+                      <span className="text-muted-foreground">
+                        Responsável: <span className="font-medium">{task.responsavel_nome}</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
                 {!task.deleted_at && (
                   <label className="cursor-pointer p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0">
