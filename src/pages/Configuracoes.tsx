@@ -26,24 +26,6 @@ type EmpreendimentoSigla = { id: string; codigo: string; nome: string };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
 
-// Siglas guarda-chuva que não são empreendimentos individuais (vivem em pseudo-grupos
-// no padrão canônico Young/RD): SAP = região Santo Antônio da Patrulha, SBY = grupo
-// Parque Lorena I+II. Sempre disponíveis no datalist mesmo sem registro em
-// crm_empreendimentos.
-const SIGLAS_EXTRAS_CANONICAS = ["SAP", "SBY"] as const;
-
-// "SIGLA - Nome" → { sigla, nome }. Imobiliárias legadas (sem prefixo) caem em sigla="".
-function parseNomeImobiliaria(full: string): { sigla: string; nome: string } {
-  const idx = full.indexOf(" - ");
-  if (idx === -1) return { sigla: "", nome: full };
-  return { sigla: full.slice(0, idx).trim(), nome: full.slice(idx + 3).trim() };
-}
-function montarNomeImobiliaria(sigla: string, nome: string): string {
-  const s = sigla.trim();
-  const n = nome.trim();
-  return s ? `${s} - ${n}` : n;
-}
-
 function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<boolean> }) {
   const [nome, setNome] = useState("");
   const [cidade, setCidade] = useState("");
