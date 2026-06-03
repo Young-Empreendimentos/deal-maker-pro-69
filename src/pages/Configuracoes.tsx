@@ -131,19 +131,6 @@ function EditableList({ title, items, onAdd, onToggle, onRename }: {
   );
 }
 
-function ImobiliariaForm({
-  siglas,
-  onAdd,
-}: {
-  siglas: EmpreendimentoSigla[];
-  onAdd: (input: {
-    sigla: string;
-    nome: string;
-    contato_nome: string;
-    telefone: string;
-    link_social: string;
-  }) => Promise<boolean>;
-}) {
 type ConsultorLivre = { id: string; nome: string };
 
 function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpenChange: (v: boolean) => void; onCreated: () => void }) {
