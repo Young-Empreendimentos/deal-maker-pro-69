@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Plus, Pencil, Check, X, UserPlus } from "lucide-react";
+import { Plus, Pencil, Check, X, UserPlus, Eye, EyeOff } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { CidadeCombobox } from "@/components/crm/CidadeCombobox";
@@ -261,6 +261,9 @@ export default function Configuracoes() {
 
   const { corretores, isLoading: isLoadingCorretores, refetch: refetchCorretores, toggleAtivo: toggleAtivoCorretor, addCorretor } = useCorretores();
   const [corretorParaEditar, setCorretorParaEditar] = useState<CorretorCadastro | null>(null);
+  const [mostrarInativos, setMostrarInativos] = useState(false);
+
+  const corretoresVisiveis = mostrarInativos ? corretores : corretores.filter((c) => c.ativo);
 
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
@@ -413,6 +416,18 @@ export default function Configuracoes() {
                       <Plus className="h-4 w-4" />
                     </Button>
                   </div>
+                  <div className="flex justify-end">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      type="button"
+                      onClick={() => setMostrarInativos((v) => !v)}
+                      className="gap-1.5"
+                    >
+                      {mostrarInativos ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {mostrarInativos ? "Ocultar inativos" : "Mostrar inativos"}
+                    </Button>
+                  </div>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -423,7 +438,7 @@ export default function Configuracoes() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {corretores.map((c) => (
+                      {corretoresVisiveis.map((c) => (
                         <CorretorRow
                           key={c.id}
                           corretor={c}
@@ -439,7 +454,7 @@ export default function Configuracoes() {
                   {isLoadingCorretores && (
                     <p className="text-sm text-muted-foreground text-center py-4">Carregando...</p>
                   )}
-                  {!isLoadingCorretores && corretores.length === 0 && (
+                  {!isLoadingCorretores && corretoresVisiveis.length === 0 && (
                     <p className="text-sm text-muted-foreground text-center py-4">Nenhum corretor/imobiliária cadastrado</p>
                   )}
                 </CardContent>
