@@ -40,7 +40,7 @@ type DealDetail = {
   satisfacao_atendimento: number | null;
   satisfacao_produto: number | null;
   responsavel_venda_user_id: string | null;
-  responsavel_venda_imobiliaria_id: string | null;
+  responsavel_venda_corretor_id: string | null;
   valor_entrada: number | null;
   data_nascimento: string | null;
   escolaridade: string | null;
@@ -341,7 +341,7 @@ export default function NegociacaoDetalhes() {
             satisfacao_atendimento: deal.satisfacao_atendimento,
             satisfacao_produto: deal.satisfacao_produto,
             responsavel_venda_user_id: deal.responsavel_venda_user_id,
-            responsavel_venda_imobiliaria_id: deal.responsavel_venda_imobiliaria_id,
+            responsavel_venda_corretor_id: deal.responsavel_venda_corretor_id,
             valor_entrada: deal.valor_entrada,
             data_nascimento: deal.data_nascimento,
             escolaridade: deal.escolaridade,
