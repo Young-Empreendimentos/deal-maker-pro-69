@@ -83,7 +83,7 @@ export default function Tarefas() {
     setDeals((dealsData as Deal[]) ?? []);
 
     // Tarefas: admins veem todas; usuários comuns só as dos seus negócios
-    let tasksQuery = supabase.from("crm_tasks").select("*, user_profiles(nome)").order("created_at", { ascending: false });
+    let tasksQuery = supabase.from("crm_tasks").select("*").order("created_at", { ascending: false });
     if (!isAdmin && user) {
       const dealIds = ((dealsData as Deal[]) ?? []).map((d) => d.id);
       if (dealIds.length > 0) {
@@ -95,14 +95,24 @@ export default function Tarefas() {
         return;
       }
     }
-    const { data: tasksData } = await tasksQuery;
+    const { data: rawTasksData } = await tasksQuery;
 
     const dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
-    const enriched = ((tasksData as any[]) ?? []).map((t: any) => ({
-      ...t,
-      deal_nome: dealsMap.get(t.deal_id) ?? "—",
-      responsavel_nome: t.user_profiles?.nome || "—",
-    }));
+
+    // Buscar nomes dos responsáveis
+    let enriched: Task[] = [];
+    if (rawTasksData && rawTasksData.length > 0) {
+      const responsavelIds = [...new Set((rawTasksData as any[]).map((t) => t.responsavel_id).filter(Boolean))];
+      const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
+      const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
+
+      enriched = ((rawTasksData as any[]) ?? []).map((t: any) => ({
+        ...t,
+        deal_nome: dealsMap.get(t.deal_id) ?? "—",
+        responsavel_nome: profileMap.get(t.responsavel_id) ?? "—",
+      }));
+    }
+
     setTasks(enriched);
     setLoading(false);
   };

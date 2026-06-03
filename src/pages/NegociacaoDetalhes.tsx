@@ -106,7 +106,7 @@ export default function NegociacaoDetalhes() {
     const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
-      supabase.from("crm_tasks").select("*, user_profiles(nome)").eq("deal_id", id).order("created_at", { ascending: false }),
+      supabase.from("crm_tasks").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
@@ -115,13 +115,20 @@ export default function NegociacaoDetalhes() {
     setDeal(dealData);
     setPhones((phonesRes.data as DealPhone[]) ?? []);
 
-    // Processar tarefas para extrair responsavel_nome
-    const rawTasks = (tasksRes.data as any[]) ?? [];
-    const tasksData = rawTasks.map((t: any) => ({
-      ...t,
-      responsavel_nome: t.user_profiles?.nome || "—",
-    })) as Task[];
-    setTasks(tasksData);
+    // Processar tarefas — buscar nomes dos responsáveis
+    const rawTasks = (tasksRes.data as Task[]) ?? [];
+    if (rawTasks.length > 0) {
+      const responsavelIds = [...new Set(rawTasks.map((t) => t.responsavel_id).filter(Boolean))];
+      const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
+      const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
+      const tasksData = rawTasks.map((t) => ({
+        ...t,
+        responsavel_nome: profileMap.get(t.responsavel_id) ?? "—",
+      }));
+      setTasks(tasksData);
+    } else {
+      setTasks([]);
+    }
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
 
     // Anotações — busca nomes dos usuários via user_profiles
