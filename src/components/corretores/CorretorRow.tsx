@@ -141,7 +141,7 @@ export function useCorretores() {
       toast({ title: "Erro ao carregar corretores", description: error.message, variant: "destructive" });
       setCorretores([]);
     } else {
-      setCorretores((data ?? []) as CorretorCadastro[]);
+      setCorretores(((data ?? []) as unknown) as CorretorCadastro[]);
     }
     setIsLoading(false);
   }
