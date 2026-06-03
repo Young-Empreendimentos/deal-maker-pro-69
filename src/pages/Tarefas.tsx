@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +39,7 @@ type Task = {
   tipo: string | null;
   created_at: string;
   updated_at: string;
+  deleted_at: string | null;
   deal_nome?: string;
 };
 
@@ -60,7 +61,7 @@ export default function Tarefas() {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas">("pendentes");
+  const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas" | "deletadas">("pendentes");
 
   // Form state
   const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
@@ -195,8 +196,16 @@ export default function Tarefas() {
   };
 
   const deleteTask = async (taskId: string) => {
-    await supabase.from("crm_tasks").delete().eq("id", taskId);
+    // Soft delete - marca como deletada em vez de deletar do banco
+    await supabase.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
     toast({ title: "Tarefa excluída" });
+    fetchTasks();
+  };
+
+  const restoreTask = async (taskId: string) => {
+    // Restaurar tarefa deletada
+    await supabase.from("crm_tasks").update({ deleted_at: null }).eq("id", taskId);
+    toast({ title: "Tarefa restaurada" });
     fetchTasks();
   };
 
@@ -206,9 +215,10 @@ export default function Tarefas() {
   };
 
   const filtered = tasks.filter((t) => {
-    if (filter === "pendentes") return !t.concluida;
-    if (filter === "concluidas") return t.concluida;
-    return true;
+    if (filter === "deletadas") return t.deleted_at !== null;
+    if (filter === "pendentes") return !t.concluida && t.deleted_at === null;
+    if (filter === "concluidas") return t.concluida && t.deleted_at === null;
+    return t.deleted_at === null; // "todas" — somente ativas
   });
 
   const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && new Date(t.data_vencimento) < new Date();
@@ -230,6 +240,7 @@ export default function Tarefas() {
                 <SelectItem value="pendentes">Pendentes</SelectItem>
                 <SelectItem value="concluidas">Concluídas</SelectItem>
                 <SelectItem value="todas">Todas</SelectItem>
+                {isAdmin && <SelectItem value="deletadas">🗑️ Deletadas</SelectItem>}
               </SelectContent>
             </Select>
             <Button onClick={() => setShowForm(true)} size="sm">
@@ -278,20 +289,35 @@ export default function Tarefas() {
                       )}
                     </div>
                   </div>
-                  <button onClick={() => openTaskImages(task)} className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
-                    <ImageIcon className="h-4 w-4" />
-                  </button>
-                  {isAdmin && (
-                    <button onClick={() => deleteTask(task.id)} className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
-                      <Trash2 className="h-4 w-4" />
+                  {task.deleted_at === null && (
+                    <button onClick={() => openTaskImages(task)} className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                      <ImageIcon className="h-4 w-4" />
                     </button>
+                  )}
+                  {isAdmin && (
+                    task.deleted_at === null ? (
+                      <button onClick={() => deleteTask(task.id)} className="p-2 rounded-md hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors flex-shrink-0">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button onClick={() => restoreTask(task.id)} className="p-2 rounded-md hover:bg-success/10 text-muted-foreground hover:text-success transition-colors flex-shrink-0">
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    )
                   )}
                 </CardContent>
               </Card>
             ))}
             {filtered.length === 0 && (
               <div className="text-center text-muted-foreground py-12 border border-dashed rounded-lg">
-                Nenhuma tarefa encontrada
+                {tasks.length === 0
+                  ? "Nenhuma tarefa criada"
+                  : filter === "deletadas"
+                    ? "Nenhuma tarefa deletada"
+                    : filter === "concluidas"
+                      ? "Nenhuma tarefa concluída"
+                      : "Nenhuma tarefa pendente"
+                }
               </div>
             )}
           </div>

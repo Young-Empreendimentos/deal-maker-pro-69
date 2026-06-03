@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, StickyNote, Send } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, StickyNote, Send, RotateCcw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -60,7 +60,7 @@ type DealDetail = {
 };
 
 type DealPhone  = { id: string; telefone: string };
-type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; tipo?: string };
+type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; deleted_at: string | null; tipo?: string };
 type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
 type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
@@ -88,7 +88,8 @@ export default function NegociacaoDetalhes() {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
   const [taskLoading, setTaskLoading] = useState(false);
-  const [taskFilter, setTaskFilter] = useState<"todas" | "pendentes" | "concluidas">("pendentes");
+  const [taskFilter, setTaskFilter] = useState<"todas" | "pendentes" | "concluidas" | "deletadas">("pendentes");
+  const [showDeletedTasks, setShowDeletedTasks] = useState(false);
 
   const [anotacoes, setAnotacoes]         = useState<Anotacao[]>([]);
   const [anotacaoTexto, setAnotacaoTexto] = useState("");
@@ -269,7 +270,14 @@ export default function NegociacaoDetalhes() {
   };
 
   const deleteTask = async (taskId: string) => {
-    await supabase.from("crm_tasks").delete().eq("id", taskId);
+    // Soft delete - marca como deletada em vez de deletar do banco
+    await supabase.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
+    fetchAll();
+  };
+
+  const restoreTask = async (taskId: string) => {
+    // Restaurar tarefa deletada
+    await supabase.from("crm_tasks").update({ deleted_at: null }).eq("id", taskId);
     fetchAll();
   };
 
@@ -303,9 +311,15 @@ export default function NegociacaoDetalhes() {
 
   // Filtrar tarefas
   const filteredTasks = useMemo(() => {
-    if (taskFilter === "pendentes") return tasks.filter((t) => !t.concluida);
-    if (taskFilter === "concluidas") return tasks.filter((t) => t.concluida);
-    return tasks;
+    // Separar tarefas ativas e deletadas
+    const activeTasks = tasks.filter((t) => !t.deleted_at);
+    const deletedTasks = tasks.filter((t) => t.deleted_at);
+
+    if (taskFilter === "deletadas") return deletedTasks;
+
+    if (taskFilter === "pendentes") return activeTasks.filter((t) => !t.concluida);
+    if (taskFilter === "concluidas") return activeTasks.filter((t) => t.concluida);
+    return activeTasks;
   }, [tasks, taskFilter]);
 
   const isFinal = deal.status === "vendido" || deal.status === "perdido";
@@ -431,6 +445,16 @@ export default function NegociacaoDetalhes() {
                 >
                   Concluídas
                 </Button>
+                {isAdmin && (
+                  <Button
+                    size="sm"
+                    variant={taskFilter === "deletadas" ? "default" : "outline"}
+                    onClick={() => setTaskFilter("deletadas")}
+                    className="text-xs px-2 h-7"
+                  >
+                    🗑️ Deletadas
+                  </Button>
+                )}
               </div>
             </div>
             <Button size="sm" variant="outline" onClick={() => setShowTaskForm(true)}><Plus className="h-4 w-4 mr-1" /> Nova tarefa</Button>
@@ -462,20 +486,37 @@ export default function NegociacaoDetalhes() {
                     </span>
                   )}
                 </div>
-                <label className="cursor-pointer p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0">
-                  <Upload className="h-4 w-4" />
-                  <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleTaskImageUpload(task.id, e)} />
-                </label>
+                {!task.deleted_at && (
+                  <label className="cursor-pointer p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0">
+                    <Upload className="h-4 w-4" />
+                    <input type="file" accept="image/*" multiple className="hidden" onChange={(e) => handleTaskImageUpload(task.id, e)} />
+                  </label>
+                )}
                 {isAdmin && (
-                  <button onClick={() => deleteTask(task.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 transition-colors">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                  <>
+                    {task.deleted_at ? (
+                      <button onClick={() => restoreTask(task.id)} className="p-1.5 rounded hover:bg-emerald-100 dark:hover:bg-emerald-900/40 text-emerald-600 dark:text-emerald-400 flex-shrink-0 transition-colors" title="Restaurar">
+                        <RotateCcw className="h-4 w-4" />
+                      </button>
+                    ) : (
+                      <button onClick={() => deleteTask(task.id)} className="p-1.5 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive flex-shrink-0 transition-colors" title="Deletar">
+                        <Trash2 className="h-4 w-4" />
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             ))}
             {filteredTasks.length === 0 && (
               <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">
-                {tasks.length === 0 ? "Nenhuma tarefa criada" : `Nenhuma tarefa ${taskFilter === "concluidas" ? "concluída" : "pendente"}`}
+                {tasks.length === 0
+                  ? "Nenhuma tarefa criada"
+                  : taskFilter === "deletadas"
+                    ? "Nenhuma tarefa deletada"
+                    : taskFilter === "concluidas"
+                      ? "Nenhuma tarefa concluída"
+                      : "Nenhuma tarefa pendente"
+                }
               </div>
             )}
           </CardContent>
