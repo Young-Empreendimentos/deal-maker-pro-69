@@ -41,7 +41,6 @@ type Task = {
   updated_at: string;
   deleted_at: string | null;
   deal_nome?: string;
-  responsavel_nome?: string;
 };
 
 type Deal = { id: string; cliente_nome: string };
@@ -99,25 +98,11 @@ export default function Tarefas() {
 
     const dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
 
-    // Buscar nomes dos responsáveis
-    let enriched: Task[] = [];
-    if (rawTasksData && rawTasksData.length > 0) {
-      const responsavelIds = [...new Set((rawTasksData as any[]).map((t) => t.responsavel_id).filter(Boolean))];
-      if (responsavelIds.length > 0) {
-        const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
-        const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
-        enriched = ((rawTasksData as any[]) ?? []).map((t: any) => ({
-          ...t,
-          deal_nome: dealsMap.get(t.deal_id) ?? "—",
-          responsavel_nome: profileMap.get(t.responsavel_id) ?? "—",
-        }));
-      } else {
-        enriched = ((rawTasksData as any[]) ?? []).map((t: any) => ({
-          ...t,
-          deal_nome: dealsMap.get(t.deal_id) ?? "—",
-        }));
-      }
-    }
+    // Enriquecer com nome da negociação
+    const enriched = ((rawTasksData as any[]) ?? []).map((t: any) => ({
+      ...t,
+      deal_nome: dealsMap.get(t.deal_id) ?? "—",
+    }));
 
     setTasks(enriched);
     setLoading(false);
@@ -296,20 +281,15 @@ export default function Tarefas() {
                       {isOverdue(task) && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Atrasada</Badge>}
                     </div>
                     {task.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.descricao}</p>}
-                    <div className="flex items-center gap-4 mt-2 flex-wrap text-xs">
-                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-medium">
-                        {task.deal_nome || "Negociação desconhecida"}
+                    <div className="flex items-center gap-3 mt-2 text-xs text-muted-foreground">
+                      <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded font-medium text-xs">
+                        {task.deal_nome || "Negociação"}
                       </span>
                       {task.data_vencimento && (
-                        <span className={cn("flex items-center gap-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
+                        <span className={cn("flex items-center gap-1", isOverdue(task) && "text-destructive")}>
                           <Calendar className="h-3 w-3" />
                           {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
-                          {task.hora_vencimento && <span>às {task.hora_vencimento}</span>}
-                        </span>
-                      )}
-                      {task.responsavel_nome && (
-                        <span className="text-muted-foreground">
-                          Responsável: <span className="font-medium text-foreground">{task.responsavel_nome}</span>
+                          {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
                         </span>
                       )}
                     </div>

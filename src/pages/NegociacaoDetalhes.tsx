@@ -63,7 +63,7 @@ type DealDetail = {
 };
 
 type DealPhone  = { id: string; telefone: string };
-type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; deleted_at: string | null; tipo?: string; responsavel_id?: string; responsavel_nome?: string };
+type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; deleted_at: string | null; tipo?: string; responsavel_id?: string };
 type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
 type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
@@ -118,24 +118,8 @@ export default function NegociacaoDetalhes() {
     setDeal(dealData);
     setPhones((phonesRes.data as DealPhone[]) ?? []);
 
-    // Tarefas com nomes de responsáveis
-    const rawTasks = (tasksRes.data as Task[]) ?? [];
-    let tasksData: Task[] = [];
-
-    // Buscar nomes dos responsáveis
-    if (rawTasks.length > 0) {
-      const responsavelIds = [...new Set(rawTasks.map((t) => t.responsavel_id).filter(Boolean))];
-      if (responsavelIds.length > 0) {
-        const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
-        const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
-        tasksData = rawTasks.map((t) => ({
-          ...t,
-          responsavel_nome: profileMap.get(t.responsavel_id) || "—",
-        }));
-      } else {
-        tasksData = rawTasks;
-      }
-    }
+    // Tarefas simples
+    const tasksData = (tasksRes.data as Task[]) ?? [];
     setTasks(tasksData);
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
 
@@ -500,19 +484,12 @@ export default function NegociacaoDetalhes() {
                     })()}
                   </div>
                   {task.descricao && <p className="text-xs text-muted-foreground mt-0.5">{task.descricao}</p>}
-                  <div className="flex items-center gap-4 mt-2 flex-wrap text-xs">
-                    {task.data_vencimento && (
-                      <span className={cn("flex items-center gap-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
-                        <Calendar className="h-3 w-3" /> {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
-                        {task.hora_vencimento && <span>às {task.hora_vencimento}</span>}
-                      </span>
-                    )}
-                    {task.responsavel_nome && (
-                      <span className="text-muted-foreground">
-                        Responsável: <span className="font-medium text-foreground">{task.responsavel_nome}</span>
-                      </span>
-                    )}
-                  </div>
+                  {task.data_vencimento && (
+                    <span className={cn("text-xs flex items-center gap-1 mt-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
+                      <Calendar className="h-3 w-3" /> {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
+                      {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
+                    </span>
+                  )}
                 </div>
                 {!task.deleted_at && (
                   <label className="cursor-pointer p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground flex-shrink-0">
