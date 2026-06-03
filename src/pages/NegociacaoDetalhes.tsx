@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -88,6 +88,7 @@ export default function NegociacaoDetalhes() {
   const [showTaskForm, setShowTaskForm] = useState(false);
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
   const [taskLoading, setTaskLoading] = useState(false);
+  const [taskFilter, setTaskFilter] = useState<"todas" | "pendentes" | "concluidas">("pendentes");
 
   const [anotacoes, setAnotacoes]         = useState<Anotacao[]>([]);
   const [anotacaoTexto, setAnotacaoTexto] = useState("");
@@ -288,6 +289,14 @@ export default function NegociacaoDetalhes() {
   if (!deal) return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
 
   const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && new Date(t.data_vencimento) < new Date();
+
+  // Filtrar tarefas
+  const filteredTasks = useMemo(() => {
+    if (taskFilter === "pendentes") return tasks.filter((t) => !t.concluida);
+    if (taskFilter === "concluidas") return tasks.filter((t) => t.concluida);
+    return tasks;
+  }, [tasks, taskFilter]);
+
   const isFinal = deal.status === "vendido" || deal.status === "perdido";
 
   return (
@@ -379,11 +388,39 @@ export default function NegociacaoDetalhes() {
         {/* Tasks */}
         <Card>
           <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold">Tarefas ({tasks.length})</CardTitle>
+            <div className="flex items-center gap-2">
+              <CardTitle className="text-sm font-semibold">Tarefas ({filteredTasks.length})</CardTitle>
+              <div className="flex gap-1">
+                <Button
+                  size="sm"
+                  variant={taskFilter === "todas" ? "default" : "outline"}
+                  onClick={() => setTaskFilter("todas")}
+                  className="text-xs px-2 h-7"
+                >
+                  Todas
+                </Button>
+                <Button
+                  size="sm"
+                  variant={taskFilter === "pendentes" ? "default" : "outline"}
+                  onClick={() => setTaskFilter("pendentes")}
+                  className="text-xs px-2 h-7"
+                >
+                  Pendentes
+                </Button>
+                <Button
+                  size="sm"
+                  variant={taskFilter === "concluidas" ? "default" : "outline"}
+                  onClick={() => setTaskFilter("concluidas")}
+                  className="text-xs px-2 h-7"
+                >
+                  Concluídas
+                </Button>
+              </div>
+            </div>
             <Button size="sm" variant="outline" onClick={() => setShowTaskForm(true)}><Plus className="h-4 w-4 mr-1" /> Nova tarefa</Button>
           </CardHeader>
           <CardContent className="space-y-2">
-            {tasks.map((task) => (
+            {filteredTasks.map((task) => (
               <div key={task.id} className={cn("flex items-start gap-3 p-3 rounded-md border transition-colors", task.concluida && "opacity-50")}>
                 <button onClick={() => toggleTask(task)} className="mt-0.5 flex-shrink-0">
                   {task.concluida ? <CheckCircle2 className="h-5 w-5 text-success" /> : <Circle className="h-5 w-5 text-muted-foreground" />}
@@ -420,7 +457,11 @@ export default function NegociacaoDetalhes() {
                 )}
               </div>
             ))}
-            {tasks.length === 0 && <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">Nenhuma tarefa criada</div>}
+            {filteredTasks.length === 0 && (
+              <div className="text-center text-muted-foreground text-sm py-6 border border-dashed rounded-md">
+                {tasks.length === 0 ? "Nenhuma tarefa criada" : `Nenhuma tarefa ${taskFilter === "concluidas" ? "concluída" : "pendente"}`}
+              </div>
+            )}
           </CardContent>
         </Card>
 
