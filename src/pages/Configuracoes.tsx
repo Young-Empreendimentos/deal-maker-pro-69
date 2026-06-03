@@ -22,7 +22,6 @@ import type { CorretorCadastro } from "@/components/corretores/CorretorCadastroC
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
 type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
-type EmpreendimentoSigla = { id: string; codigo: string; nome: string };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
 
@@ -256,7 +255,6 @@ export default function Configuracoes() {
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [motivos, setMotivos] = useState<MotivoPerda[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
-  const [siglas, setSiglas] = useState<EmpreendimentoSigla[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [profiles, setProfiles] = useState<Map<string, UserProfile>>(new Map());
   const [showAddUser, setShowAddUser] = useState(false);
@@ -271,17 +269,6 @@ export default function Configuracoes() {
   const fetchFontes = async () => { const { data } = await supabase.from("crm_fontes_lead").select("*").order("nome"); setFontes((data as FonteLead[]) ?? []); };
   const fetchMotivos = async () => { const { data } = await supabase.from("crm_motivos_perda").select("*").order("nome"); setMotivos((data as MotivoPerda[]) ?? []); };
   const fetchEmpreendimentos = async () => { const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome"); setEmpreendimentos((data as Empreendimento[]) ?? []); };
-  const fetchSiglas = async () => {
-    const { data } = await supabase
-      .from("crm_empreendimentos")
-      .select("id, codigo, nome")
-      .eq("ativo", true)
-      .not("codigo", "is", null)
-      .order("codigo");
-    setSiglas(((data ?? []) as { id: string; codigo: string | null; nome: string }[])
-      .filter((e) => !!e.codigo)
-      .map((e) => ({ id: e.id, codigo: e.codigo as string, nome: e.nome })));
-  };
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
@@ -297,7 +284,6 @@ export default function Configuracoes() {
     fetchEmpreendimentos();
     if (isAdmin) {
       fetchUsers();
-      fetchSiglas();
     }
   }, [isAdmin]);
 
