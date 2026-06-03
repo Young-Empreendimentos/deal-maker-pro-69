@@ -23,17 +23,6 @@ type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
 type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
 type EmpreendimentoSigla = { id: string; codigo: string; nome: string };
-type Imobiliaria = {
-  id: string;
-  nome: string;
-  contato_nome: string | null;
-  telefone: string | null;
-  link_social: string | null;
-  ativo: boolean;
-  // #17 multi-app: visibilidade independente por app Lovable consumidor da tabela.
-  ativo_crm: boolean; // Pingolead (este app)
-  ativo_nn: boolean;  // Novos Negocios (Perdigueiro Lovable)
-};
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; nome: string; ativo: boolean };
 
