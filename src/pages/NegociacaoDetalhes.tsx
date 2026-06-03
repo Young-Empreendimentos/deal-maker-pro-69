@@ -191,6 +191,17 @@ export default function NegociacaoDetalhes() {
     toast({ title: "Negociação marcada como perdida" });
   };
 
+  const handleUndoFinal = async () => {
+    if (!deal || !id) return;
+    // Retorna para "ficha_assinada" e limpa motivo_perda se existir
+    await supabase.from("crm_deals").update({
+      status: "ficha_assinada",
+      motivo_perda_id: null
+    } as any).eq("id", id);
+    setDeal((prev) => prev ? { ...prev, status: "ficha_assinada", motivo_perda_id: null } : prev);
+    toast({ title: `Negociação retornada para "Ficha Assinada"` });
+  };
+
   const toggleTask = async (task: Task) => {
     await supabase.from("crm_tasks").update({ concluida: !task.concluida }).eq("id", task.id);
     setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, concluida: !t.concluida } : t));
@@ -341,6 +352,11 @@ export default function NegociacaoDetalhes() {
                 <Trophy className="h-4 w-4 mr-1" /> Vendido
               </Button>
             </>
+          )}
+          {isFinal && (
+            <Button variant="outline" size="sm" onClick={handleUndoFinal} className="text-xs">
+              ↩️ Desfazer {deal.status === "vendido" ? "Venda" : "Perda"}
+            </Button>
           )}
         </div>
 
