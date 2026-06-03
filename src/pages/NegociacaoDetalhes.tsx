@@ -106,7 +106,7 @@ export default function NegociacaoDetalhes() {
     const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
-      supabase.from("crm_tasks").select("*, user_profiles!inner(nome)").eq("deal_id", id).order("created_at", { ascending: false }),
+      supabase.from("crm_tasks").select("*, user_profiles(nome)").eq("deal_id", id).order("created_at", { ascending: false }),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);

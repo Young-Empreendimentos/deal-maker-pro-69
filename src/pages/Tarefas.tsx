@@ -83,7 +83,7 @@ export default function Tarefas() {
     setDeals((dealsData as Deal[]) ?? []);
 
     // Tarefas: admins veem todas; usuários comuns só as dos seus negócios
-    let tasksQuery = supabase.from("crm_tasks").select("*, user_profiles!inner(nome)").order("created_at", { ascending: false });
+    let tasksQuery = supabase.from("crm_tasks").select("*, user_profiles(nome)").order("created_at", { ascending: false });
     if (!isAdmin && user) {
       const dealIds = ((dealsData as Deal[]) ?? []).map((d) => d.id);
       if (dealIds.length > 0) {
