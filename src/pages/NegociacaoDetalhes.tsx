@@ -29,6 +29,9 @@ type DealDetail = {
   status: string;
   responsavel_id: string;
   created_at: string;
+  updated_at: string;
+  data_vendido: string | null;
+  data_perdido: string | null;
   empreendimento_id: string | null;
   fonte_id: string | null;
   numero_lote: string | null;
