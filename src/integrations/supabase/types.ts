@@ -4079,8 +4079,6 @@ export type Database = {
       imobiliarias: {
         Row: {
           ativo: boolean
-          ativo_crm: boolean
-          ativo_nn: boolean
           contato_nome: string | null
           created_at: string
           id: string
@@ -4091,8 +4089,6 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          ativo_crm?: boolean
-          ativo_nn?: boolean
           contato_nome?: string | null
           created_at?: string
           id?: string
@@ -4103,8 +4099,6 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          ativo_crm?: boolean
-          ativo_nn?: boolean
           contato_nome?: string | null
           created_at?: string
           id?: string
