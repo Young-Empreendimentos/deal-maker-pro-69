@@ -97,12 +97,20 @@ export default function Tarefas() {
     }
     const { data: rawTasksData } = await tasksQuery;
 
-    const dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
-
-    // Buscar nomes dos responsáveis
+    // Buscar nomes das negociações e responsáveis a partir das tarefas
     const rawList = (rawTasksData as any[]) ?? [];
+    let dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
     let profileMap = new Map<string, string>();
+
     if (rawList.length > 0) {
+      // Buscar nomes de deals que faltam no dealsMap
+      const missingDealIds = [...new Set(rawList.map((t) => t.deal_id).filter((id: string) => id && !dealsMap.has(id)))];
+      if (missingDealIds.length > 0) {
+        const { data: extraDeals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", missingDealIds);
+        ((extraDeals as any[]) ?? []).forEach((d) => dealsMap.set(d.id, d.cliente_nome));
+      }
+
+      // Buscar nomes dos responsáveis
       const responsavelIds = [...new Set(rawList.map((t) => t.responsavel_id).filter(Boolean))];
       if (responsavelIds.length > 0) {
         const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
