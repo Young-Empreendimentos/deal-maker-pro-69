@@ -110,14 +110,21 @@ export default function Tarefas() {
     if (!user) return;
     setFormLoading(true);
 
+    // FIX: Input type="date" pode causar problema de timezone
+    // Garantir que a data seja enviada como string literal "YYYY-MM-DD" sem conversão
+    let dataVencimento: any = null;
+    if (form.data_vencimento && form.data_vencimento.trim()) {
+      dataVencimento = form.data_vencimento.trim();
+    }
+
     const { error } = await supabase.from("crm_tasks").insert({
       titulo: form.titulo,
       descricao: form.descricao || "",
       deal_id: form.deal_id,
-      data_vencimento: form.data_vencimento || null,
+      data_vencimento: dataVencimento,
       responsavel_id: user.id,
       tipo: form.tipo || null,
-    });
+    } as any);
 
     if (error) {
       toast({ title: "Erro ao criar tarefa", description: error.message, variant: "destructive" });
