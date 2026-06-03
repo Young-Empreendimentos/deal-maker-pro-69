@@ -131,6 +131,16 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     onSave();
   };
 
+  const updatePhone = async (phoneId: string, newTelefone: string) => {
+    if (!newTelefone.trim()) return;
+    const { error } = await supabase.from("crm_deal_phones").update({ telefone: newTelefone.trim() }).eq("id", phoneId);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      onSave();
+    }
+  };
+
   return (
     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
       {/* Info Card */}
@@ -207,7 +217,15 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
           <CardContent className="space-y-3">
             {localPhones.map((p) => (
               <div key={p.id} className="flex items-center gap-2">
-                <Input value={p.telefone} readOnly className="flex-1 text-sm" />
+                <Input
+                  value={p.telefone}
+                  onChange={(e) => {
+                    const newPhones = localPhones.map(ph => ph.id === p.id ? { ...ph, telefone: e.target.value } : ph);
+                    setLocalPhones(newPhones);
+                    updatePhone(p.id, e.target.value);
+                  }}
+                  className="flex-1 text-sm"
+                />
                 <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removePhone(p.id)}>
                   <Trash2 className="h-4 w-4" />
                 </Button>

@@ -47,7 +47,7 @@ type DealProposalData = {
   satisfacao_atendimento: number | null;
   satisfacao_produto: number | null;
   responsavel_venda_user_id: string | null;
-  responsavel_venda_imobiliaria_id: string | null;
+  responsavel_venda_corretor_id: string | null;
   valor_entrada: number | null;
   data_nascimento: string | null;
   escolaridade: string | null;
@@ -81,7 +81,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
   const [users, setUsers] = useState<UserOption[]>([]);
   const [imobiliarias, setImobiliarias] = useState<ImobOption[]>([]);
   const [respTypeLocal, setRespTypeLocal] = useState<"" | "usuario" | "imobiliaria">(
-    initialData.responsavel_venda_imobiliaria_id ? "imobiliaria" : initialData.responsavel_venda_user_id ? "usuario" : ""
+    initialData.responsavel_venda_corretor_id ? "imobiliaria" : initialData.responsavel_venda_user_id ? "usuario" : ""
   );
 
   // Tabela de preços state
@@ -98,16 +98,16 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     supabase.rpc("get_all_users_with_roles").then(({ data }) => {
       setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome })));
     });
-    // #17 multi-app: dropdown CRM ve apenas imobiliarias com ativo_crm=true.
-    // Novos Negocios (Perdigueiro Lovable) filtra por ativo_nn em app separada.
+    // Migrado para comercial_corretores: a tabela imobiliarias foi descontinuada
+    // no Pingolead. O id segue gravado em responsavel_venda_corretor_id.
     supabase
-      .from("imobiliarias")
-      .select("id, nome")
-      .eq("ativo_crm", true)
+      .from("comercial_corretores")
+      .select("id, nome, nome_exibicao")
       .eq("ativo", true)
-      .order("nome")
+      .order("nome_exibicao", { ascending: true, nullsFirst: false })
       .then(({ data }) => {
-        setImobiliarias((data as ImobOption[]) ?? []);
+        const rows = (data ?? []) as { id: string; nome: string; nome_exibicao: string | null }[];
+        setImobiliarias(rows.map((r) => ({ id: r.id, nome: r.nome_exibicao ?? r.nome })));
       });
     // Load all tabela precos
     supabase.from("comercial_tabela_precos").select("empreendimento, num_lote, data_preco, preco_av")
@@ -215,8 +215,8 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     if (form.responsavel_venda_user_id) {
       const found = users.find((u) => u.id === form.responsavel_venda_user_id);
       if (found) responsavelNome = found.nome || found.email;
-    } else if (form.responsavel_venda_imobiliaria_id) {
-      const found = imobiliarias.find((i) => i.id === form.responsavel_venda_imobiliaria_id);
+    } else if (form.responsavel_venda_corretor_id) {
+      const found = imobiliarias.find((i) => i.id === form.responsavel_venda_corretor_id);
       if (found) responsavelNome = found.nome;
     }
 
@@ -230,7 +230,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       satisfacao_atendimento: form.satisfacao_atendimento,
       satisfacao_produto: form.satisfacao_produto,
       responsavel_venda_user_id: form.responsavel_venda_user_id || null,
-      responsavel_venda_imobiliaria_id: form.responsavel_venda_imobiliaria_id || null,
+      responsavel_venda_corretor_id: form.responsavel_venda_corretor_id || null,
       responsavel_venda_original: responsavelNome,
       valor_entrada: form.valor_entrada || null,
       data_nascimento: form.data_nascimento || null,
@@ -386,13 +386,13 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
               <Select value={respTypeLocal} onValueChange={(v) => {
                 const tipo = v as "" | "usuario" | "imobiliaria";
                 setRespTypeLocal(tipo);
-                if (tipo === "usuario") { update("responsavel_venda_imobiliaria_id", null); }
+                if (tipo === "usuario") { update("responsavel_venda_corretor_id", null); }
                 else if (tipo === "imobiliaria") { update("responsavel_venda_user_id", null); }
               }}>
                 <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="usuario">Usuário interno</SelectItem>
-                  <SelectItem value="imobiliaria">Imobiliária</SelectItem>
+                  <SelectItem value="imobiliaria">Imobiliária / Corretor</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -410,7 +410,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
               ) : respTypeLocal === "imobiliaria" ? (
                 <>
                   <Label className="text-xs">Imobiliária</Label>
-                  <Select value={form.responsavel_venda_imobiliaria_id ?? ""} onValueChange={(v) => update("responsavel_venda_imobiliaria_id", v)}>
+                  <Select value={form.responsavel_venda_corretor_id ?? ""} onValueChange={(v) => update("responsavel_venda_corretor_id", v)}>
                     <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione a imobiliária" /></SelectTrigger>
                     <SelectContent>
                       {imobiliarias.map((i) => <SelectItem key={i.id} value={i.id}>{i.nome}</SelectItem>)}
@@ -600,7 +600,7 @@ export function isProposalComplete(deal: any): { complete: boolean; missing: str
   }
 
   // Need at least one responsavel_venda
-  if (!deal.responsavel_venda_user_id && !deal.responsavel_venda_imobiliaria_id) {
+  if (!deal.responsavel_venda_user_id && !deal.responsavel_venda_corretor_id) {
     missing.push("Responsável pela Venda");
   }
 

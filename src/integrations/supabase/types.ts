@@ -1143,6 +1143,51 @@ export type Database = {
         }
         Relationships: []
       }
+      comercial_bonificacoes_auditoria: {
+        Row: {
+          bonificacao: number | null
+          comissao_base: number | null
+          comissao_total: number | null
+          comprador: string | null
+          corretor: string | null
+          created_at: string
+          empreendimento: string | null
+          entrada: number | null
+          id: number
+          link_contrato: string | null
+          num_lote: string | null
+          usuario_autorizou: string | null
+        }
+        Insert: {
+          bonificacao?: number | null
+          comissao_base?: number | null
+          comissao_total?: number | null
+          comprador?: string | null
+          corretor?: string | null
+          created_at?: string
+          empreendimento?: string | null
+          entrada?: number | null
+          id?: never
+          link_contrato?: string | null
+          num_lote?: string | null
+          usuario_autorizou?: string | null
+        }
+        Update: {
+          bonificacao?: number | null
+          comissao_base?: number | null
+          comissao_total?: number | null
+          comprador?: string | null
+          corretor?: string | null
+          created_at?: string
+          empreendimento?: string | null
+          entrada?: number | null
+          id?: never
+          link_contrato?: string | null
+          num_lote?: string | null
+          usuario_autorizou?: string | null
+        }
+        Relationships: []
+      }
       comercial_clientes_itaqui: {
         Row: {
           bairro: string | null
@@ -1265,54 +1310,101 @@ export type Database = {
       }
       comercial_corretores: {
         Row: {
-          bairro: string
-          cep: string
-          cidade: string
+          ativo: boolean
+          bairro: string | null
+          banco_agencia: string | null
+          banco_chave_pix: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo: string | null
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
           cpf: string | null
-          creci: string
+          created_at: string
+          creci: string | null
           dados_bancarios: string | null
-          email: string
-          endereco: string
+          email: string | null
+          email_secundario: string | null
+          endereco: string | null
           id: string
+          imobiliaria_origem_id: string | null
+          is_cadastro_completo: boolean
           nome: string
-          telefone: string
-          tipo: string
-          uf: string
+          nome_exibicao: string | null
+          razao_social: string | null
+          telefone: string | null
+          tipo: string | null
+          uf: string | null
+          updated_at: string
         }
         Insert: {
-          bairro: string
-          cep: string
-          cidade: string
+          ativo?: boolean
+          bairro?: string | null
+          banco_agencia?: string | null
+          banco_chave_pix?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           cpf?: string | null
-          creci: string
+          created_at?: string
+          creci?: string | null
           dados_bancarios?: string | null
-          email: string
-          endereco: string
+          email?: string | null
+          email_secundario?: string | null
+          endereco?: string | null
           id?: string
+          imobiliaria_origem_id?: string | null
+          is_cadastro_completo?: boolean
           nome: string
-          telefone: string
-          tipo: string
-          uf: string
+          nome_exibicao?: string | null
+          razao_social?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          uf?: string | null
+          updated_at?: string
         }
         Update: {
-          bairro?: string
-          cep?: string
-          cidade?: string
+          ativo?: boolean
+          bairro?: string | null
+          banco_agencia?: string | null
+          banco_chave_pix?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           cpf?: string | null
-          creci?: string
+          created_at?: string
+          creci?: string | null
           dados_bancarios?: string | null
-          email?: string
-          endereco?: string
+          email?: string | null
+          email_secundario?: string | null
+          endereco?: string | null
           id?: string
+          imobiliaria_origem_id?: string | null
+          is_cadastro_completo?: boolean
           nome?: string
-          telefone?: string
-          tipo?: string
-          uf?: string
+          nome_exibicao?: string | null
+          razao_social?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          uf?: string | null
+          updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "comercial_corretores_imobiliaria_origem_id_fkey"
+            columns: ["imobiliaria_origem_id"]
+            isOneToOne: false
+            referencedRelation: "imobiliarias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       comercial_dados_bancarios: {
         Row: {
@@ -1337,31 +1429,37 @@ export type Database = {
       }
       comercial_lotes_detalhes: {
         Row: {
-          area: number
+          area: number | null
           empreendimento: string
           id: string
-          matricula: number
+          match_status: string | null
+          matricula: number | null
           num_lote: string
-          onus: string
+          onus: string | null
           proprietario: string | null
+          sienge_unidade_id: number | null
         }
         Insert: {
-          area: number
+          area?: number | null
           empreendimento: string
           id?: string
-          matricula: number
+          match_status?: string | null
+          matricula?: number | null
           num_lote: string
-          onus?: string
+          onus?: string | null
           proprietario?: string | null
+          sienge_unidade_id?: number | null
         }
         Update: {
-          area?: number
+          area?: number | null
           empreendimento?: string
           id?: string
-          matricula?: number
+          match_status?: string | null
+          matricula?: number | null
           num_lote?: string
-          onus?: string
+          onus?: string | null
           proprietario?: string | null
+          sienge_unidade_id?: number | null
         }
         Relationships: []
       }
@@ -1443,6 +1541,7 @@ export type Database = {
           empreendimento: string | null
           id: number
           juros: number | null
+          lote_id: string
           num_lote: string | null
           preco_av: number | null
           preco_minimo: number | null
@@ -1453,6 +1552,7 @@ export type Database = {
           empreendimento?: string | null
           id: number
           juros?: number | null
+          lote_id: string
           num_lote?: string | null
           preco_av?: number | null
           preco_minimo?: number | null
@@ -1463,11 +1563,27 @@ export type Database = {
           empreendimento?: string | null
           id?: number
           juros?: number | null
+          lote_id?: string
           num_lote?: string | null
           preco_av?: number | null
           preco_minimo?: number | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "comercial_tabela_precos_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "comercial_lotes_detalhes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "comercial_tabela_precos_lote_id_fkey"
+            columns: ["lote_id"]
+            isOneToOne: false
+            referencedRelation: "vw_lote_disponibilidade"
+            referencedColumns: ["lote_id"]
+          },
+        ]
       }
       comercial_templates_contratos: {
         Row: {
@@ -2632,7 +2748,7 @@ export type Database = {
           rd_deal_id: string | null
           renda_familiar: string | null
           responsavel_id: string | null
-          responsavel_venda_imobiliaria_id: string | null
+          responsavel_venda_corretor_id: string | null
           responsavel_venda_original: string | null
           responsavel_venda_user_id: string | null
           satisfacao_atendimento: number | null
@@ -2680,7 +2796,7 @@ export type Database = {
           rd_deal_id?: string | null
           renda_familiar?: string | null
           responsavel_id?: string | null
-          responsavel_venda_imobiliaria_id?: string | null
+          responsavel_venda_corretor_id?: string | null
           responsavel_venda_original?: string | null
           responsavel_venda_user_id?: string | null
           satisfacao_atendimento?: number | null
@@ -2728,7 +2844,7 @@ export type Database = {
           rd_deal_id?: string | null
           renda_familiar?: string | null
           responsavel_id?: string | null
-          responsavel_venda_imobiliaria_id?: string | null
+          responsavel_venda_corretor_id?: string | null
           responsavel_venda_original?: string | null
           responsavel_venda_user_id?: string | null
           satisfacao_atendimento?: number | null
@@ -2773,10 +2889,10 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "crm_deals_responsavel_venda_imobiliaria_fkey"
-            columns: ["responsavel_venda_imobiliaria_id"]
+            foreignKeyName: "crm_deals_responsavel_venda_corretor_id_fkey"
+            columns: ["responsavel_venda_corretor_id"]
             isOneToOne: false
-            referencedRelation: "imobiliarias"
+            referencedRelation: "comercial_corretores"
             referencedColumns: ["id"]
           },
         ]
@@ -3953,8 +4069,6 @@ export type Database = {
       imobiliarias: {
         Row: {
           ativo: boolean
-          ativo_crm: boolean
-          ativo_nn: boolean
           contato_nome: string | null
           created_at: string
           id: string
@@ -3965,8 +4079,6 @@ export type Database = {
         }
         Insert: {
           ativo?: boolean
-          ativo_crm?: boolean
-          ativo_nn?: boolean
           contato_nome?: string | null
           created_at?: string
           id?: string
@@ -3977,8 +4089,6 @@ export type Database = {
         }
         Update: {
           ativo?: boolean
-          ativo_crm?: boolean
-          ativo_nn?: boolean
           contato_nome?: string | null
           created_at?: string
           id?: string
@@ -9140,6 +9250,19 @@ export type Database = {
           },
         ]
       }
+      vw_lote_disponibilidade: {
+        Row: {
+          commercial_stock: string | null
+          disponivel: boolean | null
+          empreendimento: string | null
+          lote_id: string | null
+          num_lote: string | null
+          reserva_tecnica: boolean | null
+          sienge_unidade_id: number | null
+          situacao: string | null
+        }
+        Relationships: []
+      }
       vw_parcelas_abertas: {
         Row: {
           bill_document: string | null
@@ -9249,6 +9372,7 @@ export type Database = {
         }[]
       }
       financeiro_fn_refresh_inadimplentes: { Args: never; Returns: undefined }
+      fn_norm_lote: { Args: { p: string }; Returns: string }
       get_all_users_with_roles: {
         Args: never
         Returns: {
@@ -9345,6 +9469,31 @@ export type Database = {
       talents_is_admin: { Args: never; Returns: boolean }
       talents_is_developer: { Args: never; Returns: boolean }
       talents_is_editor_or_admin: { Args: never; Returns: boolean }
+      update_corretor_cadastro_completo: {
+        Args: {
+          p_bairro?: string
+          p_banco_agencia?: string
+          p_banco_chave_pix?: string
+          p_banco_conta?: string
+          p_banco_nome?: string
+          p_banco_tipo?: string
+          p_cep?: string
+          p_cidade?: string
+          p_cnpj?: string
+          p_cpf?: string
+          p_creci?: string
+          p_email?: string
+          p_email_secundario?: string
+          p_endereco?: string
+          p_id: string
+          p_nome_exibicao?: string
+          p_razao_social?: string
+          p_telefone?: string
+          p_tipo?: string
+          p_uf?: string
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "user"
