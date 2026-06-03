@@ -553,7 +553,10 @@ export default function Dashboard() {
                   <button
                     key={deal.id}
                     className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
-                    onClick={() => { setDrillDown(null); navigate(`/negociacoes/${deal.id}`); }}
+                    onClick={() => {
+                      setDrillDown(null);
+                      setTimeout(() => navigate(`/negociacoes/${deal.id}`), 50);
+                    }}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{deal.cliente_nome}</p>
@@ -582,7 +585,10 @@ export default function Dashboard() {
                     <button
                       key={task.id}
                       className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
-                      onClick={() => { setDrillDown(null); navigate(`/negociacoes/${task.deal_id}`); }}
+                      onClick={() => {
+                        setDrillDown(null);
+                        setTimeout(() => navigate(`/negociacoes/${task.deal_id}`), 50);
+                      }}
                     >
                       {Icon && cfg && (
                         <span className={cn("flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0", cfg.color)}>
