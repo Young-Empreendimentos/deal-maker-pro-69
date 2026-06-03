@@ -33,6 +33,7 @@ type Task = {
   titulo: string;
   descricao: string;
   data_vencimento: string | null;
+  hora_vencimento: string | null;
   concluida: boolean;
   responsavel_id: string;
   tipo: string | null;
@@ -62,7 +63,7 @@ export default function Tarefas() {
   const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas">("pendentes");
 
   // Form state
-  const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", tipo: "" });
+  const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
   const [formLoading, setFormLoading] = useState(false);
 
   // Image viewer
@@ -117,11 +118,18 @@ export default function Tarefas() {
       dataVencimento = form.data_vencimento.trim();
     }
 
+    // Hora de vencimento como string "HH:MM"
+    let horaVencimento: any = null;
+    if (form.hora_vencimento && form.hora_vencimento.trim()) {
+      horaVencimento = form.hora_vencimento.trim();
+    }
+
     const { error } = await supabase.from("crm_tasks").insert({
       titulo: form.titulo,
       descricao: form.descricao || "",
       deal_id: form.deal_id,
       data_vencimento: dataVencimento,
+      hora_vencimento: horaVencimento,
       responsavel_id: user.id,
       tipo: form.tipo || null,
     } as any);
@@ -131,7 +139,7 @@ export default function Tarefas() {
     } else {
       toast({ title: "Tarefa criada!" });
       setShowForm(false);
-      setForm({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", tipo: "" });
+      setForm({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
       fetchTasks();
     }
     setFormLoading(false);
@@ -265,6 +273,7 @@ export default function Tarefas() {
                         <span className={cn("flex items-center gap-1", isOverdue(task) && "text-destructive")}>
                           <Calendar className="h-3 w-3" />
                           {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
+                          {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
                         </span>
                       )}
                     </div>
@@ -314,19 +323,23 @@ export default function Tarefas() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="space-y-2">
+              <Label>Negociação *</Label>
+              <Select value={form.deal_id} onValueChange={(v) => setForm((f) => ({ ...f, deal_id: v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+                <SelectContent>
+                  {deals.map((d) => <SelectItem key={d.id} value={d.id}>{d.cliente_nome}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label>Negociação *</Label>
-                <Select value={form.deal_id} onValueChange={(v) => setForm((f) => ({ ...f, deal_id: v }))}>
-                  <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                  <SelectContent>
-                    {deals.map((d) => <SelectItem key={d.id} value={d.id}>{d.cliente_nome}</SelectItem>)}
-                  </SelectContent>
-                </Select>
+                <Label>Data de Vencimento</Label>
+                <Input type="date" value={form.data_vencimento} onChange={(e) => setForm((f) => ({ ...f, data_vencimento: e.target.value }))} />
               </div>
               <div className="space-y-2">
-                <Label>Vencimento</Label>
-                <Input type="date" value={form.data_vencimento} onChange={(e) => setForm((f) => ({ ...f, data_vencimento: e.target.value }))} />
+                <Label>Hora (opcional)</Label>
+                <Input type="time" value={form.hora_vencimento} onChange={(e) => setForm((f) => ({ ...f, hora_vencimento: e.target.value }))} />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">

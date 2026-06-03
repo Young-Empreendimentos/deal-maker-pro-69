@@ -60,7 +60,7 @@ type DealDetail = {
 };
 
 type DealPhone  = { id: string; telefone: string };
-type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; concluida: boolean; created_at: string };
+type Task       = { id: string; titulo: string; descricao: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean; created_at: string; tipo?: string };
 type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
 type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
@@ -86,7 +86,7 @@ export default function NegociacaoDetalhes() {
   const [loading, setLoading] = useState(true);
 
   const [showTaskForm, setShowTaskForm] = useState(false);
-  const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", tipo: "" });
+  const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
   const [taskLoading, setTaskLoading] = useState(false);
 
   const [anotacoes, setAnotacoes]         = useState<Anotacao[]>([]);
@@ -208,11 +208,18 @@ export default function NegociacaoDetalhes() {
       dataVencimento = taskForm.data_vencimento.trim();
     }
 
+    // Hora de vencimento como string "HH:MM:SS"
+    let horaVencimento: any = null;
+    if (taskForm.hora_vencimento && taskForm.hora_vencimento.trim()) {
+      horaVencimento = taskForm.hora_vencimento.trim();
+    }
+
     const { error } = await supabase.from("crm_tasks").insert({
       titulo: taskForm.titulo,
       descricao: taskForm.descricao || "",
       deal_id: id,
       data_vencimento: dataVencimento,
+      hora_vencimento: horaVencimento,
       responsavel_id: user.id,
       tipo: taskForm.tipo || null,
     } as any);
@@ -222,7 +229,7 @@ export default function NegociacaoDetalhes() {
     } else {
       toast({ title: "Tarefa criada!" });
       setShowTaskForm(false);
-      setTaskForm({ titulo: "", descricao: "", data_vencimento: "", tipo: "" });
+      setTaskForm({ titulo: "", descricao: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
       fetchAll();
     }
     setTaskLoading(false);
@@ -398,6 +405,7 @@ export default function NegociacaoDetalhes() {
                   {task.data_vencimento && (
                     <span className={cn("text-xs flex items-center gap-1 mt-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
                       <Calendar className="h-3 w-3" /> {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
+                      {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
                     </span>
                   )}
                 </div>
@@ -508,7 +516,10 @@ export default function NegociacaoDetalhes() {
               </Select>
             </div>
             <div className="space-y-2"><Label>Descrição</Label><Textarea value={taskForm.descricao} onChange={(e) => setTaskForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} /></div>
-            <div className="space-y-2"><Label>Vencimento</Label><Input type="date" value={taskForm.data_vencimento} onChange={(e) => setTaskForm((f) => ({ ...f, data_vencimento: e.target.value }))} /></div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-2"><Label>Data de Vencimento</Label><Input type="date" value={taskForm.data_vencimento} onChange={(e) => setTaskForm((f) => ({ ...f, data_vencimento: e.target.value }))} /></div>
+              <div className="space-y-2"><Label>Hora (opcional)</Label><Input type="time" value={taskForm.hora_vencimento} onChange={(e) => setTaskForm((f) => ({ ...f, hora_vencimento: e.target.value }))} /></div>
+            </div>
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={() => setShowTaskForm(false)}>Cancelar</Button>
               <Button type="submit" disabled={taskLoading}>{taskLoading ? "Criando..." : "Criar"}</Button>
