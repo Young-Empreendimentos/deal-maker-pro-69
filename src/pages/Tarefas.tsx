@@ -296,7 +296,7 @@ export default function Tarefas() {
                     {task.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.descricao}</p>}
                     <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-muted-foreground">
                       <span className="bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded font-medium">
-                        {task.deal_nome || "Negociação"}
+                        {task.deal_nome}
                       </span>
                       {task.responsavel_nome && task.responsavel_nome !== "—" && (
                         <span className="bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded font-medium">
