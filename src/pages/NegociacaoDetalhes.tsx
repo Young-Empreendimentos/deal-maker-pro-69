@@ -92,7 +92,6 @@ export default function NegociacaoDetalhes() {
   const [taskForm, setTaskForm] = useState({ titulo: "", descricao: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
   const [taskLoading, setTaskLoading] = useState(false);
   const [taskFilter, setTaskFilter] = useState<"todas" | "pendentes" | "concluidas" | "deletadas">("pendentes");
-  const [showDeletedTasks, setShowDeletedTasks] = useState(false);
 
   const [anotacoes, setAnotacoes]         = useState<Anotacao[]>([]);
   const [anotacaoTexto, setAnotacaoTexto] = useState("");
@@ -114,35 +113,34 @@ export default function NegociacaoDetalhes() {
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
 
-    try {
-      const dealData = dealRes.data as DealDetail | null;
-      setDeal(dealData);
-      setPhones((phonesRes.data as DealPhone[]) ?? []);
+    const dealData = dealRes.data as DealDetail | null;
+    setDeal(dealData);
+    setPhones((phonesRes.data as DealPhone[]) ?? []);
+    const tasksData = (tasksRes.data as Task[]) ?? [];
+    setTasks(tasksData);
+    setDealImages((dealImgsRes.data as DealImage[]) ?? []);
 
-      // Tarefas - simples, sem processamento
-      const tasksData = (tasksRes.data as Task[]) ?? [];
-      setTasks(tasksData);
-
-      setDealImages((dealImgsRes.data as DealImage[]) ?? []);
-
-      // Anotações - sem processamento extra
-      const anotacoesRaw = (anotacoesRes.data as Anotacao[]) ?? [];
-      setAnotacoes(anotacoesRaw);
-
-      // Task images
-      if (tasksData.length > 0) {
-        const taskIds = tasksData.map((t) => t.id);
-        const { data: imgs } = await supabase.from("crm_task_images").select("*").in("task_id", taskIds).order("uploaded_at", { ascending: false });
-        setTaskImages((imgs as TaskImage[]) ?? []);
-      } else {
-        setTaskImages([]);
-      }
-
-      setLoading(false);
-    } catch (err) {
-      console.error("Erro ao carregar negociação:", err);
-      setLoading(false);
+    // Anotações — busca nomes dos usuários via user_profiles
+    const anotacoesRaw = (anotacoesRes.data as Anotacao[]) ?? [];
+    if (anotacoesRaw.length > 0) {
+      const userIds = [...new Set(anotacoesRaw.map((a) => a.user_id))];
+      const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", userIds);
+      const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
+      setAnotacoes(anotacoesRaw.map((a) => ({ ...a, user_nome: profileMap.get(a.user_id) ?? "Usuário" })));
+    } else {
+      setAnotacoes([]);
     }
+
+    if (tasksData.length > 0) {
+      const taskIds = tasksData.map((t) => t.id);
+      const { data: imgs } = await supabase.from("crm_task_images").select("*").in("task_id", taskIds).order("uploaded_at", { ascending: false });
+      const tasksMap = new Map(tasksData.map((t) => [t.id, t.titulo]));
+      setTaskImages(((imgs as TaskImage[]) ?? []).map((img) => ({ ...img, task_titulo: tasksMap.get(img.task_id) ?? "" })));
+    } else {
+      setTaskImages([]);
+    }
+
+    setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, [id]);
