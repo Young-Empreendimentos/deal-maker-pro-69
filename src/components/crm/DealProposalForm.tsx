@@ -98,16 +98,16 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     supabase.rpc("get_all_users_with_roles").then(({ data }) => {
       setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome })));
     });
-    // #17 multi-app: dropdown CRM ve apenas imobiliarias com ativo_crm=true.
-    // Novos Negocios (Perdigueiro Lovable) filtra por ativo_nn em app separada.
+    // Migrado para comercial_corretores: a tabela imobiliarias foi descontinuada
+    // no Pingolead. O id segue gravado em responsavel_venda_imobiliaria_id.
     supabase
-      .from("imobiliarias")
-      .select("id, nome")
-      .eq("ativo_crm", true)
+      .from("comercial_corretores")
+      .select("id, nome, nome_exibicao")
       .eq("ativo", true)
-      .order("nome")
+      .order("nome_exibicao", { ascending: true, nullsFirst: false })
       .then(({ data }) => {
-        setImobiliarias((data as ImobOption[]) ?? []);
+        const rows = (data ?? []) as { id: string; nome: string; nome_exibicao: string | null }[];
+        setImobiliarias(rows.map((r) => ({ id: r.id, nome: r.nome_exibicao ?? r.nome })));
       });
     // Load all tabela precos
     supabase.from("comercial_tabela_precos").select("empreendimento, num_lote, data_preco, preco_av")
