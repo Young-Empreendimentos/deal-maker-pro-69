@@ -256,7 +256,6 @@ export default function Configuracoes() {
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [motivos, setMotivos] = useState<MotivoPerda[]>([]);
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
-  const [imobiliarias, setImobiliarias] = useState<Imobiliaria[]>([]);
   const [siglas, setSiglas] = useState<EmpreendimentoSigla[]>([]);
   const [users, setUsers] = useState<UserInfo[]>([]);
   const [profiles, setProfiles] = useState<Map<string, UserProfile>>(new Map());
@@ -283,14 +282,6 @@ export default function Configuracoes() {
       .filter((e) => !!e.codigo)
       .map((e) => ({ id: e.id, codigo: e.codigo as string, nome: e.nome })));
   };
-  const fetchImobiliarias = async () => {
-    const { data, error } = await supabase
-      .from("imobiliarias")
-      .select("id, nome, contato_nome, telefone, link_social, ativo, ativo_crm, ativo_nn")
-      .order("nome");
-    if (error) { setImobiliarias([]); return; }
-    setImobiliarias((data as Imobiliaria[]) ?? []);
-  };
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
@@ -306,7 +297,6 @@ export default function Configuracoes() {
     fetchEmpreendimentos();
     if (isAdmin) {
       fetchUsers();
-      fetchImobiliarias();
       fetchSiglas();
     }
   }, [isAdmin]);
