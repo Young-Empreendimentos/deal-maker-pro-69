@@ -493,6 +493,9 @@ export default function Configuracoes() {
   const [profiles, setProfiles] = useState<Map<string, UserProfile>>(new Map());
   const [showAddUser, setShowAddUser] = useState(false);
 
+  const { corretores, isLoading: isLoadingCorretores, refetch: refetchCorretores, toggleAtivo: toggleAtivoCorretor, addCorretor } = useCorretores();
+  const [corretorParaEditar, setCorretorParaEditar] = useState<CorretorCadastro | null>(null);
+
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editNome, setEditNome] = useState("");
   const [editRole, setEditRole] = useState("");
