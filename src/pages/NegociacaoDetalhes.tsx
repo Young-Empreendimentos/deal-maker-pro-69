@@ -120,6 +120,7 @@ export default function NegociacaoDetalhes() {
 
     // Tarefas com nomes de responsáveis
     const rawTasks = (tasksRes.data as Task[]) ?? [];
+    let tasksData: Task[] = [];
 
     // Buscar nomes dos responsáveis
     if (rawTasks.length > 0) {
@@ -127,17 +128,15 @@ export default function NegociacaoDetalhes() {
       if (responsavelIds.length > 0) {
         const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
         const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
-        const tasksData = rawTasks.map((t) => ({
+        tasksData = rawTasks.map((t) => ({
           ...t,
           responsavel_nome: profileMap.get(t.responsavel_id) || "—",
         }));
-        setTasks(tasksData);
       } else {
-        setTasks(rawTasks);
+        tasksData = rawTasks;
       }
-    } else {
-      setTasks([]);
     }
+    setTasks(tasksData);
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
 
     // Anotações — busca nomes dos usuários via user_profiles
