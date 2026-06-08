@@ -117,14 +117,31 @@ export default function Negociacoes() {
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda);
 
   const fetchDeals = async () => {
-    // Buscar todos os deals com paginação (Supabase limita 1000 por request)
+    setLoading(true);
+
+    // Determinar quais status buscar no servidor baseado no filtro
+    const statusesToFetch: string[] = [];
+    if (fStatusGroup.length === 0 || fStatusGroup.includes("em_andamento")) {
+      statusesToFetch.push(...KANBAN_COLUMNS.map((c) => c.value));
+    }
+    if (fStatusGroup.length === 0 || fStatusGroup.includes("vendido")) {
+      statusesToFetch.push("vendido");
+    }
+    if (fStatusGroup.length === 0 || fStatusGroup.includes("perdido")) {
+      statusesToFetch.push("perdido");
+    }
+
+    // Buscar com paginação mas já filtrado por status no servidor
     let allDeals: Deal[] = [];
     let from = 0;
     const pageSize = 1000;
     let hasMore = true;
 
     while (hasMore) {
-      let query = supabase.from("crm_deals").select("*").order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+      let query = supabase.from("crm_deals").select("*")
+        .in("status", statusesToFetch)
+        .order("created_at", { ascending: false })
+        .range(from, from + pageSize - 1);
       if (!isAdmin && user) {
         query = query.eq("responsavel_id", user.id);
       }
@@ -148,7 +165,7 @@ export default function Negociacoes() {
         setUsers(((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome })));
       });
     }
-  }, [isAdmin]);
+  }, [isAdmin, fStatusGroup]);
 
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));

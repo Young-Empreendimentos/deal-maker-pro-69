@@ -87,6 +87,8 @@ export default function Dashboard() {
   const [users,  setUsers]  = useState<UserOption[]>([]);
   const [emps,   setEmps]   = useState<Emp[]>([]);
   const [loading, setLoading] = useState(true);
+  const [vendasDeals, setVendasDeals] = useState<Deal[]>([]);
+  const [perdasDeals, setPerdasDeals] = useState<Deal[]>([]);
 
   // ── Applied filters ──────────────────────────────────────────────────────
   const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
@@ -101,31 +103,22 @@ export default function Dashboard() {
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 
   useEffect(() => {
-    const fetchAllPages = async (table: string, select: string, orderCol: string, filters?: (q: any) => any) => {
-      let all: any[] = [];
-      let from = 0;
-      const pageSize = 1000;
-      let hasMore = true;
-      while (hasMore) {
-        let query = supabase.from(table).select(select).order(orderCol, { ascending: false }).range(from, from + pageSize - 1);
-        if (filters) query = filters(query);
-        const { data } = await query;
-        const page = (data as any[]) ?? [];
-        all = [...all, ...page];
-        hasMore = page.length === pageSize;
-        from += pageSize;
-      }
-      return all;
-    };
-
     const load = async () => {
-      const [allDeals, tasksRes, empsRes] = await Promise.all([
-        fetchAllPages("crm_deals", "*", "created_at"),
+      // Dashboard: carregar apenas negócios ativos (pipeline) - são ~1.6k
+      // Vendido/perdido são ~20k e deixam o sistema lento
+      const [dealsRes, vendasRes, perdasRes, tasksRes, empsRes] = await Promise.all([
+        supabase.from("crm_deals").select("*").not("status", "in", "(vendido,perdido)").order("created_at", { ascending: false }),
+        // Vendidos (~865) - carrega completo para drill-down e VGV
+        supabase.from("crm_deals").select("*").eq("status", "vendido").order("created_at", { ascending: false }),
+        // Perdidos (~19k) - carrega só campos essenciais para contagem e drill-down básico
+        supabase.from("crm_deals").select("id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, preco_lote")
+          .eq("status", "perdido").order("created_at", { ascending: false }).limit(5000),
         supabase.from("crm_tasks").select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at"),
         supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
       ]);
-      setDeals(allDeals as Deal[]);
-      setTasks((tasksRes.data as Task[]) ?? []);
+      setDeals((dealsRes.data as Deal[]) ?? []);
+      setVendasDeals((vendasRes.data as Deal[]) ?? []);
+      setPerdasDeals((perdasRes.data as Deal[]) ?? []);
       setEmps((empsRes.data as Emp[]) ?? []);
 
       if (isAdmin) {
@@ -220,14 +213,34 @@ export default function Dashboard() {
     [filteredDeals],
   );
 
-  const vendasCount  = useMemo(() => filteredDeals.filter((d) => d.status === "vendido").length,  [filteredDeals]);
-  const perdasCount  = useMemo(() => filteredDeals.filter((d) => d.status === "perdido").length,  [filteredDeals]);
+  const filteredVendas = useMemo(() => vendasDeals.filter((d) => {
+    if (!isAdmin && d.responsavel_id !== user?.id) return false;
+    if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+    if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
+    if (dateFrom && dateTo) {
+      const dt = new Date(d.created_at);
+      if (dt < dateFrom || dt > dateTo) return false;
+    }
+    return true;
+  }), [vendasDeals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
+
+  const filteredPerdas = useMemo(() => perdasDeals.filter((d) => {
+    if (!isAdmin && d.responsavel_id !== user?.id) return false;
+    if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+    if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
+    if (dateFrom && dateTo) {
+      const dt = new Date(d.created_at);
+      if (dt < dateFrom || dt > dateTo) return false;
+    }
+    return true;
+  }), [perdasDeals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
+
+  const vendasCount  = filteredVendas.length;
+  const perdasCount  = filteredPerdas.length;
 
   const vgv = useMemo(
-    () => filteredDeals
-      .filter((d) => d.status === "vendido")
-      .reduce((sum, d) => sum + (d.preco_lote ?? 0), 0),
-    [filteredDeals],
+    () => filteredVendas.reduce((sum, d) => sum + (d.preco_lote ?? 0), 0),
+    [filteredVendas],
   );
 
   const fmtBRL = (v: number) =>
@@ -428,7 +441,7 @@ export default function Dashboard() {
           {/* Vendas */}
           <button
             className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
-            onClick={() => setDrillDown({ kind: "deals", label: "Vendas", items: filteredDeals.filter((d) => d.status === "vendido") })}
+            onClick={() => setDrillDown({ kind: "deals", label: "Vendas", items: filteredVendas })}
           >
             <div className="flex items-center gap-1.5">
               <TrendingUp className="h-3 w-3 text-green-500" />
@@ -442,7 +455,7 @@ export default function Dashboard() {
           {/* Perdidas */}
           <button
             className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
-            onClick={() => setDrillDown({ kind: "deals", label: "Perdidas", items: filteredDeals.filter((d) => d.status === "perdido") })}
+            onClick={() => setDrillDown({ kind: "deals", label: "Perdidas", items: filteredPerdas })}
           >
             <div className="flex items-center gap-1.5">
               <TrendingDown className="h-3 w-3 text-red-500" />
@@ -457,7 +470,7 @@ export default function Dashboard() {
         {/* VGV --------------------------------------------------------------- */}
         <button
           className="w-full text-left rounded-xl border bg-card px-5 py-4 flex items-center justify-between hover:bg-accent/40 transition-colors"
-          onClick={() => setDrillDown({ kind: "deals", label: "VGV Realizado", items: filteredDeals.filter((d) => d.status === "vendido") })}
+          onClick={() => setDrillDown({ kind: "deals", label: "VGV Realizado", items: filteredVendas })}
         >
           <div>
             <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">VGV Realizado</p>
