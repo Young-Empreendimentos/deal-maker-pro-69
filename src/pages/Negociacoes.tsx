@@ -117,20 +117,25 @@ export default function Negociacoes() {
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda);
 
   const fetchDeals = async () => {
-    // Carregar apenas negócios ativos (não vendido/perdido) - são ~1.600
-    // Vendido e perdido são ~20.500 e travam o navegador
-    let query = supabase
-      .from("crm_deals")
-      .select("*")
-      .not("status", "in", "(vendido,perdido)")
-      .order("created_at", { ascending: false });
+    // Buscar todos os deals com paginação (Supabase limita 1000 por request)
+    let allDeals: Deal[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
 
-    if (!isAdmin && user) {
-      query = query.eq("responsavel_id", user.id);
+    while (hasMore) {
+      let query = supabase.from("crm_deals").select("*").order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+      if (!isAdmin && user) {
+        query = query.eq("responsavel_id", user.id);
+      }
+      const { data } = await query;
+      const page = (data as Deal[]) ?? [];
+      allDeals = [...allDeals, ...page];
+      hasMore = page.length === pageSize;
+      from += pageSize;
     }
 
-    const { data } = await query;
-    setDeals((data as Deal[]) ?? []);
+    setDeals(allDeals);
     setLoading(false);
   };
 

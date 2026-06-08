@@ -101,14 +101,30 @@ export default function Dashboard() {
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 
   useEffect(() => {
+    const fetchAllPages = async (table: string, select: string, orderCol: string, filters?: (q: any) => any) => {
+      let all: any[] = [];
+      let from = 0;
+      const pageSize = 1000;
+      let hasMore = true;
+      while (hasMore) {
+        let query = supabase.from(table).select(select).order(orderCol, { ascending: false }).range(from, from + pageSize - 1);
+        if (filters) query = filters(query);
+        const { data } = await query;
+        const page = (data as any[]) ?? [];
+        all = [...all, ...page];
+        hasMore = page.length === pageSize;
+        from += pageSize;
+      }
+      return all;
+    };
+
     const load = async () => {
-      // Dashboard: carregar apenas negócios ativos (sem vendido/perdido)
-      const [dealsRes, tasksRes, empsRes] = await Promise.all([
-        supabase.from("crm_deals").select("*").not("status", "in", "(vendido,perdido)").order("created_at", { ascending: false }),
+      const [allDeals, tasksRes, empsRes] = await Promise.all([
+        fetchAllPages("crm_deals", "*", "created_at"),
         supabase.from("crm_tasks").select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at"),
         supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
       ]);
-      setDeals((dealsRes.data as Deal[]) ?? []);
+      setDeals(allDeals as Deal[]);
       setTasks((tasksRes.data as Task[]) ?? []);
       setEmps((empsRes.data as Emp[]) ?? []);
 
