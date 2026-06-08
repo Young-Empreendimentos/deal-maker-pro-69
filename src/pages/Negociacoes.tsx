@@ -117,17 +117,25 @@ export default function Negociacoes() {
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda);
 
   const fetchDeals = async () => {
-    // PostgREST/Supabase JS limita a 1000 rows por default. Como todos os deals
-    // têm ordem_kanban=0 até serem arrastados, ordenar por ordem_kanban retornava
-    // os 1000 mais antigos e escondia leads novos do funil. Ordenar por
-    // created_at DESC garante que os 1000 mais recentes vêm primeiro — cobre
-    // meses de operação de qualquer vendedor.
-    let query = supabase.from("crm_deals").select("*").order("created_at", { ascending: false });
-    if (!isAdmin && user) {
-      query = query.eq("responsavel_id", user.id);
+    // Buscar TODOS os deals com paginação (Supabase limita 1000 por request)
+    let allDeals: Deal[] = [];
+    let from = 0;
+    const pageSize = 1000;
+    let hasMore = true;
+
+    while (hasMore) {
+      let query = supabase.from("crm_deals").select("*").order("created_at", { ascending: false }).range(from, from + pageSize - 1);
+      if (!isAdmin && user) {
+        query = query.eq("responsavel_id", user.id);
+      }
+      const { data } = await query;
+      const page = (data as Deal[]) ?? [];
+      allDeals = [...allDeals, ...page];
+      hasMore = page.length === pageSize;
+      from += pageSize;
     }
-    const { data } = await query;
-    setDeals((data as Deal[]) ?? []);
+
+    setDeals(allDeals);
     setLoading(false);
   };
 
