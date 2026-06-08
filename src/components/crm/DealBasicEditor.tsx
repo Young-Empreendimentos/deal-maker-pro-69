@@ -72,27 +72,17 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
 
     const responsavelChanged = responsavelId !== (deal.responsavel_id ?? "");
 
-    const { data: updated, error } = await supabase.from("crm_deals").update({
+    const { error } = await supabase.from("crm_deals").update({
       cliente_nome: nome.trim(),
       cliente_email: email.trim() || null,
       qualificacao: qualificacao as any,
       empreendimento_id: empId || null,
       fonte_id: fonteId || null,
       responsavel_id: responsavelId || null,
-    } as any).eq("id", deal.id).select("id");
+    } as any).eq("id", deal.id);
 
     if (error) {
       toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" });
-      setSaving(false);
-      return;
-    }
-
-    if (!updated || updated.length === 0) {
-      toast({
-        title: "Sem permissão para salvar",
-        description: "Você não tem permissão para editar este negócio.",
-        variant: "destructive",
-      });
       setSaving(false);
       return;
     }
