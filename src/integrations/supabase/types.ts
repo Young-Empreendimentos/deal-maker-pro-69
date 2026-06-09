@@ -2714,6 +2714,44 @@ export type Database = {
           },
         ]
       }
+      crm_deal_status_log: {
+        Row: {
+          created_at: string
+          deal_id: string
+          empreendimento_id: string | null
+          id: string
+          responsavel_id: string | null
+          status_anterior: string | null
+          status_novo: string
+        }
+        Insert: {
+          created_at?: string
+          deal_id: string
+          empreendimento_id?: string | null
+          id?: string
+          responsavel_id?: string | null
+          status_anterior?: string | null
+          status_novo: string
+        }
+        Update: {
+          created_at?: string
+          deal_id?: string
+          empreendimento_id?: string | null
+          id?: string
+          responsavel_id?: string | null
+          status_anterior?: string | null
+          status_novo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "crm_deal_status_log_deal_id_fkey"
+            columns: ["deal_id"]
+            isOneToOne: false
+            referencedRelation: "crm_deals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       crm_deals: {
         Row: {
           auto_interesse: string | null
@@ -2725,6 +2763,8 @@ export type Database = {
           consultor_id: string | null
           created_at: string
           data_nascimento: string | null
+          data_perdido: string | null
+          data_vendido: string | null
           empreendimento_id: string | null
           escolaridade: string | null
           estado_civil: string | null
@@ -2773,6 +2813,8 @@ export type Database = {
           consultor_id?: string | null
           created_at?: string
           data_nascimento?: string | null
+          data_perdido?: string | null
+          data_vendido?: string | null
           empreendimento_id?: string | null
           escolaridade?: string | null
           estado_civil?: string | null
@@ -2821,6 +2863,8 @@ export type Database = {
           consultor_id?: string | null
           created_at?: string
           data_nascimento?: string | null
+          data_perdido?: string | null
+          data_vendido?: string | null
           empreendimento_id?: string | null
           escolaridade?: string | null
           estado_civil?: string | null
@@ -3086,10 +3130,13 @@ export type Database = {
       crm_tasks: {
         Row: {
           concluida: boolean
+          concluida_em: string | null
           created_at: string
           data_vencimento: string | null
           deal_id: string
+          deleted_at: string | null
           descricao: string | null
+          hora_vencimento: string | null
           id: string
           responsavel_id: string
           tipo: string | null
@@ -3098,10 +3145,13 @@ export type Database = {
         }
         Insert: {
           concluida?: boolean
+          concluida_em?: string | null
           created_at?: string
           data_vencimento?: string | null
           deal_id: string
+          deleted_at?: string | null
           descricao?: string | null
+          hora_vencimento?: string | null
           id?: string
           responsavel_id: string
           tipo?: string | null
@@ -3110,10 +3160,13 @@ export type Database = {
         }
         Update: {
           concluida?: boolean
+          concluida_em?: string | null
           created_at?: string
           data_vencimento?: string | null
           deal_id?: string
+          deleted_at?: string | null
           descricao?: string | null
+          hora_vencimento?: string | null
           id?: string
           responsavel_id?: string
           tipo?: string | null
