@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
-import { TrendingUp, DollarSign, Target, Percent, Download, Search } from "lucide-react";
+import { TrendingUp, DollarSign, Target, Percent, Download, Search, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import {
   ResponsiveContainer,
   BarChart,
@@ -158,10 +158,18 @@ export default function Relatorios() {
     const toTs = period.to ? new Date(period.to + "T23:59:59").getTime() : null;
     const q = search.trim().toLowerCase();
     return deals.filter((d) => {
-      // Para vendas usa data_vendido; para outras created_at
-      const ref = d.data_vendido ? new Date(d.data_vendido).getTime() : new Date(d.created_at).getTime();
-      if (fromTs && ref < fromTs) return false;
-      if (toTs && ref > toTs) return false;
+      // Vendas sem data_vendido NÃO entram no filtro de período
+      // (são exibidas separadamente em "Vendas sem data de fechamento")
+      if (d.status === "vendido") {
+        if (!d.data_vendido) return false;
+        const ref = new Date(d.data_vendido).getTime();
+        if (fromTs && ref < fromTs) return false;
+        if (toTs && ref > toTs) return false;
+      } else {
+        const ref = new Date(d.created_at).getTime();
+        if (fromTs && ref < fromTs) return false;
+        if (toTs && ref > toTs) return false;
+      }
       if (empSel.length && (!d.empreendimento_id || !empSel.includes(d.empreendimento_id)))
         return false;
       if (respSel.length) {
@@ -175,6 +183,23 @@ export default function Relatorios() {
 
   const vendas = filtered.filter((d) => d.status === "vendido");
   const perdas = filtered.filter((d) => d.status === "perdido");
+
+  // Vendas sem data de fechamento (independente do período, mas respeita emp/resp/busca)
+  const vendasSemData = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return deals.filter((d) => {
+      if (d.status !== "vendido" || d.data_vendido) return false;
+      if (empSel.length && (!d.empreendimento_id || !empSel.includes(d.empreendimento_id)))
+        return false;
+      if (respSel.length) {
+        const k = respKey(d);
+        if (!k || !respSel.includes(k)) return false;
+      }
+      if (q && !(d.cliente_nome || "").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [deals, empSel, respSel, search]);
+  const [mostrarSemData, setMostrarSemData] = useState(false);
 
   const totalValor = vendas.reduce((s, d) => s + (Number(d.preco_lote) || 0), 0);
   const ticket = vendas.length > 0 ? totalValor / vendas.length : 0;
@@ -323,6 +348,72 @@ export default function Relatorios() {
             sub={`${vendas.length} de ${filtered.length} negociações`}
           />
         </div>
+
+        {/* Alerta vendas sem data de fechamento */}
+        {vendasSemData.length > 0 && (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardContent className="p-4">
+              <button
+                onClick={() => setMostrarSemData((v) => !v)}
+                className="w-full flex items-center gap-3 text-left"
+              >
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-sm">
+                    {vendasSemData.length} venda{vendasSemData.length > 1 ? "s" : ""} sem data de fechamento
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Essas vendas não aparecem no filtro de período acima. Clique para {mostrarSemData ? "ocultar" : "ver a lista"}.
+                  </p>
+                </div>
+                {mostrarSemData ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              {mostrarSemData && (
+                <div className="mt-4 border-t pt-3 max-h-[400px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-card z-10">
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Empreendimento</TableHead>
+                        <TableHead>Lote</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Responsável</TableHead>
+                        <TableHead>Criada em</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {vendasSemData
+                        .slice()
+                        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                        .map((d) => (
+                          <TableRow key={d.id}>
+                            <TableCell className="font-medium">{d.cliente_nome}</TableCell>
+                            <TableCell>
+                              {(d.empreendimento_id && empMap[d.empreendimento_id]) || (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{d.numero_lote || "—"}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {d.preco_lote ? BRL(Number(d.preco_lote)) : "—"}
+                            </TableCell>
+                            <TableCell className="text-sm">{respLabel(d)}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {fmtDate(d.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* Gráfico por dia */}
         <Card>
