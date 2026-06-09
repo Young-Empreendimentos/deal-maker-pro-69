@@ -393,6 +393,7 @@ export default function NegociacaoDetalhes() {
         <DealProposalForm
           dealId={deal.id}
           initialData={{
+            empreendimento_id: deal.empreendimento_id,
             numero_lote: deal.numero_lote,
             preco_lote: deal.preco_lote,
             forma_pagamento: deal.forma_pagamento,
