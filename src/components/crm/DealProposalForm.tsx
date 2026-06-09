@@ -38,6 +38,7 @@ const INTERESSES_PESSOAIS = [
 const FORMAS_PAGAMENTO = ["à vista", "financiado"] as const;
 
 type DealProposalData = {
+  empreendimento_id: string | null;
   numero_lote: string | null;
   preco_lote: number | null;
   forma_pagamento: string | null;
