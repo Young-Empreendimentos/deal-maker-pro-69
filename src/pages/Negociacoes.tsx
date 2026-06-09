@@ -139,7 +139,7 @@ export default function Negociacoes() {
 
     while (hasMore) {
       let query = supabase.from("crm_deals").select("*")
-        .in("status", statusesToFetch)
+        .in("status", statusesToFetch as any)
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
       if (!isAdmin && user) {
