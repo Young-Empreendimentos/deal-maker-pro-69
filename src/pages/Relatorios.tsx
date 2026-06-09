@@ -349,6 +349,72 @@ export default function Relatorios() {
           />
         </div>
 
+        {/* Alerta vendas sem data de fechamento */}
+        {vendasSemData.length > 0 && (
+          <Card className="border-amber-500/40 bg-amber-500/5">
+            <CardContent className="p-4">
+              <button
+                onClick={() => setMostrarSemData((v) => !v)}
+                className="w-full flex items-center gap-3 text-left"
+              >
+                <AlertCircle className="h-5 w-5 text-amber-600 flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="font-medium text-sm">
+                    {vendasSemData.length} venda{vendasSemData.length > 1 ? "s" : ""} sem data de fechamento
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Essas vendas não aparecem no filtro de período acima. Clique para {mostrarSemData ? "ocultar" : "ver a lista"}.
+                  </p>
+                </div>
+                {mostrarSemData ? (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              {mostrarSemData && (
+                <div className="mt-4 border-t pt-3 max-h-[400px] overflow-auto">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-card z-10">
+                      <TableRow>
+                        <TableHead>Cliente</TableHead>
+                        <TableHead>Empreendimento</TableHead>
+                        <TableHead>Lote</TableHead>
+                        <TableHead className="text-right">Valor</TableHead>
+                        <TableHead>Responsável</TableHead>
+                        <TableHead>Criada em</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {vendasSemData
+                        .slice()
+                        .sort((a, b) => b.created_at.localeCompare(a.created_at))
+                        .map((d) => (
+                          <TableRow key={d.id}>
+                            <TableCell className="font-medium">{d.cliente_nome}</TableCell>
+                            <TableCell>
+                              {(d.empreendimento_id && empMap[d.empreendimento_id]) || (
+                                <span className="text-muted-foreground">—</span>
+                              )}
+                            </TableCell>
+                            <TableCell>{d.numero_lote || "—"}</TableCell>
+                            <TableCell className="text-right font-mono text-sm">
+                              {d.preco_lote ? BRL(Number(d.preco_lote)) : "—"}
+                            </TableCell>
+                            <TableCell className="text-sm">{respLabel(d)}</TableCell>
+                            <TableCell className="text-xs text-muted-foreground whitespace-nowrap">
+                              {fmtDate(d.created_at)}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
         {/* Gráfico por dia */}
         <Card>
           <CardHeader className="pb-2">
