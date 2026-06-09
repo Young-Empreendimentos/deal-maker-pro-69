@@ -342,6 +342,11 @@ export default function NegociacaoDetalhes() {
               {deal.status === "vendido" ? "✅ Vendido" : "❌ Perdido"}
             </Badge>
           )}
+          {isFinal && (deal.data_vendido || deal.data_perdido) && (
+            <span className="text-xs text-muted-foreground">
+              em {new Date((deal.data_vendido ?? deal.data_perdido)!).toLocaleDateString("pt-BR")}
+            </span>
+          )}
           {isAdmin && (
             <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setShowDeleteDealDialog(true)}>
               <Trash2 className="h-4 w-4" />
@@ -388,6 +393,7 @@ export default function NegociacaoDetalhes() {
         <DealProposalForm
           dealId={deal.id}
           initialData={{
+            empreendimento_id: deal.empreendimento_id,
             numero_lote: deal.numero_lote,
             preco_lote: deal.preco_lote,
             forma_pagamento: deal.forma_pagamento,

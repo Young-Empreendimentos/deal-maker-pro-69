@@ -38,6 +38,7 @@ const INTERESSES_PESSOAIS = [
 const FORMAS_PAGAMENTO = ["à vista", "financiado"] as const;
 
 type DealProposalData = {
+  empreendimento_id: string | null;
   numero_lote: string | null;
   preco_lote: number | null;
   forma_pagamento: string | null;
@@ -88,6 +89,8 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
   const [tabelaPrecos, setTabelaPrecos] = useState<TabelaPreco[]>([]);
   const [selectedEmpreendimento, setSelectedEmpreendimento] = useState<string>("");
   const [loteOpen, setLoteOpen] = useState(false);
+  // Map id->nome dos empreendimentos do CRM (para casar com a coluna texto da tabela de preços)
+  const [empNomeById, setEmpNomeById] = useState<Record<string, string>>({});
 
   // IBGE cities search
   const [cidadeSearch, setCidadeSearch] = useState(initialData.cidade_cliente || "");
@@ -121,15 +124,32 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       .then(({ data }) => {
         setTabelaPrecos((data as TabelaPreco[]) ?? []);
       });
+    // Carrega mapa id->nome dos empreendimentos do CRM
+    supabase.from("crm_empreendimentos").select("id, nome").then(({ data }) => {
+      const map: Record<string, string> = {};
+      ((data as { id: string; nome: string }[]) ?? []).forEach((e) => { map[e.id] = e.nome; });
+      setEmpNomeById(map);
+    });
   }, []);
 
-  // Derive empreendimento from initial data (try to match)
+  // Derive empreendimento from initial data: prefer empreendimento_id; fallback para inferência por num_lote
   useEffect(() => {
-    if (initialData.numero_lote && tabelaPrecos.length > 0 && !selectedEmpreendimento) {
+    if (selectedEmpreendimento || tabelaPrecos.length === 0) return;
+    // 1) Preferência: usar o empreendimento_id gravado no deal
+    if (initialData.empreendimento_id && empNomeById[initialData.empreendimento_id]) {
+      const nome = empNomeById[initialData.empreendimento_id];
+      const hit = tabelaPrecos.find((t) => t.empreendimento.trim().toLowerCase() === nome.trim().toLowerCase());
+      if (hit) {
+        setSelectedEmpreendimento(hit.empreendimento);
+        return;
+      }
+    }
+    // 2) Fallback: inferir pelo número do lote
+    if (initialData.numero_lote) {
       const match = tabelaPrecos.find(t => t.num_lote === initialData.numero_lote);
       if (match) setSelectedEmpreendimento(match.empreendimento);
     }
-  }, [tabelaPrecos, initialData.numero_lote]);
+  }, [tabelaPrecos, empNomeById, initialData.empreendimento_id, initialData.numero_lote, selectedEmpreendimento]);
 
   // Derived lists
   const empreendimentos = useMemo(() => {
