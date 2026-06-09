@@ -15,6 +15,8 @@ import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { DragDropContext, Droppable, Draggable, DropResult } from "@hello-pangea/dnd";
 import { useToast } from "@/hooks/use-toast";
+import { Checkbox } from "@/components/ui/checkbox";
+import { BulkActionsBar } from "@/components/crm/BulkActionsBar";
 
 export const KANBAN_COLUMNS = [
   { value: "lead_recebido", label: "Lead Recebido" },
@@ -111,6 +113,15 @@ export default function Negociacoes() {
 
   const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+
+  // Seleção em massa (apenas admin, tabela)
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const toggleSel = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
 
   const hasDateFilter = (r: DateRange) => r.from !== "" || r.to !== "";
   const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
@@ -253,6 +264,17 @@ export default function Negociacoes() {
   const consultorOptions = users.map((u) => ({ value: u.id, label: u.nome || u.email }));
   const empreendimentoOptions = empreendimentos.map((e) => ({ value: e.id, label: e.nome }));
   const fonteOptions = fontes.map((f) => ({ value: f.id, label: f.nome }));
+
+  const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
+  const someFilteredSelected = filtered.some((d) => selected.has(d.id));
+  const toggleSelectAll = () => {
+    if (allFilteredSelected) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(filtered.map((d) => d.id)));
+    }
+  };
+  const selectedDeals = filtered.filter((d) => selected.has(d.id));
 
   return (
     <AppLayout>
@@ -515,6 +537,15 @@ export default function Negociacoes() {
             <Table>
               <TableHeader>
                 <TableRow>
+                  {isAdmin && (
+                    <TableHead className="w-10">
+                      <Checkbox
+                        checked={allFilteredSelected ? true : someFilteredSelected ? "indeterminate" as any : false}
+                        onCheckedChange={toggleSelectAll}
+                        aria-label="Selecionar tudo"
+                      />
+                    </TableHead>
+                  )}
                   <TableHead>Cliente</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Qualificação</TableHead>
@@ -527,6 +558,15 @@ export default function Negociacoes() {
                     || (deal.status === "vendido" ? "Vendido" : deal.status === "perdido" ? "Perdido" : deal.status);
                   return (
                     <TableRow key={deal.id} className="cursor-pointer" onClick={() => navigate(`/negociacoes/${deal.id}`)}>
+                      {isAdmin && (
+                        <TableCell onClick={(e) => { e.stopPropagation(); toggleSel(deal.id); }} className="w-10">
+                          <Checkbox
+                            checked={selected.has(deal.id)}
+                            onCheckedChange={() => toggleSel(deal.id)}
+                            aria-label={`Selecionar ${deal.cliente_nome}`}
+                          />
+                        </TableCell>
+                      )}
                       <TableCell className="font-medium">{deal.cliente_nome}</TableCell>
                       <TableCell>
                         <Badge
@@ -542,7 +582,7 @@ export default function Negociacoes() {
                   );
                 })}
                 {filtered.length === 0 && (
-                  <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma negociação encontrada</TableCell></TableRow>
+                  <TableRow><TableCell colSpan={isAdmin ? 5 : 4} className="text-center text-muted-foreground py-8">Nenhuma negociação encontrada</TableCell></TableRow>
                 )}
               </TableBody>
             </Table>
@@ -551,6 +591,16 @@ export default function Negociacoes() {
       </div>
 
       <DealFormDialog open={showForm} onOpenChange={setShowForm} onSuccess={fetchDeals} />
+      {isAdmin && selected.size > 0 && (
+        <BulkActionsBar
+          selectedDeals={selectedDeals}
+          users={users.map((u) => ({ id: u.id, nome: u.nome || u.email }))}
+          empreendimentos={empreendimentos}
+          fontes={fontes}
+          onClear={() => setSelected(new Set())}
+          onRefresh={fetchDeals}
+        />
+      )}
     </AppLayout>
   );
 }
