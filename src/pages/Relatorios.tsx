@@ -158,10 +158,18 @@ export default function Relatorios() {
     const toTs = period.to ? new Date(period.to + "T23:59:59").getTime() : null;
     const q = search.trim().toLowerCase();
     return deals.filter((d) => {
-      // Para vendas usa data_vendido; para outras created_at
-      const ref = d.data_vendido ? new Date(d.data_vendido).getTime() : new Date(d.created_at).getTime();
-      if (fromTs && ref < fromTs) return false;
-      if (toTs && ref > toTs) return false;
+      // Vendas sem data_vendido NÃO entram no filtro de período
+      // (são exibidas separadamente em "Vendas sem data de fechamento")
+      if (d.status === "vendido") {
+        if (!d.data_vendido) return false;
+        const ref = new Date(d.data_vendido).getTime();
+        if (fromTs && ref < fromTs) return false;
+        if (toTs && ref > toTs) return false;
+      } else {
+        const ref = new Date(d.created_at).getTime();
+        if (fromTs && ref < fromTs) return false;
+        if (toTs && ref > toTs) return false;
+      }
       if (empSel.length && (!d.empreendimento_id || !empSel.includes(d.empreendimento_id)))
         return false;
       if (respSel.length) {
@@ -175,6 +183,23 @@ export default function Relatorios() {
 
   const vendas = filtered.filter((d) => d.status === "vendido");
   const perdas = filtered.filter((d) => d.status === "perdido");
+
+  // Vendas sem data de fechamento (independente do período, mas respeita emp/resp/busca)
+  const vendasSemData = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return deals.filter((d) => {
+      if (d.status !== "vendido" || d.data_vendido) return false;
+      if (empSel.length && (!d.empreendimento_id || !empSel.includes(d.empreendimento_id)))
+        return false;
+      if (respSel.length) {
+        const k = respKey(d);
+        if (!k || !respSel.includes(k)) return false;
+      }
+      if (q && !(d.cliente_nome || "").toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [deals, empSel, respSel, search]);
+  const [mostrarSemData, setMostrarSemData] = useState(false);
 
   const totalValor = vendas.reduce((s, d) => s + (Number(d.preco_lote) || 0), 0);
   const ticket = vendas.length > 0 ? totalValor / vendas.length : 0;
