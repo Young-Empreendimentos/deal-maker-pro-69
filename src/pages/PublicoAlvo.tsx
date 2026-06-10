@@ -109,6 +109,57 @@ function canonMotivo(v: any): string[] {
   return Array.from(new Set(partes));
 }
 
+/** Normaliza "Mídia motivadora": desmembra valores combinados e unifica grafias.
+ *  Ex.: "Facebook/instagram" → "Facebook/Instagram";
+ *       "Rede social (Facebook ou Instagram)" → "Facebook/Instagram";
+ *       "Whatsapp / Ligação" → "WhatsApp/Ligação".
+ */
+function canonMidia(v: any): string[] {
+  const s = norm(v);
+  if (!s) return [];
+  const partes = splitMulti(s)
+    .map((p) => norm(p))
+    .filter((p): p is string => !!p)
+    .map((p) => {
+      const key = p.toLowerCase().replace(/\s+/g, " ").trim();
+      // Sinônimos → forma canônica
+      if (
+        key === "facebook/instagram" ||
+        key === "facebook / instagram" ||
+        key === "facebook" ||
+        key === "instagram" ||
+        key === "rede social (facebook ou instagram)" ||
+        key === "rede social" ||
+        key === "redes sociais"
+      ) return "Facebook/Instagram";
+      if (
+        key === "whatsapp/ligação" ||
+        key === "whatsapp / ligação" ||
+        key === "whatsapp" ||
+        key === "ligação" ||
+        key === "whatsapp/ligacao"
+      ) return "WhatsApp/Ligação";
+      if (key === "youtube") return "YouTube";
+      if (key === "google") return "Google";
+      if (key === "indicação" || key === "indicacao") return "Indicação";
+      if (key === "oferta do corretor" || key === "corretor") return "Oferta do corretor";
+      if (key === "outbound corretor" || key === "outbound") return "Outbound corretor";
+      if (
+        key === "visita ao plantão de vendas" ||
+        key === "visita ao plantao de vendas" ||
+        key === "plantão de vendas" ||
+        key === "plantao de vendas"
+      ) return "Visita ao plantão de vendas";
+      if (key === "imobiliária" || key === "imobiliaria") return "Imobiliária";
+      if (key === "site da empresa" || key === "site") return "Site da empresa";
+      if (key === "hotsite") return "Hotsite";
+      if (key === "rádio" || key === "radio") return "Rádio";
+      if (key === "jornal") return "Jornal";
+      return titleCase(p);
+    });
+  return Array.from(new Set(partes));
+}
+
 type Bucket = { label: string; count: number };
 
 function bucketize(values: (string | null)[]): Bucket[] {
@@ -217,7 +268,7 @@ export default function PublicoAlvo() {
     status: string | null;
     motivo: string | null;
     motivos: string[];
-    midia: string | null;
+    midias: string[];
     profissao: string | null;
     filhos: string | null;
     interesses: string[];
@@ -255,7 +306,7 @@ export default function PublicoAlvo() {
         status: d.status ?? null,
         motivo: norm(d.interesse) ?? norm(d.auto_interesse),
         motivos: canonMotivo(norm(d.interesse) ?? norm(d.auto_interesse)),
-        midia: norm(d.fonte_original),
+        midias: canonMidia(d.fonte_original),
         profissao: null,
         filhos: norm(d.filhos),
         interesses: d.interesses_pessoais ?? [],
@@ -281,7 +332,7 @@ export default function PublicoAlvo() {
         status: "vendido",
         motivo: norm(r["Qual o motivo principal da compra?"]),
         motivos: canonMotivo(r["Qual o motivo principal da compra?"]),
-        midia: norm(r["Mídiamotivadoradaaquisição"]),
+        midias: canonMidia(r["Mídiamotivadoradaaquisição"]),
         profissao: norm(r["Profissão"]),
         filhos: norm(r["Você possui filhos? Quantos?"]),
         interesses: splitMulti(r["Marque seus principais interesses"]),
@@ -328,7 +379,7 @@ export default function PublicoAlvo() {
   const blocos = useMemo(() => {
     return [
       { titulo: "Motivo de compra", buckets: bucketizeMulti(filtrados.map((r) => r.motivos)) },
-      { titulo: "Mídia motivadora", buckets: bucketize(filtrados.map((r) => r.midia)) },
+      { titulo: "Mídia motivadora", buckets: bucketizeMulti(filtrados.map((r) => r.midias)) },
       { titulo: "Profissão", buckets: bucketize(filtrados.map((r) => r.profissao)) },
       { titulo: "Você possui filhos? Quantos?", buckets: bucketize(filtrados.map((r) => r.filhos)) },
       { titulo: "Interesses pessoais", buckets: bucketizeMulti(filtrados.map((r) => r.interesses)) },
