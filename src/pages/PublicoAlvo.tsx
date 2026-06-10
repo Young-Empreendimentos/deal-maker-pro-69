@@ -518,7 +518,7 @@ export default function PublicoAlvo() {
         estado_civil: canonEstadoCivil(d.estado_civil),
         sexo: canonSexo(d.sexo),
         renda: canonRenda(d.renda_familiar) ?? canonRenda(d.auto_renda_familiar),
-        cidade: norm(d.cidade_cliente),
+        cidade: canonCidade(d.cidade_cliente),
         tipo_residencia: canonTipoResidencia(d.tipo_residencia),
         tempo_residencia: null,
         nacionalidade: null,
@@ -535,7 +535,11 @@ export default function PublicoAlvo() {
       const dt = parseAny(r["Carimbo de data/hora"]);
       tryAdd({
         data: dt,
-        empreendimento: norm(r["Em qual empreendimento você adquiriu seu terreno?"]),
+        empreendimento: canonEmpreendimento(
+          r["Em qual empreendimento você adquiriu seu terreno?"],
+          empByNomeLower,
+          empById
+        ),
         status: "vendido",
         motivo: norm(r["Qual o motivo principal da compra?"]),
         motivos: canonMotivo(r["Qual o motivo principal da compra?"]),
@@ -547,7 +551,7 @@ export default function PublicoAlvo() {
         estado_civil: canonEstadoCivil(r["Qual o seu estado civil?"]),
         sexo: canonSexo(r["Sexo"]),
         renda: canonRenda(r["Qual faixa melhor se aproxima da sua renda familiar mensal?"]),
-        cidade: norm(r["Qual a cidade onde reside?"]),
+        cidade: canonCidade(r["Qual a cidade onde reside?"]),
         tipo_residencia: canonTipoResidencia(r["Qual o seu tipo de residência?"]),
         tempo_residencia: canonTempoResidencia(r["Há quanto tempo mora no seu endereço atual?"]),
         nacionalidade: canonNacionalidade(r["Nacionalidade"]),
@@ -561,7 +565,7 @@ export default function PublicoAlvo() {
       });
     }
     return { registros: out, duplicados: dups };
-  }, [hist, deals, empById]);
+  }, [hist, deals, empById, empByNomeLower]);
 
   // Filtros aplicados
   const filtrados = useMemo(() => {
