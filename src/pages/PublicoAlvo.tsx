@@ -248,6 +248,11 @@ function canonNacionalidade(v: any): string | null {
   const s = norm(v);
   if (!s) return null;
   if (/^n[ãa]o\s+cadastrad/i.test(s)) return null;
+  const k = s.toLowerCase();
+  if (k.startsWith("brasile")) return "Brasileira(o)";
+  if (k.startsWith("uruguai")) return "Uruguaia(o)";
+  if (k.startsWith("argentin")) return "Argentina(o)";
+  if (k.startsWith("paraguai")) return "Paraguaia(o)";
   return titleCase(s);
 }
 
@@ -257,6 +262,31 @@ function canonLotes(v: any): string | null {
   const k = s.toLowerCase();
   if (k.startsWith("4")) return "4 ou mais";
   return s;
+}
+
+/** Normaliza categorias de "Interesses pessoais" entre deals e histórico. */
+function canonInteresses(arr: string[] | null | undefined): string[] {
+  if (!arr || arr.length === 0) return [];
+  const out = arr
+    .map((p) => norm(p))
+    .filter((p): p is string => !!p)
+    .map((p) => {
+      const k = p.toLowerCase().trim();
+      if (k.startsWith("gastronomia")) return "Gastronomia";
+      if (k.startsWith("negócios") || k.startsWith("negocios")) return "Negócios/Empreendedorismo";
+      if (k.startsWith("política") || k.startsWith("politica")) return "Política";
+      if (k.startsWith("cinema")) return "Cinema/Televisão/Jornalismo";
+      if (k.startsWith("esportes") || k.startsWith("saúde") || k.startsWith("saude") || k.startsWith("fitness")) return "Esportes/Saúde/Fitness";
+      if (k.startsWith("viagens") || k.startsWith("turismo")) return "Viagens/Turismo";
+      if (k.startsWith("finanças") || k.startsWith("financas") || k.startsWith("economia")) return "Finanças/Economia";
+      if (k.startsWith("educação") || k.startsWith("educacao") || k.startsWith("cultura")) return "Educação/Cultura";
+      if (k.startsWith("ciências") || k.startsWith("ciencias") || k.startsWith("tecnologia")) return "Ciências/Tecnologia";
+      if (k.startsWith("animais")) return "Animais de estimação";
+      if (k.startsWith("casa")) return "Casa e decoração";
+      if (k.startsWith("automó") || k.startsWith("automo")) return "Automóveis";
+      return p;
+    });
+  return Array.from(new Set(out));
 }
 
 type Bucket = { label: string; count: number };
@@ -411,7 +441,7 @@ export default function PublicoAlvo() {
         midias: canonMidia(d.fonte_original),
         profissao: null,
         filhos: canonFilhos(d.filhos),
-        interesses: d.interesses_pessoais ?? [],
+        interesses: canonInteresses(d.interesses_pessoais),
         escolaridade: canonEscolaridade(d.escolaridade),
         estado_civil: canonEstadoCivil(d.estado_civil),
         sexo: canonSexo(d.sexo),
@@ -440,7 +470,7 @@ export default function PublicoAlvo() {
         midias: canonMidia(r["Mídiamotivadoradaaquisição"]),
         profissao: norm(r["Profissão"]),
         filhos: canonFilhos(r["Você possui filhos? Quantos?"]),
-        interesses: splitMulti(r["Marque seus principais interesses"]),
+        interesses: canonInteresses(splitMulti(r["Marque seus principais interesses"])),
         escolaridade: canonEscolaridade(r["Qual o seu nível de escolaridade?"]),
         estado_civil: canonEstadoCivil(r["Qual o seu estado civil?"]),
         sexo: canonSexo(r["Sexo"]),
