@@ -86,6 +86,29 @@ function splitMulti(v: any): string[] {
     .filter(Boolean);
 }
 
+/** Capitaliza a primeira letra de cada palavra (ignora siglas) */
+function titleCase(s: string): string {
+  return s
+    .toLowerCase()
+    .split(/\s+/)
+    .map((w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+/** Normaliza "Motivo de compra": desmembra valores combinados e unifica grafia.
+ *  Ex.: "Moradia, Investimento" → ["Moradia","Investimento"]; "moradia" → ["Moradia"].
+ */
+function canonMotivo(v: any): string[] {
+  const s = norm(v);
+  if (!s) return [];
+  const partes = splitMulti(s)
+    .map((p) => norm(p))
+    .filter((p): p is string => !!p)
+    .map((p) => titleCase(p));
+  // dedup interno (caso venha "Moradia, moradia" no mesmo registro)
+  return Array.from(new Set(partes));
+}
+
 type Bucket = { label: string; count: number };
 
 function bucketize(values: (string | null)[]): Bucket[] {
