@@ -109,6 +109,57 @@ function canonMotivo(v: any): string[] {
   return Array.from(new Set(partes));
 }
 
+/** Normaliza "Mídia motivadora": desmembra valores combinados e unifica grafias.
+ *  Ex.: "Facebook/instagram" → "Facebook/Instagram";
+ *       "Rede social (Facebook ou Instagram)" → "Facebook/Instagram";
+ *       "Whatsapp / Ligação" → "WhatsApp/Ligação".
+ */
+function canonMidia(v: any): string[] {
+  const s = norm(v);
+  if (!s) return [];
+  const partes = splitMulti(s)
+    .map((p) => norm(p))
+    .filter((p): p is string => !!p)
+    .map((p) => {
+      const key = p.toLowerCase().replace(/\s+/g, " ").trim();
+      // Sinônimos → forma canônica
+      if (
+        key === "facebook/instagram" ||
+        key === "facebook / instagram" ||
+        key === "facebook" ||
+        key === "instagram" ||
+        key === "rede social (facebook ou instagram)" ||
+        key === "rede social" ||
+        key === "redes sociais"
+      ) return "Facebook/Instagram";
+      if (
+        key === "whatsapp/ligação" ||
+        key === "whatsapp / ligação" ||
+        key === "whatsapp" ||
+        key === "ligação" ||
+        key === "whatsapp/ligacao"
+      ) return "WhatsApp/Ligação";
+      if (key === "youtube") return "YouTube";
+      if (key === "google") return "Google";
+      if (key === "indicação" || key === "indicacao") return "Indicação";
+      if (key === "oferta do corretor" || key === "corretor") return "Oferta do corretor";
+      if (key === "outbound corretor" || key === "outbound") return "Outbound corretor";
+      if (
+        key === "visita ao plantão de vendas" ||
+        key === "visita ao plantao de vendas" ||
+        key === "plantão de vendas" ||
+        key === "plantao de vendas"
+      ) return "Visita ao plantão de vendas";
+      if (key === "imobiliária" || key === "imobiliaria") return "Imobiliária";
+      if (key === "site da empresa" || key === "site") return "Site da empresa";
+      if (key === "hotsite") return "Hotsite";
+      if (key === "rádio" || key === "radio") return "Rádio";
+      if (key === "jornal") return "Jornal";
+      return titleCase(p);
+    });
+  return Array.from(new Set(partes));
+}
+
 type Bucket = { label: string; count: number };
 
 function bucketize(values: (string | null)[]): Bucket[] {
