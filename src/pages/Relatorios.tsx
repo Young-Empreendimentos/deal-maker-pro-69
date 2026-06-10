@@ -44,9 +44,37 @@ type Deal = {
 const BRL = (n: number) =>
   n.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
+const REPORT_TIME_ZONE = "America/Sao_Paulo";
+const reportDateParts = new Intl.DateTimeFormat("pt-BR", {
+  timeZone: REPORT_TIME_ZONE,
+  day: "2-digit",
+  month: "2-digit",
+  year: "numeric",
+});
+
+const parseDbDate = (value: string | null) => {
+  if (!value) return null;
+  let normalized = value.trim().replace(/^(\d{4}-\d{2}-\d{2})\s+(\d)/, "$1T$2");
+  normalized = normalized.replace(/\.([0-9]{3})[0-9]+/, ".$1");
+  normalized = normalized.replace(/([+-]\d{2})$/, "$1:00");
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+const dateKey = (value: string | null) => {
+  const parsed = parseDbDate(value);
+  if (!parsed) return "";
+  const parts = reportDateParts.formatToParts(parsed);
+  const day = parts.find((p) => p.type === "day")?.value;
+  const month = parts.find((p) => p.type === "month")?.value;
+  const year = parts.find((p) => p.type === "year")?.value;
+  return year && month && day ? `${year}-${month}-${day}` : "";
+};
+
 const fmtDate = (iso: string | null) => {
   if (!iso) return "—";
-  return new Date(iso).toLocaleDateString("pt-BR");
+  const parsed = parseDbDate(iso);
+  return parsed ? reportDateParts.format(parsed) : "—";
 };
 
 function toCSV(rows: Record<string, unknown>[], cols: { key: string; label: string }[]) {
@@ -176,22 +204,16 @@ export default function Relatorios() {
 
   // Filtrar deals
   const filtered = useMemo(() => {
-    const fromTs = period.from ? new Date(period.from + "T00:00:00").getTime() : null;
-    const toTs = period.to ? new Date(period.to + "T23:59:59").getTime() : null;
     const q = search.trim().toLowerCase();
     return deals.filter((d) => {
       // Vendas sem data_vendido NÃO entram no filtro de período
       // (são exibidas separadamente em "Vendas sem data de fechamento")
+      const refKey = d.status === "vendido" ? dateKey(d.data_vendido) : dateKey(d.created_at);
       if (d.status === "vendido") {
-        if (!d.data_vendido) return false;
-        const ref = new Date(d.data_vendido).getTime();
-        if (fromTs && ref < fromTs) return false;
-        if (toTs && ref > toTs) return false;
-      } else {
-        const ref = new Date(d.created_at).getTime();
-        if (fromTs && ref < fromTs) return false;
-        if (toTs && ref > toTs) return false;
+        if (!refKey) return false;
       }
+      if (period.from && refKey < period.from) return false;
+      if (period.to && refKey > period.to) return false;
       if (empSel.length && (!d.empreendimento_id || !empSel.includes(d.empreendimento_id)))
         return false;
       if (respSel.length) {
@@ -231,7 +253,8 @@ export default function Relatorios() {
   const porDia = useMemo(() => {
     const map = new Map<string, { dia: string; vendas: number; valor: number }>();
     for (const d of vendas) {
-      const day = (d.data_vendido || d.created_at).slice(0, 10);
+      const day = dateKey(d.data_vendido || d.created_at);
+      if (!day) continue;
       const cur = map.get(day) || { dia: day, vendas: 0, valor: 0 };
       cur.vendas += 1;
       cur.valor += Number(d.preco_lote) || 0;
