@@ -3036,6 +3036,105 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_formulario_historico_dados: {
+        Row: {
+          "Carimbo de data/hora": string | null
+          "De 0 a 10_1, qual a probabilidade de você indicar o Empreendim":
+            | number
+            | null
+          "De 0 a 10, qual a probabilidade de você indicar a YOUNG a um a":
+            | number
+            | null
+          "Em qual empreendimento você adquiriu seu terreno?": string | null
+          Email: string | null
+          "Há quanto tempo mora no seu endereço atual?": string | null
+          "Marque seus principais interesses": string | null
+          Mídiamotivadoradaaquisição: string | null
+          Nacionalidade: string | null
+          Profissão: string | null
+          "Qual a cidade onde reside?": string | null
+          "Qual faixa melhor se aproxima da sua renda familiar mensal?":
+            | string
+            | null
+          "Qual o motivo principal da compra?": string | null
+          "Qual o seu endereço atual?": string | null
+          "Qual o seu estado civil?": string | null
+          "Qual o seu nível de escolaridade?": string | null
+          "Qual o seu nome completo?": string | null
+          "Qual o seu tipo de residência?": string | null
+          "Qual sua data de nascimento?": string | null
+          "Quantos lotes você adquiriu?": string | null
+          Sexo: string | null
+          "Sugestões, elogios ou reclamações": string | null
+          Telefone: string | null
+          "Você possui filhos? Quantos?": string | null
+        }
+        Insert: {
+          "Carimbo de data/hora"?: string | null
+          "De 0 a 10_1, qual a probabilidade de você indicar o Empreendim"?:
+            | number
+            | null
+          "De 0 a 10, qual a probabilidade de você indicar a YOUNG a um a"?:
+            | number
+            | null
+          "Em qual empreendimento você adquiriu seu terreno?"?: string | null
+          Email?: string | null
+          "Há quanto tempo mora no seu endereço atual?"?: string | null
+          "Marque seus principais interesses"?: string | null
+          Mídiamotivadoradaaquisição?: string | null
+          Nacionalidade?: string | null
+          Profissão?: string | null
+          "Qual a cidade onde reside?"?: string | null
+          "Qual faixa melhor se aproxima da sua renda familiar mensal?"?:
+            | string
+            | null
+          "Qual o motivo principal da compra?"?: string | null
+          "Qual o seu endereço atual?"?: string | null
+          "Qual o seu estado civil?"?: string | null
+          "Qual o seu nível de escolaridade?"?: string | null
+          "Qual o seu nome completo?"?: string | null
+          "Qual o seu tipo de residência?"?: string | null
+          "Qual sua data de nascimento?"?: string | null
+          "Quantos lotes você adquiriu?"?: string | null
+          Sexo?: string | null
+          "Sugestões, elogios ou reclamações"?: string | null
+          Telefone?: string | null
+          "Você possui filhos? Quantos?"?: string | null
+        }
+        Update: {
+          "Carimbo de data/hora"?: string | null
+          "De 0 a 10_1, qual a probabilidade de você indicar o Empreendim"?:
+            | number
+            | null
+          "De 0 a 10, qual a probabilidade de você indicar a YOUNG a um a"?:
+            | number
+            | null
+          "Em qual empreendimento você adquiriu seu terreno?"?: string | null
+          Email?: string | null
+          "Há quanto tempo mora no seu endereço atual?"?: string | null
+          "Marque seus principais interesses"?: string | null
+          Mídiamotivadoradaaquisição?: string | null
+          Nacionalidade?: string | null
+          Profissão?: string | null
+          "Qual a cidade onde reside?"?: string | null
+          "Qual faixa melhor se aproxima da sua renda familiar mensal?"?:
+            | string
+            | null
+          "Qual o motivo principal da compra?"?: string | null
+          "Qual o seu endereço atual?"?: string | null
+          "Qual o seu estado civil?"?: string | null
+          "Qual o seu nível de escolaridade?"?: string | null
+          "Qual o seu nome completo?"?: string | null
+          "Qual o seu tipo de residência?"?: string | null
+          "Qual sua data de nascimento?"?: string | null
+          "Quantos lotes você adquiriu?"?: string | null
+          Sexo?: string | null
+          "Sugestões, elogios ou reclamações"?: string | null
+          Telefone?: string | null
+          "Você possui filhos? Quantos?"?: string | null
+        }
+        Relationships: []
+      }
       crm_motivos_perda: {
         Row: {
           ativo: boolean
