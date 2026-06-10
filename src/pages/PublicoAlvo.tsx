@@ -416,6 +416,8 @@ export default function PublicoAlvo() {
 function BlocoCard({ titulo, buckets, total }: { titulo: string; buckets: Bucket[]; total: number }) {
   const respondido = buckets.reduce((s, b) => s + b.count, 0);
   const top = buckets.slice(0, 12);
+  const outras = buckets.slice(12).reduce((s, b) => s + b.count, 0);
+  const denominador = respondido || total;
   return (
     <Card className="flex flex-col">
       <CardHeader className="pb-3">
@@ -431,7 +433,7 @@ function BlocoCard({ titulo, buckets, total }: { titulo: string; buckets: Bucket
           <p className="text-sm text-muted-foreground">Sem dados.</p>
         ) : (
           top.map((b) => {
-            const pct = total > 0 ? (b.count / total) * 100 : 0;
+            const pct = denominador > 0 ? (b.count / denominador) * 100 : 0;
             return (
               <div key={b.label} className="space-y-1">
                 <div className="flex items-center justify-between gap-3 text-sm">
@@ -447,10 +449,18 @@ function BlocoCard({ titulo, buckets, total }: { titulo: string; buckets: Bucket
             );
           })
         )}
-        {buckets.length > top.length && (
-          <p className="pt-1 text-xs text-muted-foreground">
-            +{buckets.length - top.length} outras categorias
-          </p>
+        {outras > 0 && (
+          <div className="space-y-1 pt-1">
+            <div className="flex items-center justify-between gap-3 text-sm">
+              <span className="truncate text-muted-foreground">
+                Outras categorias ({buckets.length - top.length})
+              </span>
+              <span className="shrink-0 tabular-nums text-muted-foreground">
+                {outras} · {((outras / denominador) * 100).toFixed(0)}%
+              </span>
+            </div>
+            <Progress value={(outras / denominador) * 100} className="h-1.5" />
+          </div>
         )}
       </CardContent>
     </Card>
