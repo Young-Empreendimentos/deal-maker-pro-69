@@ -338,6 +338,11 @@ export default function PublicoAlvo() {
               onChange={setStatusSel}
             />
             <div className="ml-auto flex items-center gap-2">
+              {duplicados > 0 && (
+                <Badge variant="outline" className="text-xs">
+                  {duplicados} duplicado{duplicados > 1 ? "s" : ""} removido{duplicados > 1 ? "s" : ""}
+                </Badge>
+              )}
               <Badge variant="secondary" className="text-sm">
                 {total.toLocaleString("pt-BR")} registros
               </Badge>
