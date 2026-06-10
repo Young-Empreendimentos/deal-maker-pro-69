@@ -1,4 +1,4 @@
-import { LayoutDashboard, Handshake, Building2, Settings, LogOut, ClipboardList, BarChart3 } from "lucide-react";
+import { LayoutDashboard, Handshake, Building2, Settings, LogOut, ClipboardList, BarChart3, CalendarRange } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -8,6 +8,7 @@ const links = [
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, adminOnly: true },
+  { to: "/relatorio-diario", label: "Relatório Diário", icon: CalendarRange, adminOnly: true },
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];
 
