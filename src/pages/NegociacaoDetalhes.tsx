@@ -326,57 +326,112 @@ export default function NegociacaoDetalhes() {
 
   return (
     <AppLayout>
-      <div className="space-y-6 max-w-4xl">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="sm" onClick={() => navigate("/negociacoes")}>
-            <ArrowLeft className="h-4 w-4" />
-          </Button>
-          <div className="flex-1">
-            <h1 className="font-display text-2xl font-bold tracking-tight">{deal.cliente_nome}</h1>
-            <p className="text-sm text-muted-foreground">Criado em {new Date(deal.created_at).toLocaleDateString("pt-BR")}</p>
-          </div>
-          <Badge className={cn("text-xs", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
-          {isFinal && (
-            <Badge variant={deal.status === "vendido" ? "default" : "destructive"} className="text-xs">
-              {deal.status === "vendido" ? "✅ Vendido" : "❌ Perdido"}
-            </Badge>
-          )}
-          {isFinal && (deal.data_vendido || deal.data_perdido) && (
-            <span className="text-xs text-muted-foreground">
-              em {new Date((deal.data_vendido ?? deal.data_perdido)!).toLocaleDateString("pt-BR")}
-            </span>
-          )}
-          {isAdmin && (
-            <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive hover:bg-destructive/10" onClick={() => setShowDeleteDealDialog(true)}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          )}
-        </div>
+      <div className="space-y-6 max-w-5xl mx-auto">
+        {/* Hero header — gradiente da marca */}
+        <div className="relative overflow-hidden rounded-2xl bg-gradient-brand shadow-brand text-white">
+          {/* Glow laranja decorativo */}
+          <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-primary/40 blur-3xl" />
+          <div className="pointer-events-none absolute -left-16 bottom-0 h-48 w-48 rounded-full bg-primary/20 blur-2xl" />
 
-        {/* Status + Action buttons */}
-        <div className="flex items-center gap-3 flex-wrap">
-          {!isFinal && (
-            <>
-              <Select value={deal.status} onValueChange={handleStatusChange}>
-                <SelectTrigger className="w-[200px] h-9 text-sm"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {KANBAN_COLUMNS.map((c) => <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
-              <Button variant="destructive" size="sm" onClick={openLossDialog}>
-                <XCircle className="h-4 w-4 mr-1" /> Perda
+          <div className="relative p-5 md:p-7 space-y-5">
+            {/* Linha 1: voltar + nome + status */}
+            <div className="flex items-start gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => navigate("/negociacoes")}
+                className="text-white/80 hover:text-white hover:bg-white/10 -ml-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-              <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={handleMarkSold}>
-                <Trophy className="h-4 w-4 mr-1" /> Vendido
-              </Button>
-            </>
-          )}
-          {isFinal && (
-            <Button variant="outline" size="sm" onClick={handleUndoFinal} className="text-xs">
-              ↩️ Desfazer {deal.status === "vendido" ? "Venda" : "Perda"}
-            </Button>
-          )}
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] uppercase tracking-[0.18em] text-white/60 font-medium mb-1">Negociação</p>
+                <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-white truncate">
+                  {deal.cliente_nome}
+                </h1>
+                <p className="text-xs text-white/60 mt-1">
+                  Criado em {new Date(deal.created_at).toLocaleDateString("pt-BR")}
+                  {isFinal && (deal.data_vendido || deal.data_perdido) && (
+                    <span> · finalizado em {new Date((deal.data_vendido ?? deal.data_perdido)!).toLocaleDateString("pt-BR")}</span>
+                  )}
+                </p>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <Badge className={cn("text-[10px] uppercase tracking-wider border-0", QUAL_COLORS[deal.qualificacao])}>
+                  {deal.qualificacao}
+                </Badge>
+                {isFinal && (
+                  <Badge
+                    className={cn(
+                      "text-[10px] uppercase tracking-wider border-0",
+                      deal.status === "vendido"
+                        ? "bg-emerald-500 text-white"
+                        : "bg-destructive text-destructive-foreground",
+                    )}
+                  >
+                    {deal.status === "vendido" ? "Vendido" : "Perdido"}
+                  </Badge>
+                )}
+                {isAdmin && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-white/70 hover:text-white hover:bg-white/10"
+                    onClick={() => setShowDeleteDealDialog(true)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+            </div>
+
+            {/* Linha 2: status select + ações */}
+            <div className="flex items-center gap-2 flex-wrap pt-1 border-t border-white/10">
+              {!isFinal && (
+                <>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[11px] uppercase tracking-wider text-white/50 font-medium">Estágio</span>
+                    <Select value={deal.status} onValueChange={handleStatusChange}>
+                      <SelectTrigger className="w-[210px] h-9 text-sm bg-white/10 border-white/20 text-white hover:bg-white/15 focus:ring-primary">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {KANBAN_COLUMNS.map((c) => (
+                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex-1" />
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={openLossDialog}
+                    className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
+                  >
+                    <XCircle className="h-4 w-4 mr-1" /> Perda
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleMarkSold}
+                    className="bg-gradient-ember hover:opacity-95 text-white shadow-ember border-0"
+                  >
+                    <Trophy className="h-4 w-4 mr-1" /> Marcar como vendido
+                  </Button>
+                </>
+              )}
+              {isFinal && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleUndoFinal}
+                  className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
+                >
+                  <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
+                </Button>
+              )}
+            </div>
+          </div>
         </div>
 
         {/* Editable basic fields + auto qualification */}
