@@ -88,19 +88,41 @@ export default function Relatorios() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      const [{ data: d }, { data: e }, { data: u }, { data: c }, { data: f }] = await Promise.all([
-        supabase
-          .from("crm_deals")
-          .select(
-            "id, cliente_nome, status, numero_lote, preco_lote, valor_entrada, forma_pagamento, data_vendido, data_perdido, created_at, empreendimento_id, responsavel_id, responsavel_venda_user_id, responsavel_venda_corretor_id, responsavel_venda_original, fonte_id, fonte_original, utm_campaign",
-          )
-          .limit(20000),
+      const COLS =
+        "id, cliente_nome, status, numero_lote, preco_lote, valor_entrada, forma_pagamento, data_vendido, data_perdido, created_at, empreendimento_id, responsavel_id, responsavel_venda_user_id, responsavel_venda_corretor_id, responsavel_venda_original, fonte_id, fonte_original, utm_campaign";
+      // Paginação: o PostgREST tem teto de linhas por requisição (max-rows),
+      // então buscamos em páginas de 1000 até esgotar.
+      const fetchAllDeals = async (): Promise<Deal[]> => {
+        const PAGE = 1000;
+        const all: Deal[] = [];
+        let from = 0;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await supabase
+            .from("crm_deals")
+            .select(COLS)
+            .order("created_at", { ascending: false })
+            .range(from, from + PAGE - 1);
+          if (error) {
+            console.error("Erro ao buscar deals:", error);
+            break;
+          }
+          const batch = (data as Deal[]) ?? [];
+          all.push(...batch);
+          if (batch.length < PAGE) break;
+          from += PAGE;
+        }
+        return all;
+      };
+
+      const [d, { data: e }, { data: u }, { data: c }, { data: f }] = await Promise.all([
+        fetchAllDeals(),
         supabase.from("crm_empreendimentos").select("id, nome"),
         supabase.from("user_profiles").select("user_id, nome"),
         supabase.from("comercial_corretores").select("id, nome_exibicao"),
         supabase.from("crm_fontes_lead").select("id, nome"),
       ]);
-      setDeals((d as Deal[]) ?? []);
+      setDeals(d);
       setEmpMap(Object.fromEntries((e ?? []).map((x: any) => [x.id, x.nome])));
       setUserMap(Object.fromEntries((u ?? []).map((x: any) => [x.user_id, x.nome])));
       setCorretorMap(Object.fromEntries((c ?? []).map((x: any) => [x.id, x.nome_exibicao])));
