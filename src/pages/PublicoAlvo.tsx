@@ -496,6 +496,9 @@ export default function PublicoAlvo() {
       { titulo: "Sexo", buckets: bucketize(filtrados.map((r) => r.sexo)) },
       { titulo: "Renda familiar", buckets: bucketize(filtrados.map((r) => r.renda)) },
       { titulo: "Tipo de residência", buckets: bucketize(filtrados.map((r) => r.tipo_residencia)) },
+      { titulo: "Tempo no endereço atual", buckets: bucketize(filtrados.map((r) => r.tempo_residencia)) },
+      { titulo: "Nacionalidade", buckets: bucketize(filtrados.map((r) => r.nacionalidade)) },
+      { titulo: "Quantos lotes adquiriu", buckets: bucketize(filtrados.map((r) => r.lotes)) },
       { titulo: "Cidade onde reside", buckets: bucketize(filtrados.map((r) => r.cidade)) },
       { titulo: "Empreendimento", buckets: bucketize(filtrados.map((r) => r.empreendimento)) },
     ];
