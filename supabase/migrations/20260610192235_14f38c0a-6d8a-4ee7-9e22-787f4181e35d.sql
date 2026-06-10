@@ -1,0 +1,1 @@
+CREATE POLICY "Admins podem ler historico" ON public.crm_formulario_historico_dados FOR SELECT TO authenticated USING (public.has_role(auth.uid(), 'admin'));
