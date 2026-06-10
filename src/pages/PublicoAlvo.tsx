@@ -108,7 +108,7 @@ export default function PublicoAlvo() {
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
 
   // Filtros
-  const [periodo, setPeriodo] = useState<DateRange>({ from: undefined, to: undefined });
+  const [periodo, setPeriodo] = useState<DateRange>({ from: "", to: "" });
   const [empSel, setEmpSel] = useState<string[]>([]);
   const [statusSel, setStatusSel] = useState<string[]>([]);
 
@@ -217,8 +217,8 @@ export default function PublicoAlvo() {
 
   // Filtros aplicados
   const filtrados = useMemo(() => {
-    const from = periodo.from ? new Date(periodo.from.setHours(0, 0, 0, 0)) : null;
-    const to = periodo.to ? new Date(periodo.to.setHours(23, 59, 59, 999)) : null;
+    const from = periodo.from ? new Date(`${periodo.from}T00:00:00`) : null;
+    const to = periodo.to ? new Date(`${periodo.to}T23:59:59`) : null;
     const empNomes = new Set(
       empSel.map((id) => empById.get(id)?.trim().toLowerCase()).filter(Boolean) as string[]
     );
