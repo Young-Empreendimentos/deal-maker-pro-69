@@ -134,8 +134,8 @@ export default function RelatorioDiario() {
       map.set(k, cur);
     });
     return Array.from(map.entries())
-      .map(([id, vals]) => ({ empreendimento: empMap[id] || "—", ...vals }))
-      .sort((a, b) => (b.vendas || 0) - (a.vendas || 0));
+      .map(([id, vals]) => ({ empreendimento: empMap[id] || "—", ...vals } as Record<string, any>))
+      .sort((a, b) => (Number(b.vendas) || 0) - (Number(a.vendas) || 0));
   }, [filtered, empMap]);
 
   const exportCSV = () => {
@@ -178,17 +178,17 @@ export default function RelatorioDiario() {
 
         <Card>
           <CardContent className="pt-6 flex flex-wrap items-end gap-3">
-            <DateRangeFilter value={period} onChange={setPeriod} />
+            <DateRangeFilter label="Período" value={period} onChange={setPeriod} />
             <MultiSelectFilter
               label="Empreendimentos"
               options={emps.map((e) => ({ value: e.id, label: e.nome }))}
-              value={empSel}
+              selected={empSel}
               onChange={setEmpSel}
             />
             <MultiSelectFilter
               label="Responsáveis"
               options={users.map((u) => ({ value: u.id, label: u.nome }))}
-              value={userSel}
+              selected={userSel}
               onChange={setUserSel}
             />
           </CardContent>
