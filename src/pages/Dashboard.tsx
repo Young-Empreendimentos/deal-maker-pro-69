@@ -218,7 +218,7 @@ export default function Dashboard() {
     if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
-      const dt = new Date(d.created_at);
+      const dt = new Date((d as any).data_vendido ?? d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
@@ -229,7 +229,7 @@ export default function Dashboard() {
     if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
-      const dt = new Date(d.created_at);
+      const dt = new Date((d as any).data_perdido ?? d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
