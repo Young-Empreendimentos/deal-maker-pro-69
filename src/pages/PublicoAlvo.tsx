@@ -377,6 +377,9 @@ export default function PublicoAlvo() {
     renda: string | null;
     cidade: string | null;
     tipo_residencia: string | null;
+    tempo_residencia: string | null;
+    nacionalidade: string | null;
+    lotes: string | null;
     fonte: "historico" | "deals";
     dedupKeys: string[];
   };
@@ -407,14 +410,17 @@ export default function PublicoAlvo() {
         motivos: canonMotivo(norm(d.interesse) ?? norm(d.auto_interesse)),
         midias: canonMidia(d.fonte_original),
         profissao: null,
-        filhos: norm(d.filhos),
+        filhos: canonFilhos(d.filhos),
         interesses: d.interesses_pessoais ?? [],
-        escolaridade: norm(d.escolaridade),
-        estado_civil: norm(d.estado_civil),
-        sexo: norm(d.sexo),
-        renda: norm(d.renda_familiar) ?? norm(d.auto_renda_familiar),
+        escolaridade: canonEscolaridade(d.escolaridade),
+        estado_civil: canonEstadoCivil(d.estado_civil),
+        sexo: canonSexo(d.sexo),
+        renda: canonRenda(d.renda_familiar) ?? canonRenda(d.auto_renda_familiar),
         cidade: norm(d.cidade_cliente),
-        tipo_residencia: norm(d.tipo_residencia),
+        tipo_residencia: canonTipoResidencia(d.tipo_residencia),
+        tempo_residencia: null,
+        nacionalidade: null,
+        lotes: null,
         fonte: "deals",
         dedupKeys: [
           keyEmail(d.cliente_email),
@@ -433,14 +439,17 @@ export default function PublicoAlvo() {
         motivos: canonMotivo(r["Qual o motivo principal da compra?"]),
         midias: canonMidia(r["Mídiamotivadoradaaquisição"]),
         profissao: norm(r["Profissão"]),
-        filhos: norm(r["Você possui filhos? Quantos?"]),
+        filhos: canonFilhos(r["Você possui filhos? Quantos?"]),
         interesses: splitMulti(r["Marque seus principais interesses"]),
-        escolaridade: norm(r["Qual o seu nível de escolaridade?"]),
-        estado_civil: norm(r["Qual o seu estado civil?"]),
-        sexo: norm(r["Sexo"]),
-        renda: norm(r["Qual faixa melhor se aproxima da sua renda familiar mensal?"]),
+        escolaridade: canonEscolaridade(r["Qual o seu nível de escolaridade?"]),
+        estado_civil: canonEstadoCivil(r["Qual o seu estado civil?"]),
+        sexo: canonSexo(r["Sexo"]),
+        renda: canonRenda(r["Qual faixa melhor se aproxima da sua renda familiar mensal?"]),
         cidade: norm(r["Qual a cidade onde reside?"]),
-        tipo_residencia: norm(r["Qual o seu tipo de residência?"]),
+        tipo_residencia: canonTipoResidencia(r["Qual o seu tipo de residência?"]),
+        tempo_residencia: canonTempoResidencia(r["Há quanto tempo mora no seu endereço atual?"]),
+        nacionalidade: canonNacionalidade(r["Nacionalidade"]),
+        lotes: canonLotes(r["Quantos lotes você adquiriu?"]),
         fonte: "historico",
         dedupKeys: [
           keyEmail(r["Email"]),
