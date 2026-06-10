@@ -12,6 +12,7 @@ import Configuracoes from "./pages/Configuracoes";
 import Tarefas from "./pages/Tarefas";
 import NegociacaoDetalhes from "./pages/NegociacaoDetalhes";
 import Relatorios from "./pages/Relatorios";
+import RelatorioDiario from "./pages/RelatorioDiario";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
 
@@ -39,6 +40,7 @@ function AppRoutes() {
       <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute adminOnly><Relatorios /></ProtectedRoute>} />
+      <Route path="/relatorio-diario" element={<ProtectedRoute adminOnly><RelatorioDiario /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute adminOnly><Configuracoes /></ProtectedRoute>} />
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="*" element={<NotFound />} />

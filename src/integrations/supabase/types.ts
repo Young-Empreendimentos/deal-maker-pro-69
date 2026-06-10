@@ -9201,6 +9201,22 @@ export type Database = {
       }
     }
     Views: {
+      crm_relatorio_vendas_diario: {
+        Row: {
+          contatos_feitos: number | null
+          data: string | null
+          empreendimento_id: string | null
+          fichas_assinadas: number | null
+          leads_recebidos: number | null
+          negociacoes_criadas: number | null
+          perdas: number | null
+          responsavel_id: string | null
+          vendas: number | null
+          visitas_agendadas: number | null
+          visitas_realizadas: number | null
+        }
+        Relationships: []
+      }
       financeiro_mv_clientes_inadimplentes: {
         Row: {
           client_id: number | null
