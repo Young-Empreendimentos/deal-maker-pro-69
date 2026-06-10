@@ -134,8 +134,6 @@ async function fetchAll<T = any>(
   select: string,
   filter?: (q: any) => any
 ): Promise<T[]> {
-  // Primeira página pede a contagem total — não dá pra confiar no tamanho
-  // de página pedido, pois o PostgREST pode ter um max-rows menor.
   const build = () => {
     let q: any = supabase.from(table as any).select(select, { count: "exact" });
     if (filter) q = filter(q);
@@ -144,17 +142,22 @@ async function fetchAll<T = any>(
   const first = await build().range(0, 999);
   if (first.error) throw first.error;
   const out: T[] = ((first.data ?? []) as T[]).slice();
-  const total = first.count ?? out.length;
+  // Se o servidor não devolver count, usamos Infinity e paramos quando
+  // uma página vier vazia (ou menor que a anterior).
+  const total = first.count ?? Infinity;
   const pageSize = Math.max(out.length, 1);
   let from = out.length;
   let safety = 0;
-  while (from < total && safety < 1000) {
+  while (from < total && safety < 5000) {
     const { data, error } = await build().range(from, from + pageSize - 1);
     if (error) throw error;
     const rows = (data ?? []) as T[];
     if (rows.length === 0) break;
     out.push(...rows);
     from += rows.length;
+    // Se o servidor devolveu menos que o tamanho da página E não temos
+    // count confiável, assumimos que acabou.
+    if (rows.length < pageSize && !Number.isFinite(total)) break;
     safety++;
   }
   return out;
