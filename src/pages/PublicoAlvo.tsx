@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { Users2, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type HistRow = Record<string, any>;
 
