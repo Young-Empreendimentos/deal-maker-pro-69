@@ -9,6 +9,10 @@ import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { Users2 } from "lucide-react";
 
 type HistRow = Record<string, any>;
+
+// Corte: deals só a partir de 30/05/2026 (histórico cobre o passado)
+const CORTE_DEALS = "2026-05-30T00:00:00-03:00";
+
 type DealRow = {
   created_at: string;
   cliente_nome: string | null;
