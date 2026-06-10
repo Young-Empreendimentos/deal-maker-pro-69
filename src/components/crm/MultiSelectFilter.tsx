@@ -38,8 +38,10 @@ export function MultiSelectFilter({ label, options, selected, onChange }: Props)
       <button
         onClick={() => setOpen(!open)}
         className={cn(
-          "flex items-center gap-1.5 h-9 px-3 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors w-full justify-between",
-          selected.length > 0 && "border-primary/50"
+          "flex items-center gap-1.5 h-9 px-3 rounded-md border text-sm transition-colors w-full justify-between",
+          selected.length > 0
+            ? "border-primary/50 bg-primary/5 text-primary font-medium hover:bg-accent hover:text-accent-foreground"
+            : "border-input bg-background hover:bg-accent hover:text-accent-foreground"
         )}
       >
         <span className="truncate text-left">
