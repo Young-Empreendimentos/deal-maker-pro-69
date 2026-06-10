@@ -264,6 +264,78 @@ function canonLotes(v: any): string | null {
   return s;
 }
 
+/** Normaliza nomes de cidade: remove UF, espaços extras, aspas tipográficas e mapeia variantes. */
+function canonCidade(v: any): string | null {
+  let s = norm(v);
+  if (!s) return null;
+  // troca aspas tipográficas
+  s = s.replace(/[’`´]/g, "'");
+  // remove sufixos de UF nos formatos " - RS", "/RS", ", RS", " RS"
+  s = s.replace(
+    /[\s,\-\/]+(rs|sc|pr|sp|mg|rj|es|ba|pe|ce|df|go|mt|ms|to|pa|am|ap|rr|ro|ac|ma|pi|rn|pb|al|se)\.?\s*$/i,
+    ""
+  );
+  s = s.replace(/\s+/g, " ").trim();
+  if (!s) return null;
+  const k = s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/'/g, "");
+  const alias: Record<string, string> = {
+    "bage": "Bagé",
+    "caraa": "Caraá",
+    "cachoerinha": "Cachoeirinha",
+    "dompedrito": "Dom Pedrito",
+    "dom pedrito": "Dom Pedrito",
+    "libramento": "Sant'Ana do Livramento",
+    "livramento": "Sant'Ana do Livramento",
+    "livramentour": "Sant'Ana do Livramento",
+    "santana do livramento": "Sant'Ana do Livramento",
+    "santana do livramento ": "Sant'Ana do Livramento",
+    "santana do livramento rs": "Sant'Ana do Livramento",
+    "rivera": "Rivera",
+    "rivera uruguai": "Rivera",
+    "rivera uruguay": "Rivera",
+    "novo hamburgo": "Novo Hamburgo",
+    "porto alegre": "Porto Alegre",
+    "cruz alta": "Cruz Alta",
+    "dois irmaos": "Dois Irmãos",
+    "gravatai": "Gravataí",
+    "ararica": "Araricá",
+    "araucaria": "Araucária",
+    "maquine": "Maquiné",
+    "joia": "Jóia",
+    "osorio": "Osório",
+    "imbe": "Imbé",
+    "parabe": "Parabé",
+    "brasilia": "Brasília",
+    "estancia velha": "Estância Velha",
+    "hulha negra": "Hulha Negra",
+    "santo antonio da patrulha": "Santo Antônio da Patrulha",
+    "rosario do sul": "Rosário do Sul",
+    "ribeirao preto": "Ribeirão Preto",
+    "caxias do sul": "Caxias do Sul",
+  };
+  if (alias[k]) return alias[k];
+  return titleCase(s);
+}
+
+/** Resolve nome de empreendimento ao canônico cadastrado (case/acento-insensível). */
+function canonEmpreendimento(v: any, empByNomeLower: Map<string, string>, empById: Map<string, string>): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const direct = empByNomeLower.get(s.trim().toLowerCase());
+  if (direct) return empById.get(direct) ?? s;
+  // fallback: comparação sem acento
+  const norm2 = (x: string) => x.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  const k = norm2(s);
+  for (const [lower, id] of empByNomeLower) {
+    if (norm2(lower) === k) return empById.get(id) ?? s;
+  }
+  return titleCase(s);
+}
+
 /** Normaliza categorias de "Interesses pessoais" entre deals e histórico. */
 function canonInteresses(arr: string[] | null | undefined): string[] {
   if (!arr || arr.length === 0) return [];
@@ -446,7 +518,7 @@ export default function PublicoAlvo() {
         estado_civil: canonEstadoCivil(d.estado_civil),
         sexo: canonSexo(d.sexo),
         renda: canonRenda(d.renda_familiar) ?? canonRenda(d.auto_renda_familiar),
-        cidade: norm(d.cidade_cliente),
+        cidade: canonCidade(d.cidade_cliente),
         tipo_residencia: canonTipoResidencia(d.tipo_residencia),
         tempo_residencia: null,
         nacionalidade: null,
@@ -463,7 +535,11 @@ export default function PublicoAlvo() {
       const dt = parseAny(r["Carimbo de data/hora"]);
       tryAdd({
         data: dt,
-        empreendimento: norm(r["Em qual empreendimento você adquiriu seu terreno?"]),
+        empreendimento: canonEmpreendimento(
+          r["Em qual empreendimento você adquiriu seu terreno?"],
+          empByNomeLower,
+          empById
+        ),
         status: "vendido",
         motivo: norm(r["Qual o motivo principal da compra?"]),
         motivos: canonMotivo(r["Qual o motivo principal da compra?"]),
@@ -475,7 +551,7 @@ export default function PublicoAlvo() {
         estado_civil: canonEstadoCivil(r["Qual o seu estado civil?"]),
         sexo: canonSexo(r["Sexo"]),
         renda: canonRenda(r["Qual faixa melhor se aproxima da sua renda familiar mensal?"]),
-        cidade: norm(r["Qual a cidade onde reside?"]),
+        cidade: canonCidade(r["Qual a cidade onde reside?"]),
         tipo_residencia: canonTipoResidencia(r["Qual o seu tipo de residência?"]),
         tempo_residencia: canonTempoResidencia(r["Há quanto tempo mora no seu endereço atual?"]),
         nacionalidade: canonNacionalidade(r["Nacionalidade"]),
@@ -489,7 +565,7 @@ export default function PublicoAlvo() {
       });
     }
     return { registros: out, duplicados: dups };
-  }, [hist, deals, empById]);
+  }, [hist, deals, empById, empByNomeLower]);
 
   // Filtros aplicados
   const filtrados = useMemo(() => {
