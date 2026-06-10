@@ -508,8 +508,7 @@ export default function Negociacoes() {
                                   onClick={() => navigate(`/negociacoes/${deal.id}`)}
                                   className={cn("cursor-pointer", snapshot.isDragging && "rotate-1 shadow-lg")}
                                 >
-                                  <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all border bg-card overflow-hidden">
-                                    <div className={cn("h-1 w-full", clr.bar)} />
+                                  <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all border bg-card">
                                     <CardContent className="p-2 space-y-1.5">
                                       <p className="font-medium text-[13px] leading-tight line-clamp-2 break-words">{deal.cliente_nome}</p>
                                       <div className="flex items-center justify-between gap-1.5">
