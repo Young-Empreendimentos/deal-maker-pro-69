@@ -670,9 +670,11 @@ export default function PublicoAlvo() {
         ) : total === 0 ? (
           <div className="text-center text-muted-foreground py-12">Nenhum registro encontrado para os filtros selecionados.</div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+          <div className="columns-1 md:columns-2 xl:columns-3 gap-4 [column-fill:_balance]">
             {blocos.map((b) => (
-              <BlocoCard key={b.titulo} titulo={b.titulo} buckets={b.buckets} total={total} />
+              <div key={b.titulo} className="mb-4 break-inside-avoid">
+                <BlocoCard titulo={b.titulo} buckets={b.buckets} total={total} />
+              </div>
             ))}
           </div>
         )}
@@ -707,40 +709,30 @@ function BlocoCard({ titulo, buckets, total }: { titulo: string; buckets: Bucket
           <p className="text-sm text-muted-foreground">Sem dados.</p>
         ) : (
           <>
-            {visible.map((b, i) => {
-              const pct = denominador > 0 ? (b.count / denominador) * 100 : 0;
-              const barPct = maxCount > 0 ? (b.count / maxCount) * 100 : 0;
-              const isTop = i === 0;
-              return (
-                <div
-                  key={b.label}
-                  className="relative rounded-md overflow-hidden border border-border/40 bg-muted/30"
-                >
+              {visible.map((b) => {
+                const pct = denominador > 0 ? (b.count / denominador) * 100 : 0;
+                const barPct = maxCount > 0 ? (b.count / maxCount) * 100 : 0;
+                return (
                   <div
-                    className={cn(
-                      "absolute inset-y-0 left-0",
-                      isTop ? "bg-primary/15" : "bg-primary/8"
-                    )}
-                    style={{ width: `${barPct}%` }}
-                  />
-                  <div className="relative flex items-center justify-between gap-3 px-2.5 py-1.5 text-xs">
-                    <span
-                      className={cn(
-                        "truncate",
-                        isTop ? "font-semibold text-foreground" : "text-foreground/85"
-                      )}
-                      title={b.label}
-                    >
-                      {b.label}
-                    </span>
-                    <span className="shrink-0 tabular-nums text-muted-foreground">
-                      <span className="font-medium text-foreground">{pct.toFixed(0)}%</span>
-                      <span className="ml-1.5 opacity-60">· {b.count}</span>
-                    </span>
+                    key={b.label}
+                    className="relative rounded-md overflow-hidden border border-border/40 bg-muted/30"
+                  >
+                    <div
+                      className="absolute inset-y-0 left-0 bg-primary/10"
+                      style={{ width: `${barPct}%` }}
+                    />
+                    <div className="relative flex items-center justify-between gap-3 px-2.5 py-1.5 text-xs">
+                      <span className="truncate text-foreground/85" title={b.label}>
+                        {b.label}
+                      </span>
+                      <span className="shrink-0 tabular-nums text-muted-foreground">
+                        <span className="font-medium text-foreground">{pct.toFixed(0)}%</span>
+                        <span className="ml-1.5 opacity-60">· {b.count}</span>
+                      </span>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
             {restante > 0 && (
               <button
                 onClick={() => setExpanded((v) => !v)}
