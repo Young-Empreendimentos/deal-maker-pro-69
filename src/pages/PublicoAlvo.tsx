@@ -8,12 +8,11 @@ import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilte
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { Users2 } from "lucide-react";
 
-// Corte: até 29/05/2026 → histórico; 30/05/2026 em diante → crm_deals
-const CORTE = new Date("2026-05-30T00:00:00-03:00");
-
 type HistRow = Record<string, any>;
 type DealRow = {
   created_at: string;
+  cliente_nome: string | null;
+  cliente_email: string | null;
   status: string | null;
   empreendimento_id: string | null;
   interesse: string | null;
@@ -51,6 +50,26 @@ function norm(v: any): string | null {
   const s = String(v).trim();
   if (!s || /^(n\/?a|nao informado|não informado|null|undefined|-)$/i.test(s)) return null;
   return s;
+}
+
+/** Chaves de deduplicação */
+function keyEmail(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const e = s.toLowerCase();
+  return /.+@.+\..+/.test(e) ? e : null;
+}
+function keyPhone(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const digits = s.replace(/\D/g, "");
+  if (digits.length < 8) return null;
+  return digits.slice(-11); // últimos 11 dígitos (DDD + número)
+}
+function keyNome(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  return s.toLowerCase().replace(/\s+/g, " ").trim();
 }
 
 /** Quebra string CSV/array em itens limpos */
@@ -120,7 +139,7 @@ export default function PublicoAlvo() {
           fetchAll<HistRow>("crm_formulario_historico_dados", "*"),
           fetchAll<DealRow>(
             "crm_deals",
-            "created_at,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente"
+            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente"
           ),
           supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
         ]);
@@ -164,18 +183,56 @@ export default function PublicoAlvo() {
     cidade: string | null;
     tipo_residencia: string | null;
     fonte: "historico" | "deals";
+    dedupKeys: string[];
   };
 
-  const registros: Registro[] = useMemo(() => {
+  const { registros, duplicados } = useMemo(() => {
     const out: Registro[] = [];
-    // Histórico (até 29/05/2026)
+    const seen = new Set<string>();
+    let dups = 0;
+
+    const tryAdd = (reg: Registro) => {
+      const keys = reg.dedupKeys.filter(Boolean);
+      if (keys.length > 0 && keys.some((k) => seen.has(k))) {
+        dups++;
+        return;
+      }
+      for (const k of keys) seen.add(k);
+      out.push(reg);
+    };
+
+    // Deals primeiro — fonte preferencial (mais atual, contém status)
+    for (const d of deals) {
+      const dt = parseAny(d.created_at);
+      tryAdd({
+        data: dt,
+        empreendimento: d.empreendimento_id ? empById.get(d.empreendimento_id) ?? null : null,
+        status: d.status ?? null,
+        motivo: norm(d.interesse) ?? norm(d.auto_interesse),
+        midia: norm(d.fonte_original),
+        profissao: null,
+        filhos: norm(d.filhos),
+        interesses: d.interesses_pessoais ?? [],
+        escolaridade: norm(d.escolaridade),
+        estado_civil: norm(d.estado_civil),
+        sexo: norm(d.sexo),
+        renda: norm(d.renda_familiar) ?? norm(d.auto_renda_familiar),
+        cidade: norm(d.cidade_cliente),
+        tipo_residencia: norm(d.tipo_residencia),
+        fonte: "deals",
+        dedupKeys: [
+          keyEmail(d.cliente_email),
+          keyNome(d.cliente_nome),
+        ].filter(Boolean) as string[],
+      });
+    }
+    // Histórico em seguida — só entra se nenhuma chave já existir
     for (const r of hist) {
       const dt = parseAny(r["Carimbo de data/hora"]);
-      if (!dt || dt >= CORTE) continue;
-      out.push({
+      tryAdd({
         data: dt,
         empreendimento: norm(r["Em qual empreendimento você adquiriu seu terreno?"]),
-        status: "vendido", // todos do histórico já são compradores
+        status: "vendido",
         motivo: norm(r["Qual o motivo principal da compra?"]),
         midia: norm(r["Mídiamotivadoradaaquisição"]),
         profissao: norm(r["Profissão"]),
@@ -188,31 +245,14 @@ export default function PublicoAlvo() {
         cidade: norm(r["Qual a cidade onde reside?"]),
         tipo_residencia: norm(r["Qual o seu tipo de residência?"]),
         fonte: "historico",
+        dedupKeys: [
+          keyEmail(r["Email"]),
+          keyPhone(r["Telefone"]),
+          keyNome(r["Qual o seu nome completo?"]),
+        ].filter(Boolean) as string[],
       });
     }
-    // Deals (a partir de 30/05/2026)
-    for (const d of deals) {
-      const dt = parseAny(d.created_at);
-      if (!dt || dt < CORTE) continue;
-      out.push({
-        data: dt,
-        empreendimento: d.empreendimento_id ? empById.get(d.empreendimento_id) ?? null : null,
-        status: d.status ?? null,
-        motivo: norm(d.interesse) ?? norm(d.auto_interesse),
-        midia: norm(d.fonte_original), // nome já textual; opcional mapear fonte_id se quiser
-        profissao: null,
-        filhos: norm(d.filhos),
-        interesses: d.interesses_pessoais ?? [],
-        escolaridade: norm(d.escolaridade),
-        estado_civil: norm(d.estado_civil),
-        sexo: norm(d.sexo),
-        renda: norm(d.renda_familiar) ?? norm(d.auto_renda_familiar),
-        cidade: norm(d.cidade_cliente),
-        tipo_residencia: norm(d.tipo_residencia),
-        fonte: "deals",
-      });
-    }
-    return out;
+    return { registros: out, duplicados: dups };
   }, [hist, deals, empById]);
 
   // Filtros aplicados
