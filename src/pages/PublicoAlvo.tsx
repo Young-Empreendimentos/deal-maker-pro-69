@@ -9,6 +9,10 @@ import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { Users2 } from "lucide-react";
 
 type HistRow = Record<string, any>;
+
+// Corte: deals só a partir de 30/05/2026 (histórico cobre o passado)
+const CORTE_DEALS = "2026-05-30T00:00:00-03:00";
+
 type DealRow = {
   created_at: string;
   cliente_nome: string | null;
@@ -102,25 +106,27 @@ function bucketizeMulti(values: string[][]): Bucket[] {
   return bucketize(flat);
 }
 
-async function fetchAll<T = any>(table: string, select: string): Promise<T[]> {
+async function fetchAll<T = any>(
+  table: string,
+  select: string,
+  filter?: (q: any) => any
+): Promise<T[]> {
   // Primeira página pede a contagem total — não dá pra confiar no tamanho
   // de página pedido, pois o PostgREST pode ter um max-rows menor.
-  const first = await supabase
-    .from(table as any)
-    .select(select, { count: "exact" })
-    .range(0, 999);
+  const build = () => {
+    let q: any = supabase.from(table as any).select(select, { count: "exact" });
+    if (filter) q = filter(q);
+    return q;
+  };
+  const first = await build().range(0, 999);
   if (first.error) throw first.error;
   const out: T[] = ((first.data ?? []) as T[]).slice();
   const total = first.count ?? out.length;
-  // O tamanho real da página é quanto o servidor devolveu na 1ª chamada.
   const pageSize = Math.max(out.length, 1);
   let from = out.length;
   let safety = 0;
   while (from < total && safety < 1000) {
-    const { data, error } = await supabase
-      .from(table as any)
-      .select(select)
-      .range(from, from + pageSize - 1);
+    const { data, error } = await build().range(from, from + pageSize - 1);
     if (error) throw error;
     const rows = (data ?? []) as T[];
     if (rows.length === 0) break;
@@ -150,7 +156,8 @@ export default function PublicoAlvo() {
           fetchAll<HistRow>("crm_formulario_historico_dados", "*"),
           fetchAll<DealRow>(
             "crm_deals",
-            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente"
+            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente",
+            (q) => q.gte("created_at", CORTE_DEALS)
           ),
           supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
         ]);
