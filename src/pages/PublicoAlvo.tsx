@@ -2,11 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
-import { Users2 } from "lucide-react";
+import { Users2, ChevronDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 type HistRow = Record<string, any>;
 
@@ -682,53 +682,80 @@ export default function PublicoAlvo() {
 }
 
 function BlocoCard({ titulo, buckets, total }: { titulo: string; buckets: Bucket[]; total: number }) {
+  const [expanded, setExpanded] = useState(false);
+  const COLLAPSED = 5;
   const respondido = buckets.reduce((s, b) => s + b.count, 0);
-  const top = buckets.slice(0, 12);
-  const outras = buckets.slice(12).reduce((s, b) => s + b.count, 0);
   const denominador = respondido || total;
+  const maxCount = buckets[0]?.count ?? 0;
+  const visible = expanded ? buckets : buckets.slice(0, COLLAPSED);
+  const restante = Math.max(0, buckets.length - COLLAPSED);
+
   return (
     <Card className="flex flex-col">
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-base font-semibold leading-tight">{titulo}</CardTitle>
-          <Badge variant="outline" className="shrink-0 text-xs">
+          <CardTitle className="text-sm font-semibold leading-tight text-foreground">
+            {titulo}
+          </CardTitle>
+          <Badge variant="outline" className="shrink-0 text-[10px] font-normal text-muted-foreground">
             {respondido} resp.
           </Badge>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2.5">
-        {top.length === 0 ? (
+      <CardContent className="space-y-1.5 flex-1 flex flex-col">
+        {buckets.length === 0 ? (
           <p className="text-sm text-muted-foreground">Sem dados.</p>
         ) : (
-          top.map((b) => {
-            const pct = denominador > 0 ? (b.count / denominador) * 100 : 0;
-            return (
-              <div key={b.label} className="space-y-1">
-                <div className="flex items-center justify-between gap-3 text-sm">
-                  <span className="truncate text-foreground" title={b.label}>
-                    {b.label}
-                  </span>
-                  <span className="shrink-0 tabular-nums text-muted-foreground">
-                    {b.count} · {pct.toFixed(0)}%
-                  </span>
+          <>
+            {visible.map((b, i) => {
+              const pct = denominador > 0 ? (b.count / denominador) * 100 : 0;
+              const barPct = maxCount > 0 ? (b.count / maxCount) * 100 : 0;
+              const isTop = i === 0;
+              return (
+                <div
+                  key={b.label}
+                  className="relative rounded-md overflow-hidden border border-border/40 bg-muted/30"
+                >
+                  <div
+                    className={cn(
+                      "absolute inset-y-0 left-0",
+                      isTop ? "bg-primary/15" : "bg-primary/8"
+                    )}
+                    style={{ width: `${barPct}%` }}
+                  />
+                  <div className="relative flex items-center justify-between gap-3 px-2.5 py-1.5 text-xs">
+                    <span
+                      className={cn(
+                        "truncate",
+                        isTop ? "font-semibold text-foreground" : "text-foreground/85"
+                      )}
+                      title={b.label}
+                    >
+                      {b.label}
+                    </span>
+                    <span className="shrink-0 tabular-nums text-muted-foreground">
+                      <span className="font-medium text-foreground">{pct.toFixed(0)}%</span>
+                      <span className="ml-1.5 opacity-60">· {b.count}</span>
+                    </span>
+                  </div>
                 </div>
-                <Progress value={pct} className="h-1.5" />
-              </div>
-            );
-          })
-        )}
-        {outras > 0 && (
-          <div className="space-y-1 pt-1">
-            <div className="flex items-center justify-between gap-3 text-sm">
-              <span className="truncate text-muted-foreground">
-                Outras categorias ({buckets.length - top.length})
-              </span>
-              <span className="shrink-0 tabular-nums text-muted-foreground">
-                {outras} · {((outras / denominador) * 100).toFixed(0)}%
-              </span>
-            </div>
-            <Progress value={(outras / denominador) * 100} className="h-1.5" />
-          </div>
+              );
+            })}
+            {restante > 0 && (
+              <button
+                onClick={() => setExpanded((v) => !v)}
+                className="mt-1 inline-flex items-center gap-1 self-start text-xs font-medium text-primary hover:underline"
+              >
+                {expanded ? "Ver menos" : `Ver mais ${restante} categoria${restante > 1 ? "s" : ""}`}
+                <ChevronDown
+                  className={cn(
+                    "h-3 w-3 transition-transform",
+                    expanded && "rotate-180"
+                  )}
+                />
+              </button>
+            )}
+          </>
         )}
       </CardContent>
     </Card>
