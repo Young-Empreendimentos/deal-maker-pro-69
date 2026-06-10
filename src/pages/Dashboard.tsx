@@ -111,7 +111,7 @@ export default function Dashboard() {
         // Vendidos (~865) - carrega completo para drill-down e VGV
         supabase.from("crm_deals").select("*").eq("status", "vendido").order("created_at", { ascending: false }),
         // Perdidos (~19k) - carrega só campos essenciais para contagem e drill-down básico
-        supabase.from("crm_deals").select("id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, preco_lote")
+        supabase.from("crm_deals").select("id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote")
           .eq("status", "perdido").order("created_at", { ascending: false }).limit(5000),
         supabase.from("crm_tasks").select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at"),
         supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
