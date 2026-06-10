@@ -118,7 +118,7 @@ export default function Dashboard() {
       ]);
       setDeals((dealsRes.data as Deal[]) ?? []);
       setVendasDeals((vendasRes.data as Deal[]) ?? []);
-      setPerdasDeals((perdasRes.data as Deal[]) ?? []);
+      setPerdasDeals((perdasRes.data as unknown as Deal[]) ?? []);
       setEmps((empsRes.data as Emp[]) ?? []);
 
       if (isAdmin) {
