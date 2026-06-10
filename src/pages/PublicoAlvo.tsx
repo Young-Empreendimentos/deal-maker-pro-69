@@ -248,6 +248,11 @@ function canonNacionalidade(v: any): string | null {
   const s = norm(v);
   if (!s) return null;
   if (/^n[ãa]o\s+cadastrad/i.test(s)) return null;
+  const k = s.toLowerCase();
+  if (k.startsWith("brasile")) return "Brasileira(o)";
+  if (k.startsWith("uruguai")) return "Uruguaia(o)";
+  if (k.startsWith("argentin")) return "Argentina(o)";
+  if (k.startsWith("paraguai")) return "Paraguaia(o)";
   return titleCase(s);
 }
 
