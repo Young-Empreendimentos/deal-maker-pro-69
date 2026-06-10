@@ -516,8 +516,9 @@ export default function Relatorios() {
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-auto max-h-[600px]">
-              <Table>
+            {/* Tabela (desktop) */}
+            <div className="hidden md:block overflow-auto max-h-[600px]">
+              <Table className="min-w-[900px]">
                 <TableHeader className="sticky top-0 bg-card z-10">
                   <TableRow>
                     <TableHead>Data</TableHead>
@@ -582,6 +583,54 @@ export default function Relatorios() {
                     ))}
                 </TableBody>
               </Table>
+            </div>
+
+            {/* Cards (mobile) */}
+            <div className="md:hidden divide-y max-h-[600px] overflow-auto">
+              {loading && (
+                <div className="text-center text-muted-foreground py-8 text-sm">Carregando...</div>
+              )}
+              {!loading && vendas.length === 0 && (
+                <div className="text-center text-muted-foreground py-8 text-sm">
+                  Nenhuma venda no período/filtro
+                </div>
+              )}
+              {vendas
+                .slice()
+                .sort((a, b) =>
+                  (b.data_vendido || b.created_at).localeCompare(a.data_vendido || a.created_at),
+                )
+                .map((d) => (
+                  <div key={d.id} className="p-4 space-y-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium truncate">{d.cliente_nome}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {fmtDate(d.data_vendido)}
+                          {d.numero_lote ? ` · Lote ${d.numero_lote}` : ""}
+                        </div>
+                      </div>
+                      <div className="text-right font-mono text-sm whitespace-nowrap">
+                        {d.preco_lote ? BRL(Number(d.preco_lote)) : "—"}
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {(d.empreendimento_id && empMap[d.empreendimento_id]) || "—"}
+                    </div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs">
+                      {d.forma_pagamento && (
+                        <Badge variant="secondary" className="text-xs font-normal">
+                          {d.forma_pagamento}
+                        </Badge>
+                      )}
+                      <span><span className="text-muted-foreground">Resp.:</span> {respLabel(d)}</span>
+                      <span>
+                        <span className="text-muted-foreground">Origem:</span>{" "}
+                        {(d.fonte_id && fonteMap[d.fonte_id]) || d.fonte_original || "—"}
+                      </span>
+                    </div>
+                  </div>
+                ))}
             </div>
           </CardContent>
         </Card>
