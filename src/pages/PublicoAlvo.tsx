@@ -32,6 +32,7 @@ type DealRow = {
   auto_renda_familiar: string | null;
   interesses_pessoais: string[] | null;
   cidade_cliente: string | null;
+  data_nascimento: string | null;
 };
 
 type Empreendimento = { id: string; nome: string };
@@ -434,7 +435,7 @@ export default function PublicoAlvo() {
           fetchAll<HistRow>("crm_formulario_historico_dados", "*"),
           fetchAll<DealRow>(
             "crm_deals",
-            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente",
+            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente,data_nascimento",
             (q) => q.gte("created_at", CORTE_DEALS)
           ),
           supabase.from("crm_empreendimentos").select("id,nome").order("nome"),

@@ -9,7 +9,7 @@ const links = [
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, adminOnly: true },
   { to: "/relatorio-diario", label: "Relatório Diário", icon: CalendarRange, adminOnly: true },
-  { to: "/publico-alvo", label: "Formulário de Cadastro", icon: Users2, adminOnly: true },
+  { to: "/publico-alvo", label: "Perfil de Cliente", icon: Users2, adminOnly: true },
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];
 
