@@ -32,6 +32,7 @@ type DealRow = {
   auto_renda_familiar: string | null;
   interesses_pessoais: string[] | null;
   cidade_cliente: string | null;
+  data_nascimento: string | null;
 };
 
 type Empreendimento = { id: string; nome: string };
@@ -264,6 +265,38 @@ function canonLotes(v: any): string | null {
   return s;
 }
 
+/** Converte data de nascimento (DD/MM/YYYY ou ISO) em idade em anos. */
+function calcIdade(v: any): number | null {
+  const s = norm(v);
+  if (!s) return null;
+  let nasc: Date | null = null;
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})/);
+  if (m) {
+    nasc = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  } else {
+    const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (iso) nasc = new Date(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]));
+  }
+  if (!nasc || isNaN(nasc.getTime())) return null;
+  const hoje = new Date();
+  let idade = hoje.getFullYear() - nasc.getFullYear();
+  const mDiff = hoje.getMonth() - nasc.getMonth();
+  if (mDiff < 0 || (mDiff === 0 && hoje.getDate() < nasc.getDate())) idade--;
+  if (idade < 0 || idade > 110) return null;
+  return idade;
+}
+
+/** Agrupa a idade em faixas etárias rotuladas. */
+function faixaEtaria(idade: number | null): string | null {
+  if (idade == null) return null;
+  if (idade < 25) return "Até 24 anos";
+  if (idade < 35) return "25 a 34 anos";
+  if (idade < 45) return "35 a 44 anos";
+  if (idade < 55) return "45 a 54 anos";
+  if (idade < 65) return "55 a 64 anos";
+  return "65 anos ou mais";
+}
+
 /** Normaliza nomes de cidade: remove UF, espaços extras, aspas tipográficas e mapeia variantes. */
 function canonCidade(v: any): string | null {
   let s = norm(v);
@@ -434,7 +467,7 @@ export default function PublicoAlvo() {
           fetchAll<HistRow>("crm_formulario_historico_dados", "*"),
           fetchAll<DealRow>(
             "crm_deals",
-            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente",
+            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente,data_nascimento",
             (q) => q.gte("created_at", CORTE_DEALS)
           ),
           supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
@@ -482,6 +515,7 @@ export default function PublicoAlvo() {
     tempo_residencia: string | null;
     nacionalidade: string | null;
     lotes: string | null;
+    faixa_etaria: string | null;
     fonte: "historico" | "deals";
     dedupKeys: string[];
   };
@@ -523,6 +557,7 @@ export default function PublicoAlvo() {
         tempo_residencia: null,
         nacionalidade: null,
         lotes: null,
+        faixa_etaria: faixaEtaria(calcIdade(d.data_nascimento)),
         fonte: "deals",
         dedupKeys: [
           keyEmail(d.cliente_email),
@@ -556,6 +591,7 @@ export default function PublicoAlvo() {
         tempo_residencia: canonTempoResidencia(r["Há quanto tempo mora no seu endereço atual?"]),
         nacionalidade: canonNacionalidade(r["Nacionalidade"]),
         lotes: canonLotes(r["Quantos lotes você adquiriu?"]),
+        faixa_etaria: faixaEtaria(calcIdade(r["Qual sua data de nascimento?"])),
         fonte: "historico",
         dedupKeys: [
           keyEmail(r["Email"]),
@@ -592,6 +628,7 @@ export default function PublicoAlvo() {
 
   const blocos = useMemo(() => {
     return [
+      { titulo: "Faixa etária", buckets: bucketize(filtrados.map((r) => r.faixa_etaria)) },
       { titulo: "Motivo de compra", buckets: bucketizeMulti(filtrados.map((r) => r.motivos)) },
       { titulo: "Mídia motivadora", buckets: bucketizeMulti(filtrados.map((r) => r.midias)) },
       { titulo: "Profissão", buckets: bucketize(filtrados.map((r) => r.profissao)) },
@@ -629,7 +666,7 @@ export default function PublicoAlvo() {
             <Users2 className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Formulário de Cadastro</h1>
+            <h1 className="text-2xl font-bold tracking-tight">Perfil de Cliente</h1>
             <p className="text-sm text-muted-foreground">
               Perfil do público — dados unificados do histórico (até 29/05/2026) e das negociações (a partir de 30/05/2026).
             </p>
