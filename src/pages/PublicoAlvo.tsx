@@ -160,6 +160,105 @@ function canonMidia(v: any): string[] {
   return Array.from(new Set(partes));
 }
 
+/** Helpers de canonicalização por campo */
+function canonSexo(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase();
+  if (k.startsWith("masc")) return "Masculino";
+  if (k.startsWith("fem")) return "Feminino";
+  return titleCase(s);
+}
+
+function canonEstadoCivil(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase();
+  if (k.startsWith("casado") || k.startsWith("casada")) return "Casado(a)";
+  if (k.startsWith("solteiro")) return "Solteiro(a)";
+  if (k.startsWith("divorciado") || k.startsWith("separado")) return "Divorciado(a)";
+  if (k.startsWith("viúvo") || k.startsWith("viuvo")) return "Viúvo(a)";
+  if (k.includes("união") || k.includes("uniao")) return "União estável";
+  return titleCase(s);
+}
+
+function canonRenda(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase().replace(/\s+/g, " ").trim();
+  if (k.includes("até 3") || k === "r$0-r$3.000" || k === "r$1.000-r$3.000") return "Até 3 mil reais";
+  if (k.includes("3 a 5") || k === "r$3.000-r$5.000") return "3 a 5 mil reais";
+  if (k.includes("5 a 10") || k === "r$5.000-r$10.000") return "5 a 10 mil reais";
+  if (k.includes("10 a 15") || k === "r$10.000-r$15.000") return "10 a 15 mil reais";
+  if (k.includes("15 a 20") || k === "r$15.000-r$20.000") return "15 a 20 mil reais";
+  if (k.includes("acima de 20") || k.includes("mais de 20")) return "Acima de 20 mil reais";
+  return titleCase(s);
+}
+
+function canonTipoResidencia(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase();
+  if (k.includes("alug") || k.includes("locatário") || k.includes("locatario")) return "Alugada";
+  if (k.includes("família") || k.includes("familia")) return "Mora com família";
+  if ((k.includes("própria") || k.includes("propria") || k.includes("proprietário") || k.includes("proprietario")) && k.includes("financ")) return "Própria financiada";
+  if (k.includes("própria") || k.includes("propria") || k.includes("proprietário") || k.includes("proprietario") || k.includes("quitad")) return "Própria quitada";
+  return titleCase(s);
+}
+
+function canonFilhos(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase();
+  if (k === "nenhum" || k === "não possuo" || k === "nao possuo" || k === "0") return "Nenhum";
+  if (k === "4" || k.startsWith("4 ou") || k.startsWith("4 +") || k.startsWith("mais de 4")) return "4 ou mais";
+  return s;
+}
+
+function canonEscolaridade(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase();
+  if (k.startsWith("pós-doutor") || k.startsWith("pos-doutor")) return "Pós-doutorado";
+  if (k.startsWith("doutor")) return "Doutorado";
+  if (k.startsWith("mestr")) return "Mestrado";
+  if (k.startsWith("pós") || k.startsWith("pos")) return "Pós-graduação";
+  if (k.includes("superior") && k.includes("incomplet")) return "Superior incompleto";
+  if (k.includes("superior")) return "Superior completo";
+  if ((k.includes("médio") || k.includes("medio")) && k.includes("incomplet")) return "Médio incompleto";
+  if (k.includes("médio") || k.includes("medio")) return "Médio completo";
+  if (k.includes("fundamental") && k.includes("incomplet")) return "Fundamental incompleto";
+  if (k.includes("fundamental")) return "Fundamental completo";
+  return titleCase(s);
+}
+
+function canonTempoResidencia(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase().trim();
+  if (k.startsWith("até 1") || k.startsWith("ate 1") || k.includes("menos de 1")) return "Até 1 ano";
+  if (k.startsWith("1 a 3")) return "1 a 3 anos";
+  if (k.startsWith("3 a 5")) return "3 a 5 anos";
+  if (k.startsWith("5 a 10")) return "5 a 10 anos";
+  if (k.includes("mais de 10") || k.includes("+10") || k.includes("acima de 10")) return "Mais de 10 anos";
+  return titleCase(s);
+}
+
+function canonNacionalidade(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  if (/^n[ãa]o\s+cadastrad/i.test(s)) return null;
+  return titleCase(s);
+}
+
+function canonLotes(v: any): string | null {
+  const s = norm(v);
+  if (!s) return null;
+  const k = s.toLowerCase();
+  if (k.startsWith("4")) return "4 ou mais";
+  return s;
+}
+
 type Bucket = { label: string; count: number };
 
 function bucketize(values: (string | null)[]): Bucket[] {
@@ -278,6 +377,9 @@ export default function PublicoAlvo() {
     renda: string | null;
     cidade: string | null;
     tipo_residencia: string | null;
+    tempo_residencia: string | null;
+    nacionalidade: string | null;
+    lotes: string | null;
     fonte: "historico" | "deals";
     dedupKeys: string[];
   };
@@ -308,14 +410,17 @@ export default function PublicoAlvo() {
         motivos: canonMotivo(norm(d.interesse) ?? norm(d.auto_interesse)),
         midias: canonMidia(d.fonte_original),
         profissao: null,
-        filhos: norm(d.filhos),
+        filhos: canonFilhos(d.filhos),
         interesses: d.interesses_pessoais ?? [],
-        escolaridade: norm(d.escolaridade),
-        estado_civil: norm(d.estado_civil),
-        sexo: norm(d.sexo),
-        renda: norm(d.renda_familiar) ?? norm(d.auto_renda_familiar),
+        escolaridade: canonEscolaridade(d.escolaridade),
+        estado_civil: canonEstadoCivil(d.estado_civil),
+        sexo: canonSexo(d.sexo),
+        renda: canonRenda(d.renda_familiar) ?? canonRenda(d.auto_renda_familiar),
         cidade: norm(d.cidade_cliente),
-        tipo_residencia: norm(d.tipo_residencia),
+        tipo_residencia: canonTipoResidencia(d.tipo_residencia),
+        tempo_residencia: null,
+        nacionalidade: null,
+        lotes: null,
         fonte: "deals",
         dedupKeys: [
           keyEmail(d.cliente_email),
@@ -334,14 +439,17 @@ export default function PublicoAlvo() {
         motivos: canonMotivo(r["Qual o motivo principal da compra?"]),
         midias: canonMidia(r["Mídiamotivadoradaaquisição"]),
         profissao: norm(r["Profissão"]),
-        filhos: norm(r["Você possui filhos? Quantos?"]),
+        filhos: canonFilhos(r["Você possui filhos? Quantos?"]),
         interesses: splitMulti(r["Marque seus principais interesses"]),
-        escolaridade: norm(r["Qual o seu nível de escolaridade?"]),
-        estado_civil: norm(r["Qual o seu estado civil?"]),
-        sexo: norm(r["Sexo"]),
-        renda: norm(r["Qual faixa melhor se aproxima da sua renda familiar mensal?"]),
+        escolaridade: canonEscolaridade(r["Qual o seu nível de escolaridade?"]),
+        estado_civil: canonEstadoCivil(r["Qual o seu estado civil?"]),
+        sexo: canonSexo(r["Sexo"]),
+        renda: canonRenda(r["Qual faixa melhor se aproxima da sua renda familiar mensal?"]),
         cidade: norm(r["Qual a cidade onde reside?"]),
-        tipo_residencia: norm(r["Qual o seu tipo de residência?"]),
+        tipo_residencia: canonTipoResidencia(r["Qual o seu tipo de residência?"]),
+        tempo_residencia: canonTempoResidencia(r["Há quanto tempo mora no seu endereço atual?"]),
+        nacionalidade: canonNacionalidade(r["Nacionalidade"]),
+        lotes: canonLotes(r["Quantos lotes você adquiriu?"]),
         fonte: "historico",
         dedupKeys: [
           keyEmail(r["Email"]),
@@ -388,6 +496,9 @@ export default function PublicoAlvo() {
       { titulo: "Sexo", buckets: bucketize(filtrados.map((r) => r.sexo)) },
       { titulo: "Renda familiar", buckets: bucketize(filtrados.map((r) => r.renda)) },
       { titulo: "Tipo de residência", buckets: bucketize(filtrados.map((r) => r.tipo_residencia)) },
+      { titulo: "Tempo no endereço atual", buckets: bucketize(filtrados.map((r) => r.tempo_residencia)) },
+      { titulo: "Nacionalidade", buckets: bucketize(filtrados.map((r) => r.nacionalidade)) },
+      { titulo: "Quantos lotes adquiriu", buckets: bucketize(filtrados.map((r) => r.lotes)) },
       { titulo: "Cidade onde reside", buckets: bucketize(filtrados.map((r) => r.cidade)) },
       { titulo: "Empreendimento", buckets: bucketize(filtrados.map((r) => r.empreendimento)) },
     ];
