@@ -213,6 +213,7 @@ export default function PublicoAlvo() {
     empreendimento: string | null;
     status: string | null;
     motivo: string | null;
+    motivos: string[];
     midia: string | null;
     profissao: string | null;
     filhos: string | null;
@@ -250,6 +251,7 @@ export default function PublicoAlvo() {
         empreendimento: d.empreendimento_id ? empById.get(d.empreendimento_id) ?? null : null,
         status: d.status ?? null,
         motivo: norm(d.interesse) ?? norm(d.auto_interesse),
+        motivos: canonMotivo(norm(d.interesse) ?? norm(d.auto_interesse)),
         midia: norm(d.fonte_original),
         profissao: null,
         filhos: norm(d.filhos),
@@ -275,6 +277,7 @@ export default function PublicoAlvo() {
         empreendimento: norm(r["Em qual empreendimento você adquiriu seu terreno?"]),
         status: "vendido",
         motivo: norm(r["Qual o motivo principal da compra?"]),
+        motivos: canonMotivo(r["Qual o motivo principal da compra?"]),
         midia: norm(r["Mídiamotivadoradaaquisição"]),
         profissao: norm(r["Profissão"]),
         filhos: norm(r["Você possui filhos? Quantos?"]),
@@ -321,7 +324,7 @@ export default function PublicoAlvo() {
 
   const blocos = useMemo(() => {
     return [
-      { titulo: "Motivo de compra", buckets: bucketize(filtrados.map((r) => r.motivo)) },
+      { titulo: "Motivo de compra", buckets: bucketizeMulti(filtrados.map((r) => r.motivos)) },
       { titulo: "Mídia motivadora", buckets: bucketize(filtrados.map((r) => r.midia)) },
       { titulo: "Profissão", buckets: bucketize(filtrados.map((r) => r.profissao)) },
       { titulo: "Você possui filhos? Quantos?", buckets: bucketize(filtrados.map((r) => r.filhos)) },
