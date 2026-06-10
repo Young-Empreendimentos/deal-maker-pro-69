@@ -481,21 +481,22 @@ export default function Negociacoes() {
           );
         })() : view === "kanban" ? (
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex gap-4 overflow-x-auto pb-4">
-              {KANBAN_COLUMNS.map((col) => {
+            <div className="flex lg:grid lg:grid-cols-6 gap-2 overflow-x-auto lg:overflow-visible pb-4">
+              {KANBAN_COLUMNS.map((col, i) => {
                 const colDeals = filtered.filter((d) => d.status === col.value);
+                const clr = FUNNEL_STAGE_COLORS[i % FUNNEL_STAGE_COLORS.length];
                 return (
-                  <div key={col.value} className="min-w-[280px] flex-shrink-0">
-                    <div className="flex items-center gap-2 mb-3 px-1">
-                      <h3 className="text-sm font-semibold text-foreground">{col.label}</h3>
-                      <Badge variant="secondary" className="text-xs">{colDeals.length}</Badge>
+                  <div key={col.value} className="w-[230px] lg:w-auto flex-shrink-0 min-w-0">
+                    <div className={cn("flex items-center justify-between gap-2 mb-2 px-2.5 py-1.5 rounded-md border", clr.light, clr.border)}>
+                      <h3 className={cn("text-[11px] font-bold uppercase tracking-wide truncate", clr.text)}>{col.label}</h3>
+                      <span className={cn("text-[10px] font-bold tabular-nums px-1.5 py-0.5 rounded-full text-white flex-shrink-0", clr.bar)}>{colDeals.length}</span>
                     </div>
                     <Droppable droppableId={col.value}>
                       {(provided, snapshot) => (
                         <div
                           ref={provided.innerRef}
                           {...provided.droppableProps}
-                          className={cn("space-y-2 min-h-[100px] rounded-lg p-2 transition-colors", snapshot.isDraggingOver ? "bg-primary/5 ring-2 ring-primary/20" : "bg-muted/30")}
+                          className={cn("space-y-1.5 min-h-[120px] rounded-lg p-1.5 transition-colors", snapshot.isDraggingOver ? "bg-primary/5 ring-2 ring-primary/30" : "bg-muted/40")}
                         >
                           {colDeals.map((deal, index) => (
                             <Draggable key={deal.id} draggableId={deal.id} index={index}>
@@ -505,15 +506,23 @@ export default function Negociacoes() {
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
                                   onClick={() => navigate(`/negociacoes/${deal.id}`)}
-                                  className={cn("cursor-pointer", snapshot.isDragging && "rotate-2 shadow-lg")}
+                                  className={cn("cursor-pointer", snapshot.isDragging && "rotate-1 shadow-lg")}
                                 >
-                                  <Card className="hover:shadow-md transition-shadow border bg-card">
-                                    <CardContent className="p-3 space-y-2">
-                                      <p className="font-medium text-sm">{deal.cliente_nome}</p>
-                                      <div className="flex items-center gap-2">
-                                        <Badge className={cn("text-[10px] px-1.5 py-0", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
-                                        <span className="text-[10px] text-muted-foreground">{new Date(deal.created_at).toLocaleDateString("pt-BR")}</span>
+                                  <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all border bg-card overflow-hidden">
+                                    <div className={cn("h-1 w-full", clr.bar)} />
+                                    <CardContent className="p-2 space-y-1.5">
+                                      <p className="font-medium text-[13px] leading-tight line-clamp-2 break-words">{deal.cliente_nome}</p>
+                                      <div className="flex items-center justify-between gap-1.5">
+                                        <Badge className={cn("text-[9px] px-1.5 py-0 h-4", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
+                                        <span className="text-[9px] text-muted-foreground tabular-nums">
+                                          {new Date(deal.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
+                                        </span>
                                       </div>
+                                      {deal.preco_lote && (
+                                        <p className="text-[10px] font-semibold text-foreground/80 tabular-nums">
+                                          {deal.preco_lote.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
+                                        </p>
+                                      )}
                                     </CardContent>
                                   </Card>
                                 </div>
@@ -522,7 +531,7 @@ export default function Negociacoes() {
                           ))}
                           {provided.placeholder}
                           {colDeals.length === 0 && !snapshot.isDraggingOver && (
-                            <div className="text-xs text-muted-foreground text-center py-6">Arraste aqui</div>
+                            <div className="text-[10px] text-muted-foreground/60 text-center py-6 border border-dashed border-border/60 rounded-md">vazio</div>
                           )}
                         </div>
                       )}
