@@ -42,7 +42,7 @@ export function DateRangeFilter({ label, value, onChange }: Props) {
           className={cn(
             "flex items-center gap-1.5 h-9 px-3 rounded-md border text-sm transition-colors w-full truncate",
             hasValue
-              ? "border-primary bg-primary/5 text-primary font-medium"
+              ? "border-primary bg-primary/5 text-primary font-medium hover:bg-accent hover:text-accent-foreground"
               : "border-input bg-background text-muted-foreground hover:bg-accent hover:text-accent-foreground",
           )}
         >
