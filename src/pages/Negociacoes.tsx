@@ -558,15 +558,15 @@ export default function Negociacoes() {
                     || (deal.status === "vendido" ? "Vendido" : deal.status === "perdido" ? "Perdido" : deal.status);
                   return (
                     <TableRow key={deal.id} className="cursor-pointer" onClick={() => navigate(`/negociacoes/${deal.id}`)}>
-                      {isAdmin && (
-                        <TableCell onClick={(e) => { e.stopPropagation(); toggleSel(deal.id); }} className="w-10">
-                          <Checkbox
-                            checked={selected.has(deal.id)}
-                            onCheckedChange={() => toggleSel(deal.id)}
-                            aria-label={`Selecionar ${deal.cliente_nome}`}
-                          />
-                        </TableCell>
-                      )}
+                       {isAdmin && (
+                         <TableCell onClick={(e) => e.stopPropagation()} className="w-10">
+                           <Checkbox
+                             checked={selected.has(deal.id)}
+                             onCheckedChange={() => toggleSel(deal.id)}
+                             aria-label={`Selecionar ${deal.cliente_nome}`}
+                           />
+                         </TableCell>
+                       )}
                       <TableCell className="font-medium">{deal.cliente_nome}</TableCell>
                       <TableCell>
                         <Badge
