@@ -132,24 +132,38 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     });
   }, []);
 
-  // Derive empreendimento from initial data: prefer empreendimento_id; fallback para inferência por num_lote
+  const findTabelaEmpreendimento = useCallback((empId: string | null) => {
+    if (!empId || !empNomeById[empId] || tabelaPrecos.length === 0) return null;
+    const nome = empNomeById[empId].trim().toLowerCase();
+    const normalize = (s: string) => s.trim().toLowerCase().replace(/\bii\b/g, "2").replace(/\biii\b/g, "3").replace(/\biv\b/g, "4");
+    return tabelaPrecos.find((t) => {
+      const tn = t.empreendimento.trim().toLowerCase();
+      if (tn === nome) return true;
+      if (tn.includes(nome) || nome.includes(tn)) return true;
+      if (normalize(tn) === normalize(nome)) return true;
+      return false;
+    })?.empreendimento ?? null;
+  }, [tabelaPrecos, empNomeById]);
+
+  // Derive empreendimento on initial load
   useEffect(() => {
     if (selectedEmpreendimento || tabelaPrecos.length === 0) return;
-    // 1) Preferência: usar o empreendimento_id gravado no deal
-    if (initialData.empreendimento_id && empNomeById[initialData.empreendimento_id]) {
-      const nome = empNomeById[initialData.empreendimento_id];
-      const hit = tabelaPrecos.find((t) => t.empreendimento.trim().toLowerCase() === nome.trim().toLowerCase());
-      if (hit) {
-        setSelectedEmpreendimento(hit.empreendimento);
-        return;
-      }
+    const found = findTabelaEmpreendimento(initialData.empreendimento_id);
+    if (found) setSelectedEmpreendimento(found);
+  }, [tabelaPrecos, empNomeById, initialData.empreendimento_id, selectedEmpreendimento, findTabelaEmpreendimento]);
+
+  // Sync when empreendimento_id changes externally (e.g. saved in DealBasicEditor)
+  useEffect(() => {
+    if (initialData.empreendimento_id !== form.empreendimento_id) {
+      setForm((f) => ({ ...f, empreendimento_id: initialData.empreendimento_id }));
     }
-    // 2) Fallback: inferir pelo número do lote
-    if (initialData.numero_lote) {
-      const match = tabelaPrecos.find(t => t.num_lote === initialData.numero_lote);
-      if (match) setSelectedEmpreendimento(match.empreendimento);
-    }
-  }, [tabelaPrecos, empNomeById, initialData.empreendimento_id, initialData.numero_lote, selectedEmpreendimento]);
+  }, [initialData.empreendimento_id]);
+
+  useEffect(() => {
+    if (tabelaPrecos.length === 0 || Object.keys(empNomeById).length === 0) return;
+    const found = findTabelaEmpreendimento(form.empreendimento_id);
+    if (found && found !== selectedEmpreendimento) setSelectedEmpreendimento(found);
+  }, [form.empreendimento_id, findTabelaEmpreendimento]);
 
   // Derived lists
   const empreendimentos = useMemo(() => {
