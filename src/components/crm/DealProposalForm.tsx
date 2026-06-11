@@ -112,18 +112,31 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
         const rows = (data ?? []) as { id: string; nome: string; nome_exibicao: string | null }[];
         setImobiliarias(rows.map((r) => ({ id: r.id, nome: r.nome_exibicao ?? r.nome })));
       });
-    // Load all tabela precos
-    supabase.from("comercial_tabela_precos").select("empreendimento, num_lote, data_preco, preco_av")
-      .not("empreendimento", "is", null)
-      .not("num_lote", "is", null)
-      .not("data_preco", "is", null)
-      .not("preco_av", "is", null)
-      .order("empreendimento")
-      .order("num_lote")
-      .order("data_preco", { ascending: false })
-      .then(({ data }) => {
-        setTabelaPrecos((data as TabelaPreco[]) ?? []);
-      });
+    // Load all tabela precos (paginated to bypass 1000-row default limit)
+    (async () => {
+      const pageSize = 1000;
+      let all: TabelaPreco[] = [];
+      let page = 0;
+      while (true) {
+        const from = page * pageSize;
+        const to = from + pageSize - 1;
+        const { data } = await supabase.from("comercial_tabela_precos")
+          .select("empreendimento, num_lote, data_preco, preco_av")
+          .not("empreendimento", "is", null)
+          .not("num_lote", "is", null)
+          .not("data_preco", "is", null)
+          .not("preco_av", "is", null)
+          .order("empreendimento")
+          .order("num_lote")
+          .order("data_preco", { ascending: false })
+          .range(from, to);
+        const rows = (data as TabelaPreco[]) ?? [];
+        all = all.concat(rows);
+        if (rows.length < pageSize) break;
+        page++;
+      }
+      setTabelaPrecos(all);
+    })();
     // Carrega mapa id->nome dos empreendimentos do CRM
     supabase.from("crm_empreendimentos").select("id, nome").then(({ data }) => {
       const map: Record<string, string> = {};
