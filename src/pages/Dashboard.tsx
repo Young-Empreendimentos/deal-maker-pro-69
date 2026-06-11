@@ -103,7 +103,18 @@ export default function Dashboard() {
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 
   useEffect(() => {
+    if (!user?.id) return;
     const load = async () => {
+      // Tarefas: para vendedor, filtra explicitamente por responsável para evitar
+      // dependência exclusiva de RLS. Carrega só concluídas (que é o que o Dashboard usa).
+      let tasksQuery = supabase
+        .from("crm_tasks")
+        .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
+        .eq("concluida", true)
+        .order("updated_at", { ascending: false })
+        .limit(5000);
+      if (!isAdmin) tasksQuery = tasksQuery.eq("responsavel_id", user.id);
+
       // Dashboard: carregar apenas negócios ativos (pipeline) - são ~1.6k
       // Vendido/perdido são ~20k e deixam o sistema lento
       const [dealsRes, vendasRes, perdasRes, tasksRes, empsRes] = await Promise.all([
@@ -113,12 +124,13 @@ export default function Dashboard() {
         // Perdidos (~19k) - carrega só campos essenciais para contagem e drill-down básico
         supabase.from("crm_deals").select("id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote")
           .eq("status", "perdido").order("created_at", { ascending: false }).limit(5000),
-        supabase.from("crm_tasks").select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at"),
+        tasksQuery,
         supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
       ]);
       setDeals((dealsRes.data as Deal[]) ?? []);
       setVendasDeals((vendasRes.data as Deal[]) ?? []);
       setPerdasDeals((perdasRes.data as unknown as Deal[]) ?? []);
+      setTasks((tasksRes.data as Task[]) ?? []);
       setEmps((empsRes.data as Emp[]) ?? []);
 
       if (isAdmin) {
@@ -128,7 +140,7 @@ export default function Dashboard() {
       setLoading(false);
     };
     load();
-  }, [isAdmin]);
+  }, [isAdmin, user?.id]);
 
   // ── Computed date range ───────────────────────────────────────────────────
   const [dateFrom, dateTo] = useMemo<[Date | null, Date | null]>(() => {
