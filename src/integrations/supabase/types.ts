@@ -9521,6 +9521,19 @@ export type Database = {
         }
         Returns: boolean
       }
+      export_deals_empreendimento: {
+        Args: never
+        Returns: {
+          cliente_nome: string
+          empreendimento_id: string
+          empreendimento_nome: string
+          id: string
+          numero_lote: string
+          preco_lote: number
+          status: string
+          versao_tabela: string
+        }[]
+      }
       financeiro_fn_clientes_inadimplentes: {
         Args: {
           _enterprises?: string[]
@@ -9586,6 +9599,15 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      import_anotacoes: {
+        Args: { dados: Json }
+        Returns: {
+          inserted: number
+          matched: number
+          no_match: number
+          skipped: number
+        }[]
       }
       is_admin: { Args: { _user_id: string }; Returns: boolean }
       paver_has_role: {
