@@ -87,7 +87,9 @@ export default function RelatorioDiario() {
       setRows((v.data as Row[]) || []);
       setEmps((e.data as any[])?.map((x) => ({ id: x.id, nome: x.nome })) || []);
       setUsers(
-        (p.data as any[])?.map((x) => ({ id: x.user_id, nome: x.nome || "—" })) || [],
+        (p.data as any[])
+          ?.filter((x) => isVisibleUser(x.user_id))
+          ?.map((x) => ({ id: x.user_id, nome: x.nome || "—" })) || [],
       );
       setLoading(false);
     })();

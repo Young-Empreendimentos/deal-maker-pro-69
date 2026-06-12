@@ -173,7 +173,8 @@ export default function Negociacoes() {
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
     if (isAdmin) {
       supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
-        setUsers(((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome })));
+        const all = ((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome }));
+        setUsers(all.filter((u) => isVisibleUser(u.id)));
       });
     }
   }, [isAdmin, fStatusGroup]);
