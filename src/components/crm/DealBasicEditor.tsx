@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { Save, Plus, Trash2 } from "lucide-react";
 import { QualificacaoAutomatica } from "./QualificacaoAutomatica";
 
@@ -54,7 +55,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   useEffect(() => {
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setFontes(data ?? []));
     supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome").then(({ data }) => setEmpreendimentos(data ?? []));
-    supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => setUserProfiles((data as UserProfile[]) ?? []));
+    supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
+      const all = (data as UserProfile[]) ?? [];
+      setUserProfiles(all.filter((u) => isVisibleUser(u.user_id)));
+    });
   }, []);
 
   useEffect(() => {

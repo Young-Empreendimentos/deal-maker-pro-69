@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { TrendingUp, DollarSign, Target, Percent, Download, Search, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -152,7 +153,13 @@ export default function Relatorios() {
       ]);
       setDeals(d);
       setEmpMap(Object.fromEntries((e ?? []).map((x: any) => [x.id, x.nome])));
-      setUserMap(Object.fromEntries((u ?? []).map((x: any) => [x.user_id, x.nome])));
+      setUserMap(
+        Object.fromEntries(
+          (u ?? [])
+            .filter((x: any) => isVisibleUser(x.user_id))
+            .map((x: any) => [x.user_id, x.nome]),
+        ),
+      );
       setCorretorMap(Object.fromEntries((c ?? []).map((x: any) => [x.id, x.nome_exibicao])));
       setFonteMap(Object.fromEntries((f ?? []).map((x: any) => [x.id, x.nome])));
       setLoading(false);

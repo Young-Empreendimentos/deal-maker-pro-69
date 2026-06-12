@@ -10,6 +10,7 @@ import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown, ChevronDo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
@@ -173,7 +174,8 @@ export default function Negociacoes() {
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
     if (isAdmin) {
       supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
-        setUsers(((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome })));
+        const all = ((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome }));
+        setUsers(all.filter((u) => isVisibleUser(u.id)));
       });
     }
   }, [isAdmin, fStatusGroup]);

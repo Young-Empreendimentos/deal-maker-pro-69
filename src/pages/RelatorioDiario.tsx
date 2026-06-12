@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { Download } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -87,7 +88,9 @@ export default function RelatorioDiario() {
       setRows((v.data as Row[]) || []);
       setEmps((e.data as any[])?.map((x) => ({ id: x.id, nome: x.nome })) || []);
       setUsers(
-        (p.data as any[])?.map((x) => ({ id: x.user_id, nome: x.nome || "—" })) || [],
+        (p.data as any[])
+          ?.filter((x) => isVisibleUser(x.user_id))
+          ?.map((x) => ({ id: x.user_id, nome: x.nome || "—" })) || [],
       );
       setLoading(false);
     })();

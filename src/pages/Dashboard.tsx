@@ -28,6 +28,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isVisibleUser } from "@/lib/filteredUsers";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type UserOption = { id: string; nome: string };
@@ -135,7 +136,11 @@ export default function Dashboard() {
 
       if (isAdmin) {
         const { data: u } = await supabase.from("user_profiles").select("user_id, nome").order("nome");
-        setUsers(((u as any[]) ?? []).map((x) => ({ id: x.user_id, nome: x.nome })));
+        setUsers(
+          ((u as any[]) ?? [])
+            .filter((x) => isVisibleUser(x.user_id))
+            .map((x) => ({ id: x.user_id, nome: x.nome })),
+        );
       }
       setLoading(false);
     };
