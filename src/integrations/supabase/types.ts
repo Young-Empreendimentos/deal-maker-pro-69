@@ -9521,6 +9521,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      export_all_deals: {
+        Args: { p_limit?: number; p_offset?: number }
+        Returns: Json
+      }
       export_deals_empreendimento: {
         Args: never
         Returns: {
