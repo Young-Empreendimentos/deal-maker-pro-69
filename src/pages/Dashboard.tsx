@@ -28,6 +28,7 @@ import {
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { isVisibleUser } from "@/lib/filteredUsers";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type UserOption = { id: string; nome: string };

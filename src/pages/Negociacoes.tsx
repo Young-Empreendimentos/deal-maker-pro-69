@@ -10,6 +10,7 @@ import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown, ChevronDo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";

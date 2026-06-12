@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { TrendingUp, DollarSign, Target, Percent, Download, Search, AlertCircle, ChevronDown, ChevronRight } from "lucide-react";
 import {
   ResponsiveContainer,

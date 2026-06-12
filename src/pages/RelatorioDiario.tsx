@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
+import { isVisibleUser } from "@/lib/filteredUsers";
 import { Download } from "lucide-react";
 import {
   ResponsiveContainer,
