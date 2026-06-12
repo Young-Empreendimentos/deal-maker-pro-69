@@ -9514,6 +9514,7 @@ export type Database = {
       }
     }
     Functions: {
+      enriquecer_deals: { Args: { p_data: Json }; Returns: Json }
       esquadro_has_role: {
         Args: {
           _role: Database["public"]["Enums"]["esquadro_app_role"]
