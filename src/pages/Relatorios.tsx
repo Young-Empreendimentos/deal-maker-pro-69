@@ -175,17 +175,25 @@ export default function Relatorios() {
   );
 
   const respOptions = useMemo(() => {
-    // Lista de responsáveis-venda que possuem ao menos uma venda (status = vendido)
+    // Lista de responsáveis-venda que possuem ao menos uma venda.
+    // Quando há `responsavel_venda_original` (texto importado), usamos esse
+    // nome como chave para que cada consultor histórico apareça separadamente,
+    // mesmo quando vários compartilham o mesmo user_id.
     const set = new Map<string, string>();
     for (const d of deals) {
       if (d.status !== "vendido") continue;
+      const original = (d.responsavel_venda_original || "").trim();
+      if (original) {
+        set.set("orig:" + original.toLowerCase(), original);
+        continue;
+      }
       if (d.responsavel_venda_user_id) {
         const id = d.responsavel_venda_user_id;
         if (!isVisibleUser(id)) continue;
-        set.set("u:" + id, userMap[id] || d.responsavel_venda_original || "Usuário");
+        set.set("u:" + id, userMap[id] || "Usuário");
       } else if (d.responsavel_venda_corretor_id) {
         const id = d.responsavel_venda_corretor_id;
-        set.set("c:" + id, corretorMap[id] || d.responsavel_venda_original || "Corretor");
+        set.set("c:" + id, corretorMap[id] || "Corretor");
       } else if (d.responsavel_id) {
         const id = d.responsavel_id;
         if (!isVisibleUser(id)) continue;
@@ -198,6 +206,8 @@ export default function Relatorios() {
   }, [deals, userMap, corretorMap]);
 
   const respKey = (d: Deal): string | null => {
+    const original = (d.responsavel_venda_original || "").trim();
+    if (original) return "orig:" + original.toLowerCase();
     if (d.responsavel_venda_user_id) return "u:" + d.responsavel_venda_user_id;
     if (d.responsavel_venda_corretor_id) return "c:" + d.responsavel_venda_corretor_id;
     if (d.responsavel_id) return "u:" + d.responsavel_id;
