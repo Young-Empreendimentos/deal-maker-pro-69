@@ -215,12 +215,14 @@ export default function Relatorios() {
   };
 
   const respLabel = (d: Deal) => {
+    const original = (d.responsavel_venda_original || "").trim();
+    if (original) return original;
     if (d.responsavel_venda_user_id && userMap[d.responsavel_venda_user_id])
       return userMap[d.responsavel_venda_user_id];
     if (d.responsavel_venda_corretor_id && corretorMap[d.responsavel_venda_corretor_id])
       return corretorMap[d.responsavel_venda_corretor_id];
     if (d.responsavel_id && userMap[d.responsavel_id]) return userMap[d.responsavel_id];
-    return d.responsavel_venda_original || "—";
+    return "—";
   };
 
   // Filtrar deals
@@ -703,7 +705,7 @@ function RankingCard({
           <p className="text-sm text-muted-foreground py-4 text-center">Sem dados</p>
         ) : (
           <div className="space-y-2.5">
-            {rows.slice(0, 8).map((r) => (
+            {rows.map((r) => (
               <div key={r.nome} className="space-y-1">
                 <div className="flex items-center justify-between text-sm">
                   <span className="truncate font-medium">{r.nome}</span>
