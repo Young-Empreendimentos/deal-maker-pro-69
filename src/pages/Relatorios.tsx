@@ -175,18 +175,22 @@ export default function Relatorios() {
   );
 
   const respOptions = useMemo(() => {
-    // Lista de responsáveis-venda que aparecem nos deals
+    // Lista de responsáveis-venda que possuem ao menos uma venda (status = vendido)
     const set = new Map<string, string>();
     for (const d of deals) {
-      if (d.responsavel_venda_user_id && userMap[d.responsavel_venda_user_id])
-        set.set("u:" + d.responsavel_venda_user_id, userMap[d.responsavel_venda_user_id]);
-      if (d.responsavel_venda_corretor_id && corretorMap[d.responsavel_venda_corretor_id])
-        set.set(
-          "c:" + d.responsavel_venda_corretor_id,
-          corretorMap[d.responsavel_venda_corretor_id],
-        );
-      if (d.responsavel_id && userMap[d.responsavel_id])
-        set.set("u:" + d.responsavel_id, userMap[d.responsavel_id]);
+      if (d.status !== "vendido") continue;
+      if (d.responsavel_venda_user_id) {
+        const id = d.responsavel_venda_user_id;
+        if (!isVisibleUser(id)) continue;
+        set.set("u:" + id, userMap[id] || d.responsavel_venda_original || "Usuário");
+      } else if (d.responsavel_venda_corretor_id) {
+        const id = d.responsavel_venda_corretor_id;
+        set.set("c:" + id, corretorMap[id] || d.responsavel_venda_original || "Corretor");
+      } else if (d.responsavel_id) {
+        const id = d.responsavel_id;
+        if (!isVisibleUser(id)) continue;
+        set.set("u:" + id, userMap[id] || "Usuário");
+      }
     }
     return Array.from(set.entries())
       .map(([value, label]) => ({ value, label }))
