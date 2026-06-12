@@ -201,7 +201,16 @@ export default function Negociacoes() {
         });
         if (!matchesGroup) return false;
       }
-      if (fConsultor.length > 0 && !fConsultor.includes(d.responsavel_id)) return false;
+      if (fConsultor.length > 0) {
+        const semDono = fConsultor.includes("__sem_dono__");
+        const outras = fConsultor.filter((v) => v !== "__sem_dono__");
+        if (d.responsavel_id) {
+          if (outras.length > 0 && !outras.includes(d.responsavel_id)) return false;
+          if (outras.length === 0 && semDono) return false; // tem dono mas só quer sem dono
+        } else {
+          if (!semDono) return false; // sem dono mas não marcou "Sem dono"
+        }
+      }
       if (fEmpreendimento.length > 0 && (!d.empreendimento_id || !fEmpreendimento.includes(d.empreendimento_id))) return false;
       if (fFonte.length > 0 && (!d.fonte_id || !fFonte.includes(d.fonte_id))) return false;
       if (fInteresse.length > 0) {
@@ -261,7 +270,10 @@ export default function Negociacoes() {
     if (error) { toast({ title: "Erro ao mover", description: error.message, variant: "destructive" }); fetchDeals(); }
   };
 
-  const consultorOptions = users.map((u) => ({ value: u.id, label: u.nome || u.email }));
+  const consultorOptions = [
+    { value: "__sem_dono__", label: "Sem dono" },
+    ...users.map((u) => ({ value: u.id, label: u.nome || u.email })),
+  ];
   const empreendimentoOptions = empreendimentos.map((e) => ({ value: e.id, label: e.nome }));
   const fonteOptions = fontes.map((f) => ({ value: f.id, label: f.nome }));
 
