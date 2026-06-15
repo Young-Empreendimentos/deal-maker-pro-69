@@ -117,9 +117,9 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
             </div>
           </div>
           <div className="space-y-2">
-            <Label>Empreendimento</Label>
+            <Label>Empreendimento <span className="text-destructive">*</span></Label>
             <Select value={form.empreendimento_id} onValueChange={(v) => setForm((f) => ({ ...f, empreendimento_id: v }))}>
-              <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
+              <SelectTrigger className={!form.empreendimento_id ? "border-destructive" : ""}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {empreendimentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
               </SelectContent>
