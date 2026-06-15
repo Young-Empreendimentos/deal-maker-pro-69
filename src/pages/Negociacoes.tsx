@@ -133,13 +133,16 @@ export default function Negociacoes() {
 
     // Determinar quais status buscar no servidor baseado no filtro
     const statusesToFetch: string[] = [];
-    if (fStatusGroup.length === 0 || fStatusGroup.includes("em_andamento")) {
+    // Se "Sem dono" estiver selecionado, buscamos todos os status para que esses
+    // registros apareçam independente do filtro de Status escolhido.
+    const querSemDono = fConsultor.includes("__sem_dono__");
+    if (querSemDono || fStatusGroup.length === 0 || fStatusGroup.includes("em_andamento")) {
       statusesToFetch.push(...KANBAN_COLUMNS.map((c) => c.value));
     }
-    if (fStatusGroup.length === 0 || fStatusGroup.includes("vendido")) {
+    if (querSemDono || fStatusGroup.length === 0 || fStatusGroup.includes("vendido")) {
       statusesToFetch.push("vendido");
     }
-    if (fStatusGroup.length === 0 || fStatusGroup.includes("perdido")) {
+    if (querSemDono || fStatusGroup.length === 0 || fStatusGroup.includes("perdido")) {
       statusesToFetch.push("perdido");
     }
 
@@ -178,7 +181,7 @@ export default function Negociacoes() {
         setUsers(all.filter((u) => isVisibleUser(u.id)));
       });
     }
-  }, [isAdmin, fStatusGroup]);
+  }, [isAdmin, fStatusGroup, fConsultor]);
 
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));
@@ -194,8 +197,12 @@ export default function Negociacoes() {
 
   const filtered = useMemo(() => {
     const list = deals.filter((d) => {
+      // "Sem dono" ignora o filtro de Status para que esses registros sempre apareçam
+      const semDonoSelecionado = fConsultor.includes("__sem_dono__");
+      const ehSemDono = !d.responsavel_id;
+      const bypassStatus = semDonoSelecionado && ehSemDono;
       // Status group filter
-      if (fStatusGroup.length > 0) {
+      if (fStatusGroup.length > 0 && !bypassStatus) {
         const isInProgress = kanbanStatuses.has(d.status as any);
         const matchesGroup = fStatusGroup.some((g) => {
           if (g === "em_andamento") return isInProgress;
@@ -262,14 +269,9 @@ export default function Negociacoes() {
     setFDateVenda(EMPTY_RANGE);
   };
 
-  const handleConsultorChange = (next: string[]) => {
-    setFConsultor(next);
-    const selecionouSemDono = next.includes("__sem_dono__");
-    const statusPadrao = fStatusGroup.length === 1 && fStatusGroup[0] === "em_andamento";
-    if (selecionouSemDono && statusPadrao) {
-      setFStatusGroup(["em_andamento", "perdido"]);
-    }
-  };
+  // Mantemos o handler simples — o filtro "Sem dono" passa a ignorar o filtro de
+  // Status automaticamente para registros sem responsável (ver fetchDeals e filtered).
+  const handleConsultorChange = (next: string[]) => setFConsultor(next);
 
   const onDragEnd = async (result: DropResult) => {
     const { draggableId, destination, source } = result;
