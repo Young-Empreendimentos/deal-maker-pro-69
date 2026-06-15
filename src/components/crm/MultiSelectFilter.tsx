@@ -52,14 +52,14 @@ export function MultiSelectFilter({ label, options, selected, onChange }: Props)
       {open && (
         <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-popover border rounded-md shadow-md max-h-60 overflow-y-auto min-w-[200px]">
           {options.map((opt) => (
-            <label key={opt.value} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent cursor-pointer transition-colors">
+            <label key={opt.value} className="flex items-center gap-2 px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground cursor-pointer transition-colors">
               <Checkbox checked={selected.includes(opt.value)} onCheckedChange={() => toggle(opt.value)} />
               <span className="truncate">{opt.label}</span>
             </label>
           ))}
           {selected.length > 0 && (
             <button
-              className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-accent transition-colors border-t"
+              className="w-full text-left px-3 py-2 text-xs text-muted-foreground hover:bg-accent hover:text-accent-foreground transition-colors border-t"
               onClick={() => onChange([])}
             >
               Limpar seleção
