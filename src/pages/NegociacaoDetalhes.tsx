@@ -436,6 +436,7 @@ export default function NegociacaoDetalhes() {
 
         {/* Editable basic fields + auto qualification */}
         <DealBasicEditor
+          key={`basic-${deal.id}`}
           deal={deal}
           phones={phones}
           autoInteresse={deal.auto_interesse}
@@ -446,6 +447,7 @@ export default function NegociacaoDetalhes() {
 
         {/* Proposal Form - always visible */}
         <DealProposalForm
+          key={`proposal-${deal.id}`}
           dealId={deal.id}
           initialData={{
             empreendimento_id: deal.empreendimento_id,
