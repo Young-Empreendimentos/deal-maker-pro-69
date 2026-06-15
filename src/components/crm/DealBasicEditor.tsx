@@ -192,11 +192,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Dono do negócio</Label>
-            <Select value={responsavelId || "__none__"} onValueChange={(v) => setResponsavelId(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <Label className="text-xs">Dono do negócio <span className="text-destructive">*</span></Label>
+            <Select value={responsavelId} onValueChange={setResponsavelId}>
+              <SelectTrigger className={`text-sm ${!responsavelId ? "border-destructive" : ""}`}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Nenhum</SelectItem>
                 {userProfiles.map((u) => (
                   <SelectItem key={u.user_id} value={u.user_id}>{u.nome || u.user_id}</SelectItem>
                 ))}
