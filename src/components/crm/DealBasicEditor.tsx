@@ -72,6 +72,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   }, [deal, phones]);
 
   const handleSave = async () => {
+    if (!responsavelId) {
+      toast({ title: "Dono do negócio é obrigatório", description: "Selecione um responsável antes de salvar.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     const responsavelChanged = responsavelId !== (deal.responsavel_id ?? "");
@@ -82,7 +86,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       qualificacao: qualificacao as any,
       empreendimento_id: empId || null,
       fonte_id: fonteId || null,
-      responsavel_id: responsavelId || null,
+      responsavel_id: responsavelId,
     } as any).eq("id", deal.id);
 
     if (error) {
