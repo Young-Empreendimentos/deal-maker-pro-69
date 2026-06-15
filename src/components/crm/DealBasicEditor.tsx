@@ -72,6 +72,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   }, [deal, phones]);
 
   const handleSave = async () => {
+    if (!responsavelId) {
+      toast({ title: "Dono do negócio é obrigatório", description: "Selecione um responsável antes de salvar.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     const responsavelChanged = responsavelId !== (deal.responsavel_id ?? "");
@@ -82,7 +86,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       qualificacao: qualificacao as any,
       empreendimento_id: empId || null,
       fonte_id: fonteId || null,
-      responsavel_id: responsavelId || null,
+      responsavel_id: responsavelId,
     } as any).eq("id", deal.id);
 
     if (error) {
@@ -188,11 +192,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Dono do negócio</Label>
-            <Select value={responsavelId || "__none__"} onValueChange={(v) => setResponsavelId(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <Label className="text-xs">Dono do negócio <span className="text-destructive">*</span></Label>
+            <Select value={responsavelId} onValueChange={setResponsavelId}>
+              <SelectTrigger className={`text-sm ${!responsavelId ? "border-destructive" : ""}`}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Nenhum</SelectItem>
                 {userProfiles.map((u) => (
                   <SelectItem key={u.user_id} value={u.user_id}>{u.nome || u.user_id}</SelectItem>
                 ))}
