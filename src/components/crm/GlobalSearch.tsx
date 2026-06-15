@@ -162,7 +162,7 @@ export function GlobalSearch() {
                   <button
                     key={r.id}
                     onMouseDown={(e) => { e.preventDefault(); handleSelect(r.id); }}
-                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent text-left transition-colors"
+                    className="w-full flex items-center gap-3 px-3 py-2.5 hover:bg-accent hover:text-accent-foreground text-left transition-colors"
                   >
                     <span className="flex items-center justify-center h-7 w-7 rounded-full bg-primary/10 flex-shrink-0">
                       <User className="h-3.5 w-3.5 text-primary" />

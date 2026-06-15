@@ -316,7 +316,7 @@ export default function Negociacoes() {
                 <SelectItem value="qualificacao">Qualificação</SelectItem>
               </SelectContent>
             </Select>
-            <button onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")} className="p-2 rounded-md border border-input bg-background text-sm hover:bg-accent transition-colors" title={sortDir === "asc" ? "Crescente" : "Decrescente"}>
+            <button onClick={() => setSortDir((d) => d === "asc" ? "desc" : "asc")} className="p-2 rounded-md border border-input bg-background text-sm hover:bg-accent hover:text-accent-foreground transition-colors" title={sortDir === "asc" ? "Crescente" : "Decrescente"}>
               {sortDir === "asc" ? "↑" : "↓"}
             </button>
             <div className="flex bg-muted rounded-md p-0.5">
