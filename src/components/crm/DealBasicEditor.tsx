@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isVisibleUser } from "@/lib/filteredUsers";
 import { Save, Plus, Trash2 } from "lucide-react";
 import { QualificacaoAutomatica } from "./QualificacaoAutomatica";
+import { Badge } from "@/components/ui/badge";
 
 type DealBasic = {
   id: string;
@@ -37,6 +38,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   const { toast } = useToast();
   const { user: currentUser, nome: currentUserNome } = useAuth();
   const [saving, setSaving] = useState(false);
+  const [dirty, setDirty] = useState(false);
 
   const [nome, setNome] = useState(deal.cliente_nome);
   const [email, setEmail] = useState(deal.cliente_email ?? "");
@@ -69,7 +71,19 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     setFonteId(deal.fonte_id ?? "");
     setResponsavelId(deal.responsavel_id ?? "");
     setLocalPhones(phones);
+    setDirty(false);
   }, [deal, phones]);
+
+  // Avisar antes de sair com alterações não salvas
+  useEffect(() => {
+    if (!dirty) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [dirty]);
 
   const handleSave = async () => {
     if (!responsavelId) {
@@ -78,6 +92,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     }
     if (!empId) {
       toast({ title: "Empreendimento é obrigatório", description: "Selecione um empreendimento antes de salvar.", variant: "destructive" });
+      return;
+    }
+    if (!nome.trim()) {
+      toast({ title: "Nome do cliente é obrigatório", variant: "destructive" });
       return;
     }
     setSaving(true);
@@ -113,6 +131,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     }
 
     toast({ title: "Dados atualizados!" });
+    setDirty(false);
     onSave();
     setSaving(false);
   };
@@ -148,23 +167,38 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       {/* Info Card */}
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
-          <CardTitle className="text-sm font-semibold">Informações</CardTitle>
-          <Button size="sm" onClick={handleSave} disabled={saving}>
-            <Save className="h-4 w-4 mr-1" /> {saving ? "Salvando..." : "Salvar"}
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-sm font-semibold">Informações</CardTitle>
+            {dirty && !saving && (
+              <Badge variant="destructive" className="text-[10px] animate-pulse">Não salvo</Badge>
+            )}
+          </div>
+          <Button
+            size="sm"
+            onClick={handleSave}
+            disabled={saving}
+            variant={dirty ? "destructive" : "default"}
+            className={dirty ? "animate-pulse" : ""}
+          >
+            <Save className="h-4 w-4 mr-1" /> {saving ? "Salvando..." : dirty ? "Salvar alterações" : "Salvar"}
           </Button>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
-            <Label className="text-xs">Nome do Cliente</Label>
-            <Input value={nome} onChange={(e) => setNome(e.target.value)} />
+            <Label className="text-xs">Nome do Cliente <span className="text-destructive">*</span></Label>
+            <Input
+              value={nome}
+              onChange={(e) => { setNome(e.target.value); setDirty(true); }}
+              className={!nome.trim() ? "border-destructive" : ""}
+            />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">E-mail</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+            <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setDirty(true); }} />
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Qualificação</Label>
-            <Select value={qualificacao} onValueChange={setQualificacao}>
+            <Select value={qualificacao} onValueChange={(v) => { setQualificacao(v); setDirty(true); }}>
               <SelectTrigger className="text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="frio">Frio</SelectItem>
@@ -175,7 +209,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Empreendimento <span className="text-destructive">*</span></Label>
-            <Select value={empId} onValueChange={setEmpId}>
+            <Select value={empId} onValueChange={(v) => { setEmpId(v); setDirty(true); }}>
               <SelectTrigger className={`text-sm ${!empId ? "border-destructive" : ""}`}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {empreendimentos.map((e) => (
@@ -186,7 +220,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Fonte</Label>
-            <Select value={fonteId || "__none__"} onValueChange={(v) => setFonteId(v === "__none__" ? "" : v)}>
+            <Select value={fonteId || "__none__"} onValueChange={(v) => { setFonteId(v === "__none__" ? "" : v); setDirty(true); }}>
               <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Nenhuma</SelectItem>
@@ -196,7 +230,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs">Dono do negócio <span className="text-destructive">*</span></Label>
-            <Select value={responsavelId} onValueChange={setResponsavelId}>
+            <Select value={responsavelId} onValueChange={(v) => { setResponsavelId(v); setDirty(true); }}>
               <SelectTrigger className={`text-sm ${!responsavelId ? "border-destructive" : ""}`}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
                 {userProfiles.map((u) => (
