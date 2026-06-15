@@ -76,6 +76,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       toast({ title: "Dono do negócio é obrigatório", description: "Selecione um responsável antes de salvar.", variant: "destructive" });
       return;
     }
+    if (!empId) {
+      toast({ title: "Empreendimento é obrigatório", description: "Selecione um empreendimento antes de salvar.", variant: "destructive" });
+      return;
+    }
     setSaving(true);
 
     const responsavelChanged = responsavelId !== (deal.responsavel_id ?? "");
@@ -84,7 +88,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       cliente_nome: nome.trim(),
       cliente_email: email.trim() || null,
       qualificacao: qualificacao as any,
-      empreendimento_id: empId || null,
+      empreendimento_id: empId,
       fonte_id: fonteId || null,
       responsavel_id: responsavelId,
     } as any).eq("id", deal.id);
