@@ -119,19 +119,21 @@ export default function Relatorios() {
       setLoading(true);
       const COLS =
         "id, cliente_nome, status, numero_lote, preco_lote, valor_entrada, forma_pagamento, data_vendido, data_perdido, created_at, empreendimento_id, responsavel_id, responsavel_venda_user_id, responsavel_venda_corretor_id, responsavel_venda_original, fonte_id, fonte_original, utm_campaign";
-      // Paginação: o PostgREST tem teto de linhas por requisição (max-rows),
-      // então buscamos em páginas de 1000 até esgotar.
-      const fetchAllDeals = async (): Promise<Deal[]> => {
+      // Busca filtrada pelo período (server-side) para evitar trazer ~22k registros.
+      // Vendas: filtramos por data_vendido. Demais status: por created_at.
+      // Também trazemos as vendas SEM data_vendido (independente do período).
+      const fromDate = period.from ? `${period.from}T00:00:00` : "1900-01-01T00:00:00";
+      const toDate = period.to ? `${period.to}T23:59:59.999` : "2999-12-31T23:59:59";
+
+      const fetchPage = async (
+        builderFactory: () => any,
+      ): Promise<Deal[]> => {
         const PAGE = 1000;
         const all: Deal[] = [];
         let from = 0;
         // eslint-disable-next-line no-constant-condition
         while (true) {
-          const { data, error } = await supabase
-            .from("crm_deals")
-            .select(COLS)
-            .order("created_at", { ascending: false })
-            .range(from, from + PAGE - 1);
+          const { data, error } = await builderFactory().range(from, from + PAGE - 1);
           if (error) {
             console.error("Erro ao buscar deals:", error);
             break;
@@ -144,8 +146,44 @@ export default function Relatorios() {
         return all;
       };
 
+      const fetchDealsFiltered = async (): Promise<Deal[]> => {
+        const [vendidasComData, semData, outras] = await Promise.all([
+          fetchPage(() =>
+            supabase
+              .from("crm_deals")
+              .select(COLS)
+              .eq("status", "vendido")
+              .gte("data_vendido", fromDate)
+              .lte("data_vendido", toDate)
+              .order("data_vendido", { ascending: false }),
+          ),
+          fetchPage(() =>
+            supabase
+              .from("crm_deals")
+              .select(COLS)
+              .eq("status", "vendido")
+              .is("data_vendido", null),
+          ),
+          fetchPage(() =>
+            supabase
+              .from("crm_deals")
+              .select(COLS)
+              .neq("status", "vendido")
+              .gte("created_at", fromDate)
+              .lte("created_at", toDate)
+              .order("created_at", { ascending: false }),
+          ),
+        ]);
+        // Dedup por id (segurança)
+        const map = new Map<string, Deal>();
+        for (const arr of [vendidasComData, semData, outras]) {
+          for (const d of arr) map.set(d.id, d);
+        }
+        return Array.from(map.values());
+      };
+
       const [d, { data: e }, { data: u }, { data: c }, { data: f }] = await Promise.all([
-        fetchAllDeals(),
+        fetchDealsFiltered(),
         supabase.from("crm_empreendimentos").select("id, nome"),
         supabase.from("user_profiles").select("user_id, nome"),
         supabase.from("comercial_corretores").select("id, nome_exibicao"),
@@ -164,7 +202,7 @@ export default function Relatorios() {
       setFonteMap(Object.fromEntries((f ?? []).map((x: any) => [x.id, x.nome])));
       setLoading(false);
     })();
-  }, []);
+  }, [period.from, period.to]);
 
   const empOptions = useMemo(
     () =>
