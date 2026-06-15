@@ -174,11 +174,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label className="text-xs">Empreendimento</Label>
-            <Select value={empId || "__none__"} onValueChange={(v) => setEmpId(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="text-sm"><SelectValue placeholder="Selecione" /></SelectTrigger>
+            <Label className="text-xs">Empreendimento <span className="text-destructive">*</span></Label>
+            <Select value={empId} onValueChange={setEmpId}>
+              <SelectTrigger className={`text-sm ${!empId ? "border-destructive" : ""}`}><SelectValue placeholder="Selecione" /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="__none__">Nenhum</SelectItem>
                 {empreendimentos.map((e) => (
                   <SelectItem key={e.id} value={e.id}>{e.nome}{e.cidade ? ` (${e.cidade})` : ""}</SelectItem>
                 ))}
