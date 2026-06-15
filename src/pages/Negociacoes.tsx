@@ -262,6 +262,15 @@ export default function Negociacoes() {
     setFDateVenda(EMPTY_RANGE);
   };
 
+  const handleConsultorChange = (next: string[]) => {
+    setFConsultor(next);
+    const selecionouSemDono = next.includes("__sem_dono__");
+    const statusPadrao = fStatusGroup.length === 1 && fStatusGroup[0] === "em_andamento";
+    if (selecionouSemDono && statusPadrao) {
+      setFStatusGroup(["em_andamento", "perdido"]);
+    }
+  };
+
   const onDragEnd = async (result: DropResult) => {
     const { draggableId, destination, source } = result;
     if (!destination) return;
@@ -340,7 +349,7 @@ export default function Negociacoes() {
             <CardContent className="p-4 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={setFStatusGroup} />
-                {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={setFConsultor} />}
+                {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
                 <MultiSelectFilter label="Interesse" options={INTERESSE_OPTIONS} selected={fInteresse} onChange={setFInteresse} />
