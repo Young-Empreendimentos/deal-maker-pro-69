@@ -40,6 +40,10 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!form.empreendimento_id) {
+      toast({ title: "Empreendimento é obrigatório", description: "Selecione um empreendimento.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
 
     const { error } = await supabase.from("crm_deals").insert({
@@ -47,7 +51,7 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
       cliente_email: form.cliente_email || null,
       qualificacao: form.qualificacao as any,
       fonte_id: form.fonte_id || null,
-      empreendimento_id: form.empreendimento_id || null,
+      empreendimento_id: form.empreendimento_id,
       responsavel_id: user.id,
     });
 
