@@ -339,7 +339,7 @@ export default function Dashboard() {
                         key={p.value}
                         onClick={() => { setPendingPreset(p.value); if (p.value !== "custom") setCalTab("from"); }}
                         className={cn(
-                          "flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-accent transition-colors",
+                          "flex items-center gap-2 px-4 py-2 text-sm text-left hover:bg-accent hover:text-accent-foreground transition-colors",
                           pendingPreset === p.value && "bg-primary text-primary-foreground hover:bg-primary/90",
                         )}
                       >

@@ -570,7 +570,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
                     <button
                       key={c}
                       type="button"
-                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground transition-colors"
                       onMouseDown={() => {
                         update("cidade_cliente", c);
                         setCidadeSearch(c);
