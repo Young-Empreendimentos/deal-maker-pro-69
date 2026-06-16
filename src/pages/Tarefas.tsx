@@ -12,7 +12,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw, Pencil } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -67,6 +68,32 @@ export default function Tarefas() {
   // Form state
   const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
   const [formLoading, setFormLoading] = useState(false);
+
+  // Inline date edit
+  const [editingTaskId, setEditingTaskId] = useState<string | null>(null);
+  const [editDate, setEditDate] = useState("");
+  const [editHora, setEditHora] = useState("");
+
+  const startEditDate = (task: Task) => {
+    setEditingTaskId(task.id);
+    setEditDate(task.data_vencimento ?? "");
+    setEditHora(task.hora_vencimento ?? "");
+  };
+
+  const saveDate = async () => {
+    if (!editingTaskId) return;
+    const { error } = await supabase.from("crm_tasks").update({
+      data_vencimento: editDate || null,
+      hora_vencimento: editHora || null,
+    }).eq("id", editingTaskId);
+    if (error) {
+      toast({ title: "Erro ao salvar data", description: error.message, variant: "destructive" });
+    } else {
+      toast({ title: "Data atualizada!" });
+      setEditingTaskId(null);
+      fetchTasks();
+    }
+  };
 
   // Image viewer
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
@@ -312,13 +339,35 @@ export default function Tarefas() {
                           {task.responsavel_nome}
                         </span>
                       )}
-                      {task.data_vencimento && (
-                        <span className={cn("flex items-center gap-1", isOverdue(task) && "text-destructive")}>
-                          <Calendar className="h-3 w-3" />
-                          {parseLocalDate(task.data_vencimento).toLocaleDateString("pt-BR")}
-                          {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
-                        </span>
-                      )}
+                      <Popover open={editingTaskId === task.id} onOpenChange={(open) => { if (!open) setEditingTaskId(null); }}>
+                        <PopoverTrigger asChild>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); startEditDate(task); }}
+                            className={cn("flex items-center gap-1 hover:underline", task.data_vencimento && isOverdue(task) ? "text-destructive" : "text-muted-foreground")}
+                          >
+                            <Calendar className="h-3 w-3" />
+                            {task.data_vencimento
+                              ? <>
+                                  {parseLocalDate(task.data_vencimento).toLocaleDateString("pt-BR")}
+                                  {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
+                                </>
+                              : <span className="italic">Sem data</span>
+                            }
+                            <Pencil className="h-2.5 w-2.5 ml-0.5 opacity-50" />
+                          </button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-3 space-y-2" onClick={(e) => e.stopPropagation()}>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Data</Label>
+                            <Input type="date" value={editDate} onChange={(e) => setEditDate(e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <div className="space-y-1">
+                            <Label className="text-xs">Hora</Label>
+                            <Input type="time" value={editHora} onChange={(e) => setEditHora(e.target.value)} className="h-8 text-sm" />
+                          </div>
+                          <Button size="sm" className="w-full h-7 text-xs" onClick={saveDate}>Salvar</Button>
+                        </PopoverContent>
+                      </Popover>
                     </div>
                   </div>
                   {task.deleted_at === null && (
