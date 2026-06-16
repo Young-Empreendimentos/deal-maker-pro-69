@@ -48,6 +48,8 @@ export type Deal = {
   ordem_kanban: number;
   interesse: string | null;
   preco_lote: number | null;
+  data_vendido: string | null;
+  data_perdido: string | null;
 };
 
 type Empreendimento = { id: string; nome: string; cidade: string };
@@ -111,6 +113,7 @@ export default function Negociacoes() {
   const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(EMPTY_RANGE);
   const [fDateContato,  setFDateContato]  = useState<DateRange>(EMPTY_RANGE);
   const [fDateVenda,    setFDateVenda]    = useState<DateRange>(EMPTY_RANGE);
+  const [fDatePerda,    setFDatePerda]    = useState<DateRange>(EMPTY_RANGE);
 
   const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
@@ -126,7 +129,7 @@ export default function Negociacoes() {
 
   const hasDateFilter = (r: DateRange) => r.from !== "" || r.to !== "";
   const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
-    || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda);
+    || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda) || hasDateFilter(fDatePerda);
 
   const fetchDeals = async () => {
     setLoading(true);
@@ -242,7 +245,11 @@ export default function Negociacoes() {
       if (hasDateFilter(fDateContato) && !inRange(d.updated_at, fDateContato)) return false;
       if (hasDateFilter(fDateVenda)) {
         if (d.status !== "vendido") return false;
-        if (!inRange(d.updated_at, fDateVenda)) return false;
+        if (!inRange(d.data_vendido ?? d.created_at, fDateVenda)) return false;
+      }
+      if (hasDateFilter(fDatePerda)) {
+        if (d.status !== "perdido") return false;
+        if (!inRange(d.data_perdido ?? d.created_at, fDatePerda)) return false;
       }
       return true;
     });
@@ -256,7 +263,7 @@ export default function Negociacoes() {
     });
     return list;
   }, [deals, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
-      fDateCriacao, fDateContato, fDateVenda, sortBy, sortDir]);
+      fDateCriacao, fDateContato, fDateVenda, fDatePerda, sortBy, sortDir]);
 
   const clearFilters = () => {
     setFConsultor([]);
@@ -267,6 +274,7 @@ export default function Negociacoes() {
     setFDateCriacao(EMPTY_RANGE);
     setFDateContato(EMPTY_RANGE);
     setFDateVenda(EMPTY_RANGE);
+    setFDatePerda(EMPTY_RANGE);
   };
 
   // Mantemos o handler simples — o filtro "Sem dono" passa a ignorar o filtro de
@@ -357,10 +365,11 @@ export default function Negociacoes() {
                 <MultiSelectFilter label="Interesse" options={INTERESSE_OPTIONS} selected={fInteresse} onChange={setFInteresse} />
                 <MultiSelectFilter label="Preço" options={PRECO_FAIXAS} selected={fPreco} onChange={setFPreco} />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 pt-1 border-t">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-1 border-t">
                 <DateRangeFilter label="Data de Criação" value={fDateCriacao} onChange={setFDateCriacao} />
                 <DateRangeFilter label="Último Contato"  value={fDateContato} onChange={setFDateContato} />
                 <DateRangeFilter label="Data da Venda"   value={fDateVenda}   onChange={setFDateVenda} />
+                <DateRangeFilter label="Data da Perda"   value={fDatePerda}   onChange={setFDatePerda} />
               </div>
               {hasFilters && (
                 <Button variant="ghost" size="sm" onClick={clearFilters} className="text-xs text-muted-foreground">
