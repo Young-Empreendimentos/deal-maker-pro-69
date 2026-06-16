@@ -100,14 +100,32 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
   useEffect(() => {
     // Usuários internos = consultores cadastrados no CRM (crm_consultores).
     // O campo responsavel_venda_user_id é FK para crm_consultores.id.
-    supabase
-      .from("crm_consultores")
-      .select("id, nome")
-      .eq("ativo", true)
-      .order("nome", { ascending: true })
-      .then(({ data }) => {
-        setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: "", nome: u.nome })));
-      });
+    (async () => {
+      const { data: ativos, error: errAtivos } = await supabase
+        .from("crm_consultores")
+        .select("id, nome, ativo")
+        .eq("ativo", true)
+        .order("nome", { ascending: true });
+      if (errAtivos) {
+        console.error("[DealProposalForm] erro ao carregar consultores ativos:", errAtivos);
+      }
+      let list = ((ativos as any[]) ?? []).map((u) => ({ id: u.id, email: "", nome: u.nome }));
+
+      // Garantir que o responsável já salvo apareça na lista, mesmo se estiver inativo
+      const savedId = initialData.responsavel_venda_user_id;
+      if (savedId && !list.some((u) => u.id === savedId)) {
+        const { data: saved } = await supabase
+          .from("crm_consultores")
+          .select("id, nome")
+          .eq("id", savedId)
+          .maybeSingle();
+        if (saved) {
+          list = [...list, { id: (saved as any).id, email: "", nome: `${(saved as any).nome} (inativo)` }];
+          list.sort((a, b) => a.nome.localeCompare(b.nome));
+        }
+      }
+      setUsers(list);
+    })();
     // Migrado para comercial_corretores: a tabela imobiliarias foi descontinuada
     // no Pingolead. O id segue gravado em responsavel_venda_corretor_id.
     supabase
