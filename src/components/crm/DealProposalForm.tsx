@@ -98,9 +98,16 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
   const [showCidades, setShowCidades] = useState(false);
 
   useEffect(() => {
-    supabase.rpc("get_all_users_with_roles").then(({ data }) => {
-      setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: u.email, nome: u.nome })));
-    });
+    // Usuários internos = consultores cadastrados no CRM (crm_consultores).
+    // O campo responsavel_venda_user_id é FK para crm_consultores.id.
+    supabase
+      .from("crm_consultores")
+      .select("id, nome")
+      .eq("ativo", true)
+      .order("nome", { ascending: true })
+      .then(({ data }) => {
+        setUsers(((data as any[]) ?? []).map((u) => ({ id: u.id, email: "", nome: u.nome })));
+      });
     // Migrado para comercial_corretores: a tabela imobiliarias foi descontinuada
     // no Pingolead. O id segue gravado em responsavel_venda_corretor_id.
     supabase
