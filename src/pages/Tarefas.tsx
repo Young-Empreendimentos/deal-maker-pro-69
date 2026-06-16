@@ -245,7 +245,8 @@ export default function Tarefas() {
     return t.deleted_at === null; // "todas" — somente ativas
   });
 
-  const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && new Date(t.data_vencimento) < new Date();
+  const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
+  const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && parseLocalDate(t.data_vencimento) < new Date();
 
   return (
     <AppLayout>
@@ -314,7 +315,7 @@ export default function Tarefas() {
                       {task.data_vencimento && (
                         <span className={cn("flex items-center gap-1", isOverdue(task) && "text-destructive")}>
                           <Calendar className="h-3 w-3" />
-                          {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
+                          {parseLocalDate(task.data_vencimento).toLocaleDateString("pt-BR")}
                           {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
                         </span>
                       )}

@@ -306,7 +306,8 @@ export default function NegociacaoDetalhes() {
     setAnotacoes((prev) => prev.filter((a) => a.id !== anotacaoId));
   };
 
-  const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && new Date(t.data_vencimento) < new Date();
+  const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
+  const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && parseLocalDate(t.data_vencimento) < new Date();
 
   // Filtrar tarefas (precisa ficar antes dos early returns para respeitar regras de hooks)
   const filteredTasks = useMemo(() => {
@@ -544,7 +545,7 @@ export default function NegociacaoDetalhes() {
                   {task.descricao && <p className="text-xs text-muted-foreground mt-0.5">{task.descricao}</p>}
                   {task.data_vencimento && (
                     <span className={cn("text-xs flex items-center gap-1 mt-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
-                      <Calendar className="h-3 w-3" /> {new Date(task.data_vencimento).toLocaleDateString("pt-BR")}
+                      <Calendar className="h-3 w-3" /> {parseLocalDate(task.data_vencimento).toLocaleDateString("pt-BR")}
                       {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
                     </span>
                   )}
