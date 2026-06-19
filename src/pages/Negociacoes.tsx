@@ -103,7 +103,10 @@ export default function Negociacoes() {
 
   // Multi-select filter state
   const [fStatusGroup, setFStatusGroup] = useState<string[]>(["em_andamento"]);
-  const [fConsultor, setFConsultor] = useState<string[]>([]);
+  const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
+  const [fConsultor, setFConsultor] = useState<string[]>(
+    user?.id === CAROLINE_BORTOLUZZI_ID ? [CAROLINE_BORTOLUZZI_ID] : []
+  );
   const [fEmpreendimento, setFEmpreendimento] = useState<string[]>([]);
   const [fFonte, setFFonte] = useState<string[]>([]);
   const [fInteresse, setFInteresse] = useState<string[]>([]);
