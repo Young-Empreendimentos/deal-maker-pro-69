@@ -1731,6 +1731,51 @@ export type Database = {
           },
         ]
       }
+      comissoes_itbi_manual: {
+        Row: {
+          atualizado_em: string | null
+          building_id: string
+          company_id: string
+          criado_em: string | null
+          dados_completos: Json | null
+          data_vencimento: string | null
+          documento_sienge: string | null
+          id: number
+          numero_contrato: string
+          plano_financeiro: string | null
+          updated_at: string | null
+          valor_itbi: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          building_id: string
+          company_id?: string
+          criado_em?: string | null
+          dados_completos?: Json | null
+          data_vencimento?: string | null
+          documento_sienge?: string | null
+          id?: number
+          numero_contrato: string
+          plano_financeiro?: string | null
+          updated_at?: string | null
+          valor_itbi?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          building_id?: string
+          company_id?: string
+          criado_em?: string | null
+          dados_completos?: Json | null
+          data_vencimento?: string | null
+          documento_sienge?: string | null
+          id?: number
+          numero_contrato?: string
+          plano_financeiro?: string | null
+          updated_at?: string | null
+          valor_itbi?: number | null
+        }
+        Relationships: []
+      }
       comissoes_log_sincronizacoes: {
         Row: {
           created_at: string | null
@@ -2058,7 +2103,7 @@ export type Database = {
           },
         ]
       }
-      comissoes_sienge_contratos: {
+      comissoes_sienge_contratos_backup: {
         Row: {
           atualizado_em: string | null
           brokers: Json | null
@@ -2220,7 +2265,7 @@ export type Database = {
         }
         Relationships: []
       }
-      comissoes_sienge_itbi: {
+      comissoes_sienge_itbi_backup: {
         Row: {
           atualizado_em: string | null
           building_id: string
@@ -2307,7 +2352,7 @@ export type Database = {
         }
         Relationships: []
       }
-      comissoes_sienge_valor_pago: {
+      comissoes_sienge_valor_pago_backup: {
         Row: {
           atualizado_em: string | null
           building_id: string
@@ -2493,6 +2538,60 @@ export type Database = {
           senha_hash?: string
           sienge_id?: string | null
           ultimo_login?: string | null
+        }
+        Relationships: []
+      }
+      comissoes_valor_pago_manual: {
+        Row: {
+          atualizado_em: string | null
+          building_id: string
+          company_id: string
+          criado_em: string | null
+          customer_id: string | null
+          dados_completos: Json | null
+          data_atualizacao: string | null
+          id: number
+          nome_cliente: string | null
+          numero_contrato: string
+          updated_at: string | null
+          valor_acrescimo: number | null
+          valor_bonificacao: number | null
+          valor_liquido: number | null
+          valor_pago: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          building_id: string
+          company_id?: string
+          criado_em?: string | null
+          customer_id?: string | null
+          dados_completos?: Json | null
+          data_atualizacao?: string | null
+          id?: number
+          nome_cliente?: string | null
+          numero_contrato: string
+          updated_at?: string | null
+          valor_acrescimo?: number | null
+          valor_bonificacao?: number | null
+          valor_liquido?: number | null
+          valor_pago?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          building_id?: string
+          company_id?: string
+          criado_em?: string | null
+          customer_id?: string | null
+          dados_completos?: Json | null
+          data_atualizacao?: string | null
+          id?: number
+          nome_cliente?: string | null
+          numero_contrato?: string
+          updated_at?: string | null
+          valor_acrescimo?: number | null
+          valor_bonificacao?: number | null
+          valor_liquido?: number | null
+          valor_pago?: number | null
         }
         Relationships: []
       }
@@ -3688,6 +3787,58 @@ export type Database = {
           ordem?: number
         }
         Relationships: []
+      }
+      esquadro_status_historico: {
+        Row: {
+          created_at: string
+          demanda_id: string
+          id: string
+          observacao: string | null
+          status_anterior_id: string | null
+          status_novo_id: string
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          demanda_id: string
+          id?: string
+          observacao?: string | null
+          status_anterior_id?: string | null
+          status_novo_id: string
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          demanda_id?: string
+          id?: string
+          observacao?: string | null
+          status_anterior_id?: string | null
+          status_novo_id?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "esquadro_status_historico_demanda_id_fkey"
+            columns: ["demanda_id"]
+            isOneToOne: false
+            referencedRelation: "esquadro_demandas"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esquadro_status_historico_status_anterior_id_fkey"
+            columns: ["status_anterior_id"]
+            isOneToOne: false
+            referencedRelation: "esquadro_status"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "esquadro_status_historico_status_novo_id_fkey"
+            columns: ["status_novo_id"]
+            isOneToOne: false
+            referencedRelation: "esquadro_status"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       esquadro_tipos_projeto: {
         Row: {
@@ -6379,7 +6530,7 @@ export type Database = {
           created_at: string
           descricao: string | null
           id: string
-          lote_id: string
+          lote_id: number | null
           registro_id: string
           uploaded_by: string | null
           url: string
@@ -6388,7 +6539,7 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
-          lote_id: string
+          lote_id?: number | null
           registro_id: string
           uploaded_by?: string | null
           url: string
@@ -6397,19 +6548,12 @@ export type Database = {
           created_at?: string
           descricao?: string | null
           id?: string
-          lote_id?: string
+          lote_id?: number | null
           registro_id?: string
           uploaded_by?: string | null
           url?: string
         }
         Relationships: [
-          {
-            foreignKeyName: "registros_comprovantes_lote_id_fkey"
-            columns: ["lote_id"]
-            isOneToOne: false
-            referencedRelation: "registros_lotes"
-            referencedColumns: ["id"]
-          },
           {
             foreignKeyName: "registros_comprovantes_registro_id_fkey"
             columns: ["registro_id"]
@@ -6426,124 +6570,12 @@ export type Database = {
           },
         ]
       }
-      registros_contratos: {
-        Row: {
-          ativo: boolean
-          cliente_email: string | null
-          cliente_nome: string
-          created_at: string
-          data_contrato: string | null
-          dias_em_atraso: number | null
-          id: string
-          lote_id: string
-          numero_contrato: string | null
-          sienge_contract_id: number
-          ultima_atualizacao_valor: string | null
-          valor_ja_pago: number | null
-          valor_total: number | null
-        }
-        Insert: {
-          ativo?: boolean
-          cliente_email?: string | null
-          cliente_nome?: string
-          created_at?: string
-          data_contrato?: string | null
-          dias_em_atraso?: number | null
-          id?: string
-          lote_id: string
-          numero_contrato?: string | null
-          sienge_contract_id: number
-          ultima_atualizacao_valor?: string | null
-          valor_ja_pago?: number | null
-          valor_total?: number | null
-        }
-        Update: {
-          ativo?: boolean
-          cliente_email?: string | null
-          cliente_nome?: string
-          created_at?: string
-          data_contrato?: string | null
-          dias_em_atraso?: number | null
-          id?: string
-          lote_id?: string
-          numero_contrato?: string | null
-          sienge_contract_id?: number
-          ultima_atualizacao_valor?: string | null
-          valor_ja_pago?: number | null
-          valor_total?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "registros_contratos_lote_id_fkey"
-            columns: ["lote_id"]
-            isOneToOne: false
-            referencedRelation: "registros_lotes"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      registros_empreendimentos: {
-        Row: {
-          created_at: string
-          id: string
-          nome: string
-          sienge_id: number
-        }
-        Insert: {
-          created_at?: string
-          id?: string
-          nome: string
-          sienge_id: number
-        }
-        Update: {
-          created_at?: string
-          id?: string
-          nome?: string
-          sienge_id?: number
-        }
-        Relationships: []
-      }
-      registros_lotes: {
-        Row: {
-          created_at: string
-          empreendimento_id: string
-          id: string
-          numero: string
-          sienge_unit_id: number
-          valor_avista: number | null
-        }
-        Insert: {
-          created_at?: string
-          empreendimento_id: string
-          id?: string
-          numero: string
-          sienge_unit_id: number
-          valor_avista?: number | null
-        }
-        Update: {
-          created_at?: string
-          empreendimento_id?: string
-          id?: string
-          numero?: string
-          sienge_unit_id?: number
-          valor_avista?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "registros_lotes_empreendimento_id_fkey"
-            columns: ["empreendimento_id"]
-            isOneToOne: false
-            referencedRelation: "registros_empreendimentos"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       registros_registros: {
         Row: {
           andamento: string | null
           boleto_itbi_url: string | null
           comprovante_itbi_url: string | null
-          contrato_id: string | null
+          contrato_id: number | null
           created_at: string
           data_entrega_ri: string | null
           data_gatilho: string | null
@@ -6554,7 +6586,7 @@ export type Database = {
           financiamento_caixa: boolean
           id: string
           impugnado: boolean
-          lote_id: string
+          lote_id: number
           matricula_url: string | null
           nf_registro_url: string | null
           observacoes: string | null
@@ -6568,7 +6600,7 @@ export type Database = {
           andamento?: string | null
           boleto_itbi_url?: string | null
           comprovante_itbi_url?: string | null
-          contrato_id?: string | null
+          contrato_id?: number | null
           created_at?: string
           data_entrega_ri?: string | null
           data_gatilho?: string | null
@@ -6579,7 +6611,7 @@ export type Database = {
           financiamento_caixa?: boolean
           id?: string
           impugnado?: boolean
-          lote_id: string
+          lote_id: number
           matricula_url?: string | null
           nf_registro_url?: string | null
           observacoes?: string | null
@@ -6593,7 +6625,7 @@ export type Database = {
           andamento?: string | null
           boleto_itbi_url?: string | null
           comprovante_itbi_url?: string | null
-          contrato_id?: string | null
+          contrato_id?: number | null
           created_at?: string
           data_entrega_ri?: string | null
           data_gatilho?: string | null
@@ -6604,7 +6636,7 @@ export type Database = {
           financiamento_caixa?: boolean
           id?: string
           impugnado?: boolean
-          lote_id?: string
+          lote_id?: number
           matricula_url?: string | null
           nf_registro_url?: string | null
           observacoes?: string | null
@@ -6614,22 +6646,7 @@ export type Database = {
           updated_at?: string
           valor_itbi?: number | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "registros_registros_contrato_id_fkey"
-            columns: ["contrato_id"]
-            isOneToOne: false
-            referencedRelation: "registros_contratos"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "registros_registros_lote_id_fkey"
-            columns: ["lote_id"]
-            isOneToOne: true
-            referencedRelation: "registros_lotes"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       registros_sync_logs: {
         Row: {
@@ -7943,6 +7960,34 @@ export type Database = {
             foreignKeyName: "fk_contrato"
             columns: ["contrato_id"]
             isOneToOne: false
+            referencedRelation: "comissoes_sienge_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_mv_valor_pago"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
             referencedRelation: "sienge_contratos_de_vendas"
             referencedColumns: ["id"]
           },
@@ -7969,6 +8014,34 @@ export type Database = {
             foreignKeyName: "sienge_contrato_comissoes_contrato_id_fkey"
             columns: ["contrato_id"]
             isOneToOne: true
+            referencedRelation: "comissoes_sienge_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_comissoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: true
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_comissoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: true
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_comissoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: true
+            referencedRelation: "registros_mv_valor_pago"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_comissoes_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: true
             referencedRelation: "sienge_contratos_de_vendas"
             referencedColumns: ["id"]
           },
@@ -7991,6 +8064,34 @@ export type Database = {
           main?: boolean
         }
         Relationships: [
+          {
+            foreignKeyName: "sienge_contrato_corretores_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes_sienge_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_corretores_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_corretores_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_corretores_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_mv_valor_pago"
+            referencedColumns: ["sienge_contract_id"]
+          },
           {
             foreignKeyName: "sienge_contrato_corretores_contrato_id_fkey"
             columns: ["contrato_id"]
@@ -8100,6 +8201,34 @@ export type Database = {
             foreignKeyName: "sienge_contrato_pagamentos_contrato_id_fkey"
             columns: ["contrato_id"]
             isOneToOne: false
+            referencedRelation: "comissoes_sienge_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_pagamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_pagamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_pagamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_mv_valor_pago"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_pagamentos_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
             referencedRelation: "sienge_contratos_de_vendas"
             referencedColumns: ["id"]
           },
@@ -8128,6 +8257,34 @@ export type Database = {
           unidade_id?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sienge_contrato_unidades_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes_sienge_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_unidades_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_unidades_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "sienge_contrato_unidades_contrato_id_fkey"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_mv_valor_pago"
+            referencedColumns: ["sienge_contract_id"]
+          },
           {
             foreignKeyName: "sienge_contrato_unidades_contrato_id_fkey"
             columns: ["contrato_id"]
@@ -9300,6 +9457,106 @@ export type Database = {
       }
     }
     Views: {
+      comissoes_sienge_contratos: {
+        Row: {
+          atualizado_em: string | null
+          brokers: Json | null
+          building_id: string | null
+          company_id: string | null
+          criado_em: string | null
+          customer_id: string | null
+          dados_completos: Json | null
+          data_contrato: string | null
+          id: number | null
+          nome_cliente: string | null
+          numero_contrato: string | null
+          sienge_id: string | null
+          status: string | null
+          unidade: string | null
+          unidades: Json | null
+          updated_at: string | null
+          valor_a_vista: number | null
+          valor_total: number | null
+        }
+        Insert: {
+          atualizado_em?: string | null
+          brokers?: never
+          building_id?: never
+          company_id?: never
+          criado_em?: string | null
+          customer_id?: never
+          dados_completos?: Json | null
+          data_contrato?: string | null
+          id?: number | null
+          nome_cliente?: never
+          numero_contrato?: string | null
+          sienge_id?: never
+          status?: never
+          unidade?: never
+          unidades?: never
+          updated_at?: string | null
+          valor_a_vista?: number | null
+          valor_total?: number | null
+        }
+        Update: {
+          atualizado_em?: string | null
+          brokers?: never
+          building_id?: never
+          company_id?: never
+          criado_em?: string | null
+          customer_id?: never
+          dados_completos?: Json | null
+          data_contrato?: string | null
+          id?: number | null
+          nome_cliente?: never
+          numero_contrato?: string | null
+          sienge_id?: never
+          status?: never
+          unidade?: never
+          unidades?: never
+          updated_at?: string | null
+          valor_a_vista?: number | null
+          valor_total?: number | null
+        }
+        Relationships: []
+      }
+      comissoes_sienge_itbi: {
+        Row: {
+          atualizado_em: string | null
+          building_id: string | null
+          company_id: string | null
+          criado_em: string | null
+          dados_completos: Json | null
+          data_vencimento: string | null
+          documento_sienge: string | null
+          id: number | null
+          numero_contrato: string | null
+          plano_financeiro: string | null
+          updated_at: string | null
+          valor_itbi: number | null
+        }
+        Relationships: []
+      }
+      comissoes_sienge_valor_pago: {
+        Row: {
+          atualizado_em: string | null
+          building_id: string | null
+          company_id: string | null
+          criado_em: string | null
+          customer_id: string | null
+          dados_completos: Json | null
+          data_atualizacao: string | null
+          id: number | null
+          nome_cliente: string | null
+          numero_contrato: string | null
+          updated_at: string | null
+          valor_acrescimo: number | null
+          valor_bonificacao: number | null
+          valor_liquido: number | null
+          valor_pago: number | null
+        }
+        Relationships: []
+      }
       crm_relatorio_vendas_diario: {
         Row: {
           contatos_feitos: number | null
@@ -9369,6 +9626,67 @@ export type Database = {
         }
         Relationships: []
       }
+      registros_contratos: {
+        Row: {
+          ativo: boolean | null
+          cliente_email: string | null
+          cliente_nome: string | null
+          created_at: string | null
+          data_contrato: string | null
+          dias_em_atraso: number | null
+          id: number | null
+          lote_id: number | null
+          numero_contrato: string | null
+          sienge_contract_id: number | null
+          ultima_atualizacao_valor: string | null
+          valor_ja_pago: number | null
+          valor_total: number | null
+        }
+        Relationships: []
+      }
+      registros_empreendimentos: {
+        Row: {
+          created_at: string | null
+          id: number | null
+          nome: string | null
+          sienge_id: number | null
+        }
+        Relationships: []
+      }
+      registros_lotes: {
+        Row: {
+          created_at: string | null
+          empreendimento_id: number | null
+          id: number | null
+          numero: string | null
+          sienge_unit_id: number | null
+          valor_avista: number | null
+        }
+        Insert: {
+          created_at?: never
+          empreendimento_id?: number | null
+          id?: never
+          numero?: never
+          sienge_unit_id?: never
+          valor_avista?: never
+        }
+        Update: {
+          created_at?: never
+          empreendimento_id?: number | null
+          id?: never
+          numero?: never
+          sienge_unit_id?: never
+          valor_avista?: never
+        }
+        Relationships: []
+      }
+      registros_mv_valor_pago: {
+        Row: {
+          sienge_contract_id: number | null
+          valor_ja_pago: number | null
+        }
+        Relationships: []
+      }
       vw_contrato_partes: {
         Row: {
           address_number: string | null
@@ -9408,6 +9726,34 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "sienge_clientes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes_sienge_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_contratos"
+            referencedColumns: ["sienge_contract_id"]
+          },
+          {
+            foreignKeyName: "fk_contrato"
+            columns: ["contrato_id"]
+            isOneToOne: false
+            referencedRelation: "registros_mv_valor_pago"
+            referencedColumns: ["sienge_contract_id"]
           },
           {
             foreignKeyName: "fk_contrato"
@@ -9620,23 +9966,32 @@ export type Database = {
         Returns: boolean
       }
       public_submit_candidate: { Args: { candidate_data: Json }; Returns: Json }
+      registros_calcular_valor_pago: {
+        Args: {
+          p_contract_number: string
+          p_enterprise_id: number
+          p_lote_numero: string
+        }
+        Returns: number
+      }
+      registros_extrair_numero_com_letra: {
+        Args: { input: string }
+        Returns: string
+      }
+      registros_extrair_numero_lote: {
+        Args: { input: string }
+        Returns: string
+      }
       registros_get_lotes_without_registros: {
         Args: never
         Returns: {
-          created_at: string
-          empreendimento_id: string
-          id: string
+          empreendimento_id: number
+          id: number
           numero: string
-          sienge_unit_id: number
-          valor_avista: number | null
         }[]
-        SetofOptions: {
-          from: "*"
-          to: "registros_lotes"
-          isOneToOne: false
-          isSetofReturn: true
-        }
       }
+      registros_manutencao_diaria: { Args: never; Returns: Json }
+      registros_refresh_mv_valor_pago: { Args: never; Returns: undefined }
       rh_get_all_users_with_roles: {
         Args: never
         Returns: {
