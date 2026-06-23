@@ -149,7 +149,7 @@ export function useCorretores() {
   useState(() => { void fetchCorretores(); });
 
   async function toggleAtivo(id: string, ativo: boolean) {
-    const { error } = await supabase.from("comercial_corretores").update({ ativo: !ativo }).eq("id", id);
+    const { error } = await (supabase.from("comercial_corretores") as any).update({ ativo: !ativo }).eq("id", id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else await fetchCorretores();
   }
@@ -157,7 +157,7 @@ export function useCorretores() {
   async function addCorretor(input: { nome: string; tipo: string; documento?: string }) {
     const doc = (input.documento ?? "").replace(/\D/g, "");
     const isCnpj = input.tipo === "PJ" || doc.length > 11;
-    const { error } = await supabase.from("comercial_corretores").insert({
+    const { error } = await (supabase.from("comercial_corretores") as any).insert({
       nome: input.nome, nome_exibicao: input.nome, tipo: input.tipo, ativo: true,
       cpf: isCnpj ? null : (input.documento ?? null),
       cnpj: isCnpj ? (input.documento ?? null) : null,
