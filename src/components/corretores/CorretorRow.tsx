@@ -154,9 +154,13 @@ export function useCorretores() {
     else await fetchCorretores();
   }
 
-  async function addCorretor(input: { nome: string; tipo: string }) {
+  async function addCorretor(input: { nome: string; tipo: string; documento?: string }) {
+    const doc = (input.documento ?? "").replace(/\D/g, "");
+    const isCnpj = input.tipo === "PJ" || doc.length > 11;
     const { error } = await supabase.from("comercial_corretores").insert({
       nome: input.nome, nome_exibicao: input.nome, tipo: input.tipo, ativo: true,
+      cpf: isCnpj ? null : (input.documento ?? null),
+      cnpj: isCnpj ? (input.documento ?? null) : null,
     });
     if (error) {
       toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" });

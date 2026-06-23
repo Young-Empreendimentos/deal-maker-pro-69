@@ -392,6 +392,11 @@ export default function Configuracoes() {
                       placeholder="Nome da imobiliária / corretor"
                       className="flex-1"
                     />
+                    <Input
+                      id="novo-corretor-doc"
+                      placeholder="CPF ou CNPJ"
+                      className="w-[180px]"
+                    />
                     <Select defaultValue="PJ">
                       <SelectTrigger className="w-[140px]">
                         <SelectValue />
@@ -406,11 +411,20 @@ export default function Configuracoes() {
                       type="button"
                       onClick={async () => {
                         const input = document.getElementById("novo-corretor-nome") as HTMLInputElement;
+                        const docInput = document.getElementById("novo-corretor-doc") as HTMLInputElement;
                         const nome = input?.value?.trim();
+                        const documento = docInput?.value?.trim();
                         const tipo = (document.querySelector("[data-radix-select-value]") as HTMLElement)?.textContent?.trim() ?? "PJ";
-                        if (!nome) return;
-                        const ok = await addCorretor({ nome, tipo });
-                        if (ok) input.value = "";
+                        if (!nome) {
+                          toast({ title: "Informe o nome do corretor", variant: "destructive" });
+                          return;
+                        }
+                        if (!documento) {
+                          toast({ title: "Informe o CPF ou CNPJ", description: "O documento é obrigatório para cadastrar o corretor.", variant: "destructive" });
+                          return;
+                        }
+                        const ok = await addCorretor({ nome, tipo, documento });
+                        if (ok) { input.value = ""; docInput.value = ""; }
                       }}
                     >
                       <Plus className="h-4 w-4" />
