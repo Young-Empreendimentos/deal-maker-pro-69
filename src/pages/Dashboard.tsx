@@ -91,6 +91,9 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [vendasDeals, setVendasDeals] = useState<Deal[]>([]);
   const [perdasDeals, setPerdasDeals] = useState<Deal[]>([]);
+  const fetchSeqRef = (typeof window !== "undefined")
+    ? (window as any).__dashFetchSeq ?? ((window as any).__dashFetchSeq = { current: 0 })
+    : { current: 0 };
 
   // ── Applied filters ──────────────────────────────────────────────────────
   const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
@@ -104,49 +107,20 @@ export default function Dashboard() {
   const [pendingRange,   setPendingRange]   = useState<{ from?: Date; to?: Date }>({});
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 
+  // ── Computed date range ───────────────────────────────────────────────────
+  const [dateFrom, dateTo] = useMemo<[Date | null, Date | null]>(() => {
+    if (datePreset === "custom") {
+      return [customRange.from ? startOfDay(customRange.from) : null, customRange.to ? endOfDay(customRange.to) : null];
+    }
+    return getPresetRange(datePreset);
+  }, [datePreset, customRange]);
+
+  // ── Carrega listas estáticas (emps + users) uma vez ───────────────────────
   useEffect(() => {
     if (!user?.id) return;
-    const load = async () => {
-      // Paginamos manualmente (Supabase tem teto de 1000 linhas por request)
-      // Dashboard: negócios ativos (~1.6k), vendidos (~900), perdidos (~21k → últimos)
-      const PERDIDOS_COLS = "id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote";
-      const [dealsAtivos, vendas, perdas, tasksConcluidas, empsRes] = await Promise.all([
-        fetchAllPaged<Deal>((from, to) =>
-          supabase.from("crm_deals").select("*")
-            .not("status", "in", "(vendido,perdido)")
-            .order("created_at", { ascending: false })
-            .range(from, to)
-        ),
-        fetchAllPaged<Deal>((from, to) =>
-          supabase.from("crm_deals").select("*")
-            .eq("status", "vendido")
-            .order("created_at", { ascending: false })
-            .range(from, to)
-        ),
-        fetchAllPaged<Deal>((from, to) =>
-          supabase.from("crm_deals").select(PERDIDOS_COLS)
-            .eq("status", "perdido")
-            .order("created_at", { ascending: false })
-            .range(from, to),
-          1000,
-        ),
-        fetchAllPaged<Task>((from, to) => {
-          let q = supabase.from("crm_tasks")
-            .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
-            .eq("concluida", true)
-            .order("updated_at", { ascending: false })
-            .range(from, to);
-          if (!isAdmin) q = q.eq("responsavel_id", user.id);
-          return q;
-        }),
-        supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
-      ]);
-      setDeals(dealsAtivos);
-      setVendasDeals(vendas);
-      setPerdasDeals(perdas as unknown as Deal[]);
-      setTasks(tasksConcluidas);
+    (async () => {
+      const empsRes = await supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome");
       setEmps((empsRes.data as Emp[]) ?? []);
-
       if (isAdmin) {
         const { data: u } = await supabase.from("user_profiles").select("user_id, nome").order("nome");
         setUsers(
@@ -155,18 +129,83 @@ export default function Dashboard() {
             .map((x) => ({ id: x.user_id, nome: x.nome })),
         );
       }
-      setLoading(false);
-    };
-    load();
+    })();
   }, [isAdmin, user?.id]);
 
-  // ── Computed date range ───────────────────────────────────────────────────
-  const [dateFrom, dateTo] = useMemo<[Date | null, Date | null]>(() => {
-    if (datePreset === "custom") {
-      return [customRange.from ? startOfDay(customRange.from) : null, customRange.to ? endOfDay(customRange.to) : null];
-    }
-    return getPresetRange(datePreset);
-  }, [datePreset, customRange]);
+  // ── Carrega negócios + tarefas escopados pelo filtro (servidor) ───────────
+  useEffect(() => {
+    if (!user?.id || !dateFrom || !dateTo) return;
+    const seq = ++fetchSeqRef.current;
+    setLoading(true);
+
+    const fromIso = dateFrom.toISOString();
+    const toIso   = dateTo.toISOString();
+    const responsavelScope = !isAdmin
+      ? user.id
+      : (filterUser !== "todos" ? filterUser : null);
+    const empScope = filterEmp !== "todos" ? filterEmp : null;
+
+    const PERDIDOS_COLS = "id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote";
+
+    (async () => {
+      try {
+        const [dealsAtivos, vendas, perdas, tasksConcluidas] = await Promise.all([
+          // Ativos do período (filtro por created_at, igual à lógica anterior)
+          fetchAllPaged<Deal>((from, to) => {
+            let q = supabase.from("crm_deals").select("*")
+              .not("status", "in", "(vendido,perdido)")
+              .gte("created_at", fromIso).lte("created_at", toIso)
+              .order("created_at", { ascending: false })
+              .range(from, to);
+            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (empScope)         q = q.eq("empreendimento_id", empScope);
+            return q;
+          }),
+          fetchAllPaged<Deal>((from, to) => {
+            let q = supabase.from("crm_deals").select("*")
+              .eq("status", "vendido")
+              .gte("data_vendido", fromIso).lte("data_vendido", toIso)
+              .order("data_vendido", { ascending: false })
+              .range(from, to);
+            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (empScope)         q = q.eq("empreendimento_id", empScope);
+            return q;
+          }),
+          fetchAllPaged<Deal>((from, to) => {
+            let q = supabase.from("crm_deals").select(PERDIDOS_COLS)
+              .eq("status", "perdido")
+              .gte("data_perdido", fromIso).lte("data_perdido", toIso)
+              .order("data_perdido", { ascending: false })
+              .range(from, to);
+            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (empScope)         q = q.eq("empreendimento_id", empScope);
+            return q;
+          }),
+          fetchAllPaged<Task>((from, to) => {
+            let q = supabase.from("crm_tasks")
+              .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
+              .eq("concluida", true)
+              .gte("updated_at", fromIso).lte("updated_at", toIso)
+              .order("updated_at", { ascending: false })
+              .range(from, to);
+            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            return q;
+          }),
+        ]);
+
+        if (seq !== fetchSeqRef.current) return; // resposta obsoleta
+        setDeals(dealsAtivos);
+        setVendasDeals(vendas);
+        setPerdasDeals(perdas as unknown as Deal[]);
+        setTasks(tasksConcluidas);
+        setLoading(false);
+      } catch (err) {
+        if (seq !== fetchSeqRef.current) return;
+        console.error("[Dashboard] erro ao carregar dados:", err);
+        setLoading(false);
+      }
+    })();
+  }, [user?.id, isAdmin, dateFrom, dateTo, filterUser, filterEmp]);
 
   // ── Date button label ─────────────────────────────────────────────────────
   const dateBtnLabel = useMemo(() => {
