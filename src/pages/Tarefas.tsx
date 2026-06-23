@@ -109,23 +109,37 @@ export default function Tarefas() {
     const { data: dealsData } = await dealsQuery;
     setDeals((dealsData as Deal[]) ?? []);
 
-    // Tarefas: admins veem todas; usuários comuns só as dos seus negócios
-    let tasksQuery = supabase.from("crm_tasks").select("*").order("created_at", { ascending: false });
-    if (!isAdmin && user) {
-      const dealIds = ((dealsData as Deal[]) ?? []).map((d) => d.id);
-      if (dealIds.length > 0) {
-        tasksQuery = tasksQuery.in("deal_id", dealIds);
-      } else {
-        // Usuário sem negócios — retorna lista vazia
-        setTasks([]);
-        setLoading(false);
-        return;
-      }
+    // Tarefas: admins veem todas; usuários comuns só as dos seus negócios.
+    // Paginamos manualmente porque o Supabase limita 1000 linhas por request.
+    const dealIdsParaUsuario: string[] | null = !isAdmin && user
+      ? ((dealsData as Deal[]) ?? []).map((d) => d.id)
+      : null;
+    if (dealIdsParaUsuario && dealIdsParaUsuario.length === 0) {
+      setTasks([]);
+      setLoading(false);
+      return;
     }
-    const { data: rawTasksData } = await tasksQuery;
+    const pageSize = 1000;
+    let fromIdx = 0;
+    let allTasks: any[] = [];
+    let hasMore = true;
+    while (hasMore) {
+      let q = supabase.from("crm_tasks").select("*")
+        .order("created_at", { ascending: false })
+        .range(fromIdx, fromIdx + pageSize - 1);
+      if (dealIdsParaUsuario) {
+        q = q.in("deal_id", dealIdsParaUsuario);
+      }
+      const { data } = await q;
+      const page = (data as any[]) ?? [];
+      allTasks = [...allTasks, ...page];
+      hasMore = page.length === pageSize;
+      fromIdx += pageSize;
+    }
+    const rawTasksData = allTasks;
 
     // Buscar nomes das negociações e responsáveis a partir das tarefas
-    const rawList = (rawTasksData as any[]) ?? [];
+    const rawList = rawTasksData;
     let dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
     let profileMap = new Map<string, string>();
 
