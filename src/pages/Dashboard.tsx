@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
@@ -91,9 +91,7 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [vendasDeals, setVendasDeals] = useState<Deal[]>([]);
   const [perdasDeals, setPerdasDeals] = useState<Deal[]>([]);
-  const fetchSeqRef = (typeof window !== "undefined")
-    ? (window as any).__dashFetchSeq ?? ((window as any).__dashFetchSeq = { current: 0 })
-    : { current: 0 };
+  const fetchSeqRef = useRef(0);
 
   // ── Applied filters ──────────────────────────────────────────────────────
   const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
