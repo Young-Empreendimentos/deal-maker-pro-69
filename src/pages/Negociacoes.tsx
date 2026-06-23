@@ -118,6 +118,24 @@ export default function Negociacoes() {
   const [fDateVenda,    setFDateVenda]    = useState<DateRange>(EMPTY_RANGE);
   const [fDatePerda,    setFDatePerda]    = useState<DateRange>(EMPTY_RANGE);
 
+  // Quando o usuário seleciona "Perdido" (sem outra combinação) e não há período definido,
+  // preenchemos automaticamente com os últimos 90 dias para evitar carregar 21k+ registros.
+  useEffect(() => {
+    const apenasPerdido = fStatusGroup.length === 1 && fStatusGroup[0] === "perdido";
+    if (apenasPerdido && !fDatePerda.from && !fDatePerda.to) {
+      const to = new Date();
+      const from = new Date();
+      from.setDate(from.getDate() - 90);
+      const fmt = (d: Date) => d.toISOString().slice(0, 10);
+      setFDatePerda({ from: fmt(from), to: fmt(to) });
+      toast({
+        title: "Filtro de período aplicado",
+        description: "Mostrando perdidos dos últimos 90 dias. Ajuste em 'Data de perda' se quiser outro intervalo.",
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fStatusGroup]);
+
   const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">("created_at");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
