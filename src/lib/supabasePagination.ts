@@ -1,5 +1,3 @@
-import type { PostgrestFilterBuilder } from "@supabase/postgrest-js";
-
 /**
  * Busca TODAS as linhas de uma query Supabase, paginando manualmente.
  * Necessário porque o PostgREST do Supabase tem um teto padrão de 1000
@@ -33,8 +31,3 @@ export async function fetchAllPaged<T>(
   }
   return all;
 }
-
-// PostgrestFilterBuilder é importado só para tipagem auxiliar (não usado em runtime).
-// Mantemos o tipo solto (PromiseLike) na assinatura para aceitar tanto
-// chains do Supabase quanto Promises diretas em testes.
-export type _AnyFilter = PostgrestFilterBuilder<any, any, any>;
