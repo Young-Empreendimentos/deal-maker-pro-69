@@ -16,6 +16,7 @@ import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Tr
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { fetchAllPaged } from "@/lib/supabasePagination";
 
 export const TASK_TIPOS = ["Ligação", "E-mail", "Visita", "Whatsapp", "Reunião"] as const;
 export type TaskTipo = typeof TASK_TIPOS[number];
@@ -119,24 +120,14 @@ export default function Tarefas() {
       setLoading(false);
       return;
     }
-    const pageSize = 1000;
-    let fromIdx = 0;
-    let allTasks: any[] = [];
-    let hasMore = true;
-    while (hasMore) {
+    // Paginação manual (Supabase limita 1000 por request)
+    const rawTasksData = await fetchAllPaged<any>((from, to) => {
       let q = supabase.from("crm_tasks").select("*")
         .order("created_at", { ascending: false })
-        .range(fromIdx, fromIdx + pageSize - 1);
-      if (dealIdsParaUsuario) {
-        q = q.in("deal_id", dealIdsParaUsuario);
-      }
-      const { data } = await q;
-      const page = (data as any[]) ?? [];
-      allTasks = [...allTasks, ...page];
-      hasMore = page.length === pageSize;
-      fromIdx += pageSize;
-    }
-    const rawTasksData = allTasks;
+        .range(from, to);
+      if (dealIdsParaUsuario) q = q.in("deal_id", dealIdsParaUsuario);
+      return q;
+    });
 
     // Buscar nomes das negociações e responsáveis a partir das tarefas
     const rawList = rawTasksData;

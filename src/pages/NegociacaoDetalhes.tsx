@@ -2,6 +2,7 @@ import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { fetchAllPaged } from "@/lib/supabasePagination";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -108,7 +109,12 @@ export default function NegociacaoDetalhes() {
     const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
-      supabase.from("crm_tasks").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
+      // Tarefas: paginação manual (Supabase limita 1000 por request)
+      fetchAllPaged<Task>((from, to) =>
+        supabase.from("crm_tasks").select("*").eq("deal_id", id)
+          .order("created_at", { ascending: false })
+          .range(from, to)
+      ).then((data) => ({ data, error: null })),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
