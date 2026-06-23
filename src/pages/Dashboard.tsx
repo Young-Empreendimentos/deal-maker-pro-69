@@ -206,18 +206,39 @@ export default function Dashboard() {
   // Filtro de usuário → responsavel_id da TAREFA (quem criou/completou)
   // Filtro de empreendimento → passa pelo deal (tarefa não tem emp direto)
   // Filtro de data → updated_at da TAREFA (momento da conclusão)
+  // Mapa de TODOS os deals carregados (ativos + vendidos + perdidos) para que
+  // os filtros de empreendimento/usuário das tarefas funcionem mesmo quando o
+  // deal está fora do funil ativo.
+  const allDealsById = useMemo(() => {
+    const m = new Map<string, Deal>();
+    for (const d of deals)        m.set(d.id, d);
+    for (const d of vendasDeals)  m.set(d.id, d);
+    for (const d of perdasDeals)  m.set(d.id, d);
+    return m;
+  }, [deals, vendasDeals, perdasDeals]);
+
   const empDealsSet = useMemo(() =>
     filterEmp !== "todos"
-      ? new Set(deals.filter((d) => d.empreendimento_id === filterEmp).map((d) => d.id))
+      ? new Set(
+          Array.from(allDealsById.values())
+            .filter((d) => d.empreendimento_id === filterEmp)
+            .map((d) => d.id),
+        )
       : null,
-  [deals, filterEmp]);
+  [allDealsById, filterEmp]);
 
   const filteredTasks = useMemo(() => {
     return tasks.filter((t) => {
       if (!t.concluida) return false;
-      // Filtro de usuário pela tarefa
-      if (!isAdmin && t.responsavel_id !== user?.id) return false;
-      if (isAdmin && filterUser !== "todos" && t.responsavel_id !== filterUser) return false;
+      const deal = allDealsById.get(t.deal_id);
+      // Filtro de usuário: aceita se a tarefa OU o deal pertencer ao usuário
+      // selecionado (admins filtrando por vendedor querem ver a atividade do time
+      // dele, mesmo que a tarefa tenha sido executada por outro).
+      if (!isAdmin) {
+        if (t.responsavel_id !== user?.id && deal?.responsavel_id !== user?.id) return false;
+      } else if (filterUser !== "todos") {
+        if (t.responsavel_id !== filterUser && deal?.responsavel_id !== filterUser) return false;
+      }
       // Filtro de empreendimento pelo deal
       if (empDealsSet !== null && !empDealsSet.has(t.deal_id)) return false;
       // Filtro de data
@@ -227,7 +248,7 @@ export default function Dashboard() {
       }
       return true;
     });
-  }, [tasks, isAdmin, user, filterUser, empDealsSet, dateFrom, dateTo]);
+  }, [tasks, isAdmin, user, filterUser, empDealsSet, allDealsById, dateFrom, dateTo]);
 
   // ── Chart data ────────────────────────────────────────────────────────────
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
