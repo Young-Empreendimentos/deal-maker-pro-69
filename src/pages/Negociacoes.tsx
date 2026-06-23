@@ -159,12 +159,32 @@ export default function Negociacoes() {
     let hasMore = true;
 
     while (hasMore) {
-      let query = supabase.from("crm_deals").select("*")
+      let query = supabase.from("crm_deals").select(
+        "id, cliente_nome, cliente_email, qualificacao, status, responsavel_id, created_at, updated_at, empreendimento_id, fonte_id, ordem_kanban, interesse, preco_lote, data_vendido, data_perdido, consultor_id, responsavel_venda_user_id, responsavel_venda_corretor_id"
+      )
         .in("status", statusesToFetch as any)
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
       if (!isAdmin && user) {
         query = query.eq("responsavel_id", user.id);
+      }
+      // Otimização: quando filtramos só por "perdido" e há filtro de data de perda,
+      // aplicamos o range no servidor para evitar trazer 20k+ registros.
+      const apenasPerdido =
+        fStatusGroup.length === 1 && fStatusGroup[0] === "perdido" && !querSemDono;
+      if (apenasPerdido && fDatePerda.from) {
+        query = query.gte("data_perdido", fDatePerda.from + "T00:00:00");
+      }
+      if (apenasPerdido && fDatePerda.to) {
+        query = query.lte("data_perdido", fDatePerda.to + "T23:59:59");
+      }
+      const apenasVendido =
+        fStatusGroup.length === 1 && fStatusGroup[0] === "vendido" && !querSemDono;
+      if (apenasVendido && fDateVenda.from) {
+        query = query.gte("data_vendido", fDateVenda.from + "T00:00:00");
+      }
+      if (apenasVendido && fDateVenda.to) {
+        query = query.lte("data_vendido", fDateVenda.to + "T23:59:59");
       }
       const { data } = await query;
       const page = (data as Deal[]) ?? [];
@@ -187,7 +207,7 @@ export default function Negociacoes() {
         setUsers(all.filter((u) => isVisibleUser(u.id)));
       });
     }
-  }, [isAdmin, fStatusGroup, fConsultor]);
+  }, [isAdmin, fStatusGroup, fConsultor, fDatePerda.from, fDatePerda.to, fDateVenda.from, fDateVenda.to]);
 
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));
