@@ -12,7 +12,7 @@
  */
 export async function fetchAllPaged<T>(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  buildQuery: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: any }>,
+  buildQuery: (from: number, to: number) => PromiseLike<{ data: any; error: any }>,
   pageSize = 1000,
 ): Promise<T[]> {
   const all: T[] = [];
