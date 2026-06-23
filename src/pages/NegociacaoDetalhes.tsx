@@ -108,7 +108,24 @@ export default function NegociacaoDetalhes() {
     const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
-      supabase.from("crm_tasks").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
+      // Paginação manual: Supabase tem teto de 1000 linhas por request
+      (async () => {
+        const all: any[] = [];
+        let from = 0;
+        const PAGE = 1000;
+        // eslint-disable-next-line no-constant-condition
+        while (true) {
+          const { data, error } = await supabase
+            .from("crm_tasks").select("*").eq("deal_id", id)
+            .order("created_at", { ascending: false })
+            .range(from, from + PAGE - 1);
+          if (error) return { data: all, error };
+          const page = data ?? [];
+          all.push(...page);
+          if (page.length < PAGE) return { data: all, error: null };
+          from += PAGE;
+        }
+      })(),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
     ]);
