@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
@@ -85,10 +85,21 @@ const PRECO_FAIXAS = [
   { value: "500000-99999999", label: "Acima de R$ 500 mil" },
 ];
 
+const DEAL_LIST_COLUMNS = "id, cliente_nome, cliente_email, qualificacao, status, responsavel_id, created_at, updated_at, empreendimento_id, fonte_id, ordem_kanban, interesse, preco_lote, data_vendido, data_perdido";
+
+const LAST_90_DAYS_RANGE = (): DateRange => {
+  const to = new Date();
+  const from = new Date();
+  from.setDate(from.getDate() - 90);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { from: fmt(from), to: fmt(to) };
+};
+
 export default function Negociacoes() {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const fetchSeq = useRef(0);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [view, setView] = useState<"kanban" | "table" | "funil">("kanban");
   const [openStages, setOpenStages] = useState<Set<string>>(new Set());
@@ -118,16 +129,12 @@ export default function Negociacoes() {
   const [fDateVenda,    setFDateVenda]    = useState<DateRange>(EMPTY_RANGE);
   const [fDatePerda,    setFDatePerda]    = useState<DateRange>(EMPTY_RANGE);
 
-  // Quando o usuário seleciona "Perdido" (sem outra combinação) e não há período definido,
+  // Quando o usuário seleciona "Perdido" e não há período definido,
   // preenchemos automaticamente com os últimos 90 dias para evitar carregar 21k+ registros.
   useEffect(() => {
     const apenasPerdido = fStatusGroup.length === 1 && fStatusGroup[0] === "perdido";
     if (apenasPerdido && !fDatePerda.from && !fDatePerda.to) {
-      const to = new Date();
-      const from = new Date();
-      from.setDate(from.getDate() - 90);
-      const fmt = (d: Date) => d.toISOString().slice(0, 10);
-      setFDatePerda({ from: fmt(from), to: fmt(to) });
+      setFDatePerda(LAST_90_DAYS_RANGE());
       toast({
         title: "Filtro de período aplicado",
         description: "Mostrando perdidos dos últimos 90 dias. Ajuste em 'Data de perda' se quiser outro intervalo.",
@@ -152,7 +159,14 @@ export default function Negociacoes() {
   const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda) || hasDateFilter(fDatePerda);
 
+  const handleStatusChange = (next: string[]) => {
+    const estavaSomenteEmAndamento = fStatusGroup.length === 1 && fStatusGroup[0] === "em_andamento";
+    const selecionouFinalizado = next.includes("perdido") || next.includes("vendido");
+    setFStatusGroup(estavaSomenteEmAndamento && selecionouFinalizado ? next.filter((s) => s !== "em_andamento") : next);
+  };
+
   const fetchDeals = async () => {
+    const seq = ++fetchSeq.current;
     setLoading(true);
 
     // Determinar quais status buscar no servidor baseado no filtro
@@ -170,49 +184,85 @@ export default function Negociacoes() {
       statusesToFetch.push("perdido");
     }
 
-    // Buscar com paginação mas já filtrado por status no servidor
+    const apenasPerdido = fStatusGroup.length === 1 && fStatusGroup[0] === "perdido";
+    const effectiveDatePerda = apenasPerdido && !fDatePerda.from && !fDatePerda.to
+      ? LAST_90_DAYS_RANGE()
+      : fDatePerda;
+
+    // Buscar com paginação mas já filtrado no servidor
     let allDeals: Deal[] = [];
     let from = 0;
     const pageSize = 1000;
     let hasMore = true;
 
     while (hasMore) {
-      let query = supabase.from("crm_deals").select(
-        "id, cliente_nome, cliente_email, qualificacao, status, responsavel_id, created_at, updated_at, empreendimento_id, fonte_id, ordem_kanban, interesse, preco_lote, data_vendido, data_perdido, consultor_id, responsavel_venda_user_id, responsavel_venda_corretor_id"
-      )
+      let query = supabase.from("crm_deals").select(DEAL_LIST_COLUMNS)
         .in("status", statusesToFetch as any)
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
       if (!isAdmin && user) {
         query = query.eq("responsavel_id", user.id);
       }
-      // Otimização: quando filtramos só por "perdido" e há filtro de data de perda,
-      // aplicamos o range no servidor para evitar trazer 20k+ registros.
-      const apenasPerdido =
-        fStatusGroup.length === 1 && fStatusGroup[0] === "perdido" && !querSemDono;
-      if (apenasPerdido && fDatePerda.from) {
-        query = query.gte("data_perdido", fDatePerda.from + "T00:00:00");
+      if (isAdmin && fConsultor.length > 0) {
+        const semDono = fConsultor.includes("__sem_dono__");
+        const outras = fConsultor.filter((v) => v !== "__sem_dono__");
+        if (semDono && outras.length > 0) query = query.or(`responsavel_id.is.null,responsavel_id.in.(${outras.join(",")})`);
+        else if (semDono) query = query.is("responsavel_id", null);
+        else query = query.in("responsavel_id", outras);
       }
-      if (apenasPerdido && fDatePerda.to) {
-        query = query.lte("data_perdido", fDatePerda.to + "T23:59:59");
+      if (fEmpreendimento.length > 0) query = query.in("empreendimento_id", fEmpreendimento);
+      if (fFonte.length > 0) query = query.in("fonte_id", fFonte);
+      if (fInteresse.length > 0) {
+        const interesses = new Set(fInteresse);
+        if (interesses.has("presente ou doação")) {
+          interesses.add("presente");
+          interesses.add("doação");
+        }
+        query = query.in("interesse", Array.from(interesses));
       }
-      const apenasVendido =
-        fStatusGroup.length === 1 && fStatusGroup[0] === "vendido" && !querSemDono;
-      if (apenasVendido && fDateVenda.from) {
+      if (fPreco.length > 0) {
+        const ors = fPreco.map((faixa) => {
+          const [min, max] = faixa.split("-").map(Number);
+          return `and(preco_lote.gte.${min},preco_lote.lte.${max})`;
+        });
+        query = query.or(ors.join(","));
+      }
+      if (fDateCriacao.from) query = query.gte("created_at", fDateCriacao.from + "T00:00:00");
+      if (fDateCriacao.to) query = query.lte("created_at", fDateCriacao.to + "T23:59:59");
+      if (fDateContato.from) query = query.gte("updated_at", fDateContato.from + "T00:00:00");
+      if (fDateContato.to) query = query.lte("updated_at", fDateContato.to + "T23:59:59");
+      if (hasDateFilter(effectiveDatePerda)) {
+        query = query.eq("status", "perdido");
+        if (effectiveDatePerda.from) query = query.gte("data_perdido", effectiveDatePerda.from + "T00:00:00");
+        if (effectiveDatePerda.to) query = query.lte("data_perdido", effectiveDatePerda.to + "T23:59:59");
+      }
+      if (hasDateFilter(fDateVenda)) {
+        query = query.eq("status", "vendido");
+      }
+      if (fDateVenda.from) {
         query = query.gte("data_vendido", fDateVenda.from + "T00:00:00");
       }
-      if (apenasVendido && fDateVenda.to) {
+      if (fDateVenda.to) {
         query = query.lte("data_vendido", fDateVenda.to + "T23:59:59");
       }
-      const { data } = await query;
+      const { data, error } = await query;
+      if (seq !== fetchSeq.current) return;
+      if (error) {
+        toast({ title: "Erro ao carregar negociações", description: error.message, variant: "destructive" });
+        setDeals([]);
+        setLoading(false);
+        return;
+      }
       const page = (data as Deal[]) ?? [];
       allDeals = [...allDeals, ...page];
       hasMore = page.length === pageSize;
       from += pageSize;
     }
 
-    setDeals(allDeals);
-    setLoading(false);
+    if (seq === fetchSeq.current) {
+      setDeals(allDeals);
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
@@ -225,7 +275,7 @@ export default function Negociacoes() {
         setUsers(all.filter((u) => isVisibleUser(u.id)));
       });
     }
-  }, [isAdmin, fStatusGroup, fConsultor, fDatePerda.from, fDatePerda.to, fDateVenda.from, fDateVenda.to]);
+  }, [isAdmin, user?.id, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao.from, fDateCriacao.to, fDateContato.from, fDateContato.to, fDatePerda.from, fDatePerda.to, fDateVenda.from, fDateVenda.to]);
 
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));
@@ -399,7 +449,7 @@ export default function Negociacoes() {
           <Card className="border bg-card">
             <CardContent className="p-4 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={setFStatusGroup} />
+                <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={handleStatusChange} />
                 {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
