@@ -8137,6 +8137,145 @@ export type Database = {
         }
         Relationships: []
       }
+      rh_uniformes_encomendas: {
+        Row: {
+          created_at: string
+          empreendimento: string | null
+          entregue_funcionario: boolean
+          funcionario_id: string | null
+          genero: string | null
+          id: string
+          observacoes: string | null
+          pago: boolean
+          qtd_camisa_polo: number
+          qtd_camisa_social: number
+          tamanho: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          empreendimento?: string | null
+          entregue_funcionario?: boolean
+          funcionario_id?: string | null
+          genero?: string | null
+          id?: string
+          observacoes?: string | null
+          pago?: boolean
+          qtd_camisa_polo?: number
+          qtd_camisa_social?: number
+          tamanho?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          empreendimento?: string | null
+          entregue_funcionario?: boolean
+          funcionario_id?: string | null
+          genero?: string | null
+          id?: string
+          observacoes?: string | null
+          pago?: boolean
+          qtd_camisa_polo?: number
+          qtd_camisa_social?: number
+          tamanho?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_uniformes_encomendas_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "rh_funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_uniformes_entregas: {
+        Row: {
+          created_at: string
+          data_devolucao: string | null
+          data_entrega: string
+          devolvido: boolean
+          funcionario_id: string
+          genero: string
+          id: string
+          observacoes: string | null
+          quantidade: number
+          recibo_path: string
+          tamanho: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega: string
+          devolvido?: boolean
+          funcionario_id: string
+          genero: string
+          id?: string
+          observacoes?: string | null
+          quantidade?: number
+          recibo_path: string
+          tamanho: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          data_devolucao?: string | null
+          data_entrega?: string
+          devolvido?: boolean
+          funcionario_id?: string
+          genero?: string
+          id?: string
+          observacoes?: string | null
+          quantidade?: number
+          recibo_path?: string
+          tamanho?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_uniformes_entregas_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "rh_funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_uniformes_estoque: {
+        Row: {
+          created_at: string
+          genero: string
+          id: string
+          quantidade: number
+          tamanho: string
+          tipo: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          genero: string
+          id?: string
+          quantidade?: number
+          tamanho: string
+          tipo: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          genero?: string
+          id?: string
+          quantidade?: number
+          tamanho?: string
+          tipo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rh_user_profiles: {
         Row: {
           created_at: string
