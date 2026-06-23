@@ -29,6 +29,7 @@ import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { isVisibleUser } from "@/lib/filteredUsers";
+import { fetchAllPaged } from "@/lib/supabasePagination";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type UserOption = { id: string; nome: string };
@@ -106,32 +107,44 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user?.id) return;
     const load = async () => {
-      // Tarefas: para vendedor, filtra explicitamente por responsável para evitar
-      // dependência exclusiva de RLS. Carrega só concluídas (que é o que o Dashboard usa).
-      let tasksQuery = supabase
-        .from("crm_tasks")
-        .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
-        .eq("concluida", true)
-        .order("updated_at", { ascending: false })
-        .limit(5000);
-      if (!isAdmin) tasksQuery = tasksQuery.eq("responsavel_id", user.id);
-
-      // Dashboard: carregar apenas negócios ativos (pipeline) - são ~1.6k
-      // Vendido/perdido são ~20k e deixam o sistema lento
-      const [dealsRes, vendasRes, perdasRes, tasksRes, empsRes] = await Promise.all([
-        supabase.from("crm_deals").select("*").not("status", "in", "(vendido,perdido)").order("created_at", { ascending: false }),
-        // Vendidos (~865) - carrega completo para drill-down e VGV
-        supabase.from("crm_deals").select("*").eq("status", "vendido").order("created_at", { ascending: false }),
-        // Perdidos (~19k) - carrega só campos essenciais para contagem e drill-down básico
-        supabase.from("crm_deals").select("id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote")
-          .eq("status", "perdido").order("created_at", { ascending: false }).limit(5000),
-        tasksQuery,
+      // Paginamos manualmente (Supabase tem teto de 1000 linhas por request)
+      // Dashboard: negócios ativos (~1.6k), vendidos (~900), perdidos (~21k → últimos)
+      const PERDIDOS_COLS = "id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote";
+      const [dealsAtivos, vendas, perdas, tasksConcluidas, empsRes] = await Promise.all([
+        fetchAllPaged<Deal>((from, to) =>
+          supabase.from("crm_deals").select("*")
+            .not("status", "in", "(vendido,perdido)")
+            .order("created_at", { ascending: false })
+            .range(from, to)
+        ),
+        fetchAllPaged<Deal>((from, to) =>
+          supabase.from("crm_deals").select("*")
+            .eq("status", "vendido")
+            .order("created_at", { ascending: false })
+            .range(from, to)
+        ),
+        fetchAllPaged<Deal>((from, to) =>
+          supabase.from("crm_deals").select(PERDIDOS_COLS)
+            .eq("status", "perdido")
+            .order("created_at", { ascending: false })
+            .range(from, to),
+          1000,
+        ),
+        fetchAllPaged<Task>((from, to) => {
+          let q = supabase.from("crm_tasks")
+            .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
+            .eq("concluida", true)
+            .order("updated_at", { ascending: false })
+            .range(from, to);
+          if (!isAdmin) q = q.eq("responsavel_id", user.id);
+          return q;
+        }),
         supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome"),
       ]);
-      setDeals((dealsRes.data as Deal[]) ?? []);
-      setVendasDeals((vendasRes.data as Deal[]) ?? []);
-      setPerdasDeals((perdasRes.data as unknown as Deal[]) ?? []);
-      setTasks((tasksRes.data as Task[]) ?? []);
+      setDeals(dealsAtivos);
+      setVendasDeals(vendas);
+      setPerdasDeals(perdas as unknown as Deal[]);
+      setTasks(tasksConcluidas);
       setEmps((empsRes.data as Emp[]) ?? []);
 
       if (isAdmin) {
