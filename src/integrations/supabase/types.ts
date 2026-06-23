@@ -1308,9 +1308,9 @@ export type Database = {
         }
         Relationships: []
       }
-      comercial_corretores: {
+      comercial_corretores_backup_pre_view: {
         Row: {
-          ativo: boolean
+          ativo: boolean | null
           bairro: string | null
           banco_agencia: string | null
           banco_chave_pix: string | null
@@ -1321,25 +1321,25 @@ export type Database = {
           cidade: string | null
           cnpj: string | null
           cpf: string | null
-          created_at: string
+          created_at: string | null
           creci: string | null
           dados_bancarios: string | null
           email: string | null
           email_secundario: string | null
           endereco: string | null
-          id: string
+          id: string | null
           imobiliaria_origem_id: string | null
-          is_cadastro_completo: boolean
-          nome: string
+          is_cadastro_completo: boolean | null
+          nome: string | null
           nome_exibicao: string | null
           razao_social: string | null
           telefone: string | null
           tipo: string | null
           uf: string | null
-          updated_at: string
+          updated_at: string | null
         }
         Insert: {
-          ativo?: boolean
+          ativo?: boolean | null
           bairro?: string | null
           banco_agencia?: string | null
           banco_chave_pix?: string | null
@@ -1350,25 +1350,25 @@ export type Database = {
           cidade?: string | null
           cnpj?: string | null
           cpf?: string | null
-          created_at?: string
+          created_at?: string | null
           creci?: string | null
           dados_bancarios?: string | null
           email?: string | null
           email_secundario?: string | null
           endereco?: string | null
-          id?: string
+          id?: string | null
           imobiliaria_origem_id?: string | null
-          is_cadastro_completo?: boolean
-          nome: string
+          is_cadastro_completo?: boolean | null
+          nome?: string | null
           nome_exibicao?: string | null
           razao_social?: string | null
           telefone?: string | null
           tipo?: string | null
           uf?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
         Update: {
-          ativo?: boolean
+          ativo?: boolean | null
           bairro?: string | null
           banco_agencia?: string | null
           banco_chave_pix?: string | null
@@ -1379,32 +1379,24 @@ export type Database = {
           cidade?: string | null
           cnpj?: string | null
           cpf?: string | null
-          created_at?: string
+          created_at?: string | null
           creci?: string | null
           dados_bancarios?: string | null
           email?: string | null
           email_secundario?: string | null
           endereco?: string | null
-          id?: string
+          id?: string | null
           imobiliaria_origem_id?: string | null
-          is_cadastro_completo?: boolean
-          nome?: string
+          is_cadastro_completo?: boolean | null
+          nome?: string | null
           nome_exibicao?: string | null
           razao_social?: string | null
           telefone?: string | null
           tipo?: string | null
           uf?: string | null
-          updated_at?: string
+          updated_at?: string | null
         }
-        Relationships: [
-          {
-            foreignKeyName: "comercial_corretores_imobiliaria_origem_id_fkey"
-            columns: ["imobiliaria_origem_id"]
-            isOneToOne: false
-            referencedRelation: "imobiliarias"
-            referencedColumns: ["id"]
-          },
-        ]
+        Relationships: []
       }
       comercial_dados_bancarios: {
         Row: {
@@ -2103,66 +2095,150 @@ export type Database = {
           },
         ]
       }
-      comissoes_sienge_contratos_backup: {
+      comissoes_sienge_comissoes_backup_20260622: {
         Row: {
+          aprovado_por: number | null
+          atingiu_gatilho: boolean | null
           atualizado_em: string | null
-          brokers: Json | null
+          bill_number: number | null
+          billing_broker_id: string | null
+          billing_broker_name: string | null
+          block_edit: boolean | null
+          broker_id: string | null
+          broker_nome: string | null
           building_id: string | null
+          commission_date: string | null
+          commission_released_automatically: boolean | null
+          commission_released_to_be_paid: boolean | null
+          commission_value: number | null
           company_id: string | null
+          company_name: string | null
+          consider_embedded_interest: boolean | null
+          contract_bill_number: number | null
+          contract_percentage_paid: number | null
           criado_em: string | null
           customer_id: string | null
+          customer_name: string | null
+          customer_situation_type: string | null
           dados_completos: Json | null
-          data_contrato: string | null
-          id: number
-          nome_cliente: string | null
+          data_aprovacao: string | null
+          data_comissao: string | null
+          data_envio_aprovacao: string | null
+          due_date: string | null
+          enterprise_name: string | null
+          enviado_por: number | null
+          id: number | null
+          installment_number: number | null
+          installment_percentage: number | null
+          installment_status: string | null
           numero_contrato: string | null
-          sienge_id: string
-          status: string | null
-          unidade: string | null
-          unidades: Json | null
+          observacoes: string | null
+          payment_operation_type: string | null
+          regra_gatilho: string | null
+          regra_gatilho_id: number | null
+          sienge_id: string | null
+          status_aprovacao: string | null
+          total_installments_number: number | null
+          unit_name: string | null
           updated_at: string | null
-          valor_a_vista: number | null
-          valor_total: number | null
+          valor_comissao: number | null
+          valor_gatilho: number | null
         }
         Insert: {
+          aprovado_por?: number | null
+          atingiu_gatilho?: boolean | null
           atualizado_em?: string | null
-          brokers?: Json | null
+          bill_number?: number | null
+          billing_broker_id?: string | null
+          billing_broker_name?: string | null
+          block_edit?: boolean | null
+          broker_id?: string | null
+          broker_nome?: string | null
           building_id?: string | null
+          commission_date?: string | null
+          commission_released_automatically?: boolean | null
+          commission_released_to_be_paid?: boolean | null
+          commission_value?: number | null
           company_id?: string | null
+          company_name?: string | null
+          consider_embedded_interest?: boolean | null
+          contract_bill_number?: number | null
+          contract_percentage_paid?: number | null
           criado_em?: string | null
           customer_id?: string | null
+          customer_name?: string | null
+          customer_situation_type?: string | null
           dados_completos?: Json | null
-          data_contrato?: string | null
-          id?: number
-          nome_cliente?: string | null
+          data_aprovacao?: string | null
+          data_comissao?: string | null
+          data_envio_aprovacao?: string | null
+          due_date?: string | null
+          enterprise_name?: string | null
+          enviado_por?: number | null
+          id?: number | null
+          installment_number?: number | null
+          installment_percentage?: number | null
+          installment_status?: string | null
           numero_contrato?: string | null
-          sienge_id: string
-          status?: string | null
-          unidade?: string | null
-          unidades?: Json | null
+          observacoes?: string | null
+          payment_operation_type?: string | null
+          regra_gatilho?: string | null
+          regra_gatilho_id?: number | null
+          sienge_id?: string | null
+          status_aprovacao?: string | null
+          total_installments_number?: number | null
+          unit_name?: string | null
           updated_at?: string | null
-          valor_a_vista?: number | null
-          valor_total?: number | null
+          valor_comissao?: number | null
+          valor_gatilho?: number | null
         }
         Update: {
+          aprovado_por?: number | null
+          atingiu_gatilho?: boolean | null
           atualizado_em?: string | null
-          brokers?: Json | null
+          bill_number?: number | null
+          billing_broker_id?: string | null
+          billing_broker_name?: string | null
+          block_edit?: boolean | null
+          broker_id?: string | null
+          broker_nome?: string | null
           building_id?: string | null
+          commission_date?: string | null
+          commission_released_automatically?: boolean | null
+          commission_released_to_be_paid?: boolean | null
+          commission_value?: number | null
           company_id?: string | null
+          company_name?: string | null
+          consider_embedded_interest?: boolean | null
+          contract_bill_number?: number | null
+          contract_percentage_paid?: number | null
           criado_em?: string | null
           customer_id?: string | null
+          customer_name?: string | null
+          customer_situation_type?: string | null
           dados_completos?: Json | null
-          data_contrato?: string | null
-          id?: number
-          nome_cliente?: string | null
+          data_aprovacao?: string | null
+          data_comissao?: string | null
+          data_envio_aprovacao?: string | null
+          due_date?: string | null
+          enterprise_name?: string | null
+          enviado_por?: number | null
+          id?: number | null
+          installment_number?: number | null
+          installment_percentage?: number | null
+          installment_status?: string | null
           numero_contrato?: string | null
-          sienge_id?: string
-          status?: string | null
-          unidade?: string | null
-          unidades?: Json | null
+          observacoes?: string | null
+          payment_operation_type?: string | null
+          regra_gatilho?: string | null
+          regra_gatilho_id?: number | null
+          sienge_id?: string | null
+          status_aprovacao?: string | null
+          total_installments_number?: number | null
+          unit_name?: string | null
           updated_at?: string | null
-          valor_a_vista?: number | null
-          valor_total?: number | null
+          valor_comissao?: number | null
+          valor_gatilho?: number | null
         }
         Relationships: []
       }
@@ -2170,63 +2246,126 @@ export type Database = {
         Row: {
           ativo: boolean | null
           atualizado_em: string | null
+          bairro: string | null
+          banco_agencia: string | null
+          banco_chave_pix: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo: string | null
           broker_flag: string | null
           cadastro_login_em: string | null
+          cep: string | null
+          cidade: string | null
           cnpj: string | null
           company_id: string | null
           cpf: string | null
+          creci: string | null
           criado_em: string | null
+          crm_uuid: string | null
+          dados_bancarios: string | null
           dados_completos: Json | null
           email: string | null
+          email_secundario: string | null
+          endereco: string | null
           id: number
+          imobiliaria_origem_id: string | null
+          is_cadastro_completo: boolean
           nome: string
           nome_comercial: string | null
+          nome_exibicao: string | null
           nome_social: string | null
+          origem: string
+          razao_social: string | null
           senha_hash: string | null
           sienge_id: string
           telefone: string | null
+          tipo: string | null
+          tipo_corretor: string | null
+          uf: string | null
           ultimo_login: string | null
           updated_at: string | null
         }
         Insert: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          bairro?: string | null
+          banco_agencia?: string | null
+          banco_chave_pix?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo?: string | null
           broker_flag?: string | null
           cadastro_login_em?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           company_id?: string | null
           cpf?: string | null
+          creci?: string | null
           criado_em?: string | null
+          crm_uuid?: string | null
+          dados_bancarios?: string | null
           dados_completos?: Json | null
           email?: string | null
+          email_secundario?: string | null
+          endereco?: string | null
           id?: number
+          imobiliaria_origem_id?: string | null
+          is_cadastro_completo?: boolean
           nome: string
           nome_comercial?: string | null
+          nome_exibicao?: string | null
           nome_social?: string | null
+          origem?: string
+          razao_social?: string | null
           senha_hash?: string | null
           sienge_id: string
           telefone?: string | null
+          tipo?: string | null
+          tipo_corretor?: string | null
+          uf?: string | null
           ultimo_login?: string | null
           updated_at?: string | null
         }
         Update: {
           ativo?: boolean | null
           atualizado_em?: string | null
+          bairro?: string | null
+          banco_agencia?: string | null
+          banco_chave_pix?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo?: string | null
           broker_flag?: string | null
           cadastro_login_em?: string | null
+          cep?: string | null
+          cidade?: string | null
           cnpj?: string | null
           company_id?: string | null
           cpf?: string | null
+          creci?: string | null
           criado_em?: string | null
+          crm_uuid?: string | null
+          dados_bancarios?: string | null
           dados_completos?: Json | null
           email?: string | null
+          email_secundario?: string | null
+          endereco?: string | null
           id?: number
+          imobiliaria_origem_id?: string | null
+          is_cadastro_completo?: boolean
           nome?: string
           nome_comercial?: string | null
+          nome_exibicao?: string | null
           nome_social?: string | null
+          origem?: string
+          razao_social?: string | null
           senha_hash?: string | null
           sienge_id?: string
           telefone?: string | null
+          tipo?: string | null
+          tipo_corretor?: string | null
+          uf?: string | null
           ultimo_login?: string | null
           updated_at?: string | null
         }
@@ -2262,51 +2401,6 @@ export type Database = {
           nome?: string | null
           sienge_id?: number | null
           updated_at?: string | null
-        }
-        Relationships: []
-      }
-      comissoes_sienge_itbi_backup: {
-        Row: {
-          atualizado_em: string | null
-          building_id: string
-          company_id: string
-          criado_em: string | null
-          dados_completos: Json | null
-          data_vencimento: string | null
-          documento_sienge: string | null
-          id: number
-          numero_contrato: string
-          plano_financeiro: string | null
-          updated_at: string | null
-          valor_itbi: number | null
-        }
-        Insert: {
-          atualizado_em?: string | null
-          building_id: string
-          company_id: string
-          criado_em?: string | null
-          dados_completos?: Json | null
-          data_vencimento?: string | null
-          documento_sienge?: string | null
-          id?: number
-          numero_contrato: string
-          plano_financeiro?: string | null
-          updated_at?: string | null
-          valor_itbi?: number | null
-        }
-        Update: {
-          atualizado_em?: string | null
-          building_id?: string
-          company_id?: string
-          criado_em?: string | null
-          dados_completos?: Json | null
-          data_vencimento?: string | null
-          documento_sienge?: string | null
-          id?: number
-          numero_contrato?: string
-          plano_financeiro?: string | null
-          updated_at?: string | null
-          valor_itbi?: number | null
         }
         Relationships: []
       }
@@ -2349,60 +2443,6 @@ export type Database = {
           registros_inseridos?: number | null
           status?: string | null
           tipo_sync?: string
-        }
-        Relationships: []
-      }
-      comissoes_sienge_valor_pago_backup: {
-        Row: {
-          atualizado_em: string | null
-          building_id: string
-          company_id: string
-          criado_em: string | null
-          customer_id: string | null
-          dados_completos: Json | null
-          data_atualizacao: string | null
-          id: number
-          nome_cliente: string | null
-          numero_contrato: string
-          updated_at: string | null
-          valor_acrescimo: number | null
-          valor_bonificacao: number | null
-          valor_liquido: number | null
-          valor_pago: number | null
-        }
-        Insert: {
-          atualizado_em?: string | null
-          building_id: string
-          company_id: string
-          criado_em?: string | null
-          customer_id?: string | null
-          dados_completos?: Json | null
-          data_atualizacao?: string | null
-          id?: number
-          nome_cliente?: string | null
-          numero_contrato: string
-          updated_at?: string | null
-          valor_acrescimo?: number | null
-          valor_bonificacao?: number | null
-          valor_liquido?: number | null
-          valor_pago?: number | null
-        }
-        Update: {
-          atualizado_em?: string | null
-          building_id?: string
-          company_id?: string
-          criado_em?: string | null
-          customer_id?: string | null
-          dados_completos?: Json | null
-          data_atualizacao?: string | null
-          id?: number
-          nome_cliente?: string | null
-          numero_contrato?: string
-          updated_at?: string | null
-          valor_acrescimo?: number | null
-          valor_bonificacao?: number | null
-          valor_liquido?: number | null
-          valor_pago?: number | null
         }
         Relationships: []
       }
@@ -3011,6 +3051,20 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "crm_deals_corretor_fk"
+            columns: ["responsavel_venda_corretor_id"]
+            isOneToOne: false
+            referencedRelation: "comercial_corretores"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "crm_deals_corretor_fk"
+            columns: ["responsavel_venda_corretor_id"]
+            isOneToOne: false
+            referencedRelation: "comissoes_sienge_corretores"
+            referencedColumns: ["crm_uuid"]
+          },
+          {
             foreignKeyName: "crm_deals_empreendimento_id_fkey"
             columns: ["empreendimento_id"]
             isOneToOne: false
@@ -3029,13 +3083,6 @@ export type Database = {
             columns: ["motivo_perda_id"]
             isOneToOne: false
             referencedRelation: "crm_motivos_perda"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "crm_deals_responsavel_venda_corretor_id_fkey"
-            columns: ["responsavel_venda_corretor_id"]
-            isOneToOne: false
-            referencedRelation: "comercial_corretores"
             referencedColumns: ["id"]
           },
         ]
@@ -7066,6 +7113,261 @@ export type Database = {
           },
         ]
       }
+      rh_atividades_auditoria: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          grupo_id: string
+          id: string
+          indicadores: string | null
+          manuais: string | null
+          metodo_auditoria: string | null
+          nome: string
+          normas: string | null
+          ordem: number
+          peso: number
+          responsavel_funcionario_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          grupo_id: string
+          id?: string
+          indicadores?: string | null
+          manuais?: string | null
+          metodo_auditoria?: string | null
+          nome: string
+          normas?: string | null
+          ordem?: number
+          peso?: number
+          responsavel_funcionario_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          grupo_id?: string
+          id?: string
+          indicadores?: string | null
+          manuais?: string | null
+          metodo_auditoria?: string | null
+          nome?: string
+          normas?: string | null
+          ordem?: number
+          peso?: number
+          responsavel_funcionario_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_atividades_auditoria_grupo_id_fkey"
+            columns: ["grupo_id"]
+            isOneToOne: false
+            referencedRelation: "rh_grupos_atividades_auditoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_atividades_auditoria_responsavel_funcionario_id_fkey"
+            columns: ["responsavel_funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "rh_funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_auditor_equipes: {
+        Row: {
+          created_at: string
+          equipe_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          equipe_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          equipe_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_auditor_equipes_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "rh_equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_auditoria_itens: {
+        Row: {
+          atividade_id: string
+          auditoria_id: string
+          avaliado_em: string | null
+          comentario: string | null
+          created_at: string
+          evidencia_url: string | null
+          id: string
+          status: Database["public"]["Enums"]["rh_auditoria_item_status"]
+          updated_at: string
+        }
+        Insert: {
+          atividade_id: string
+          auditoria_id: string
+          avaliado_em?: string | null
+          comentario?: string | null
+          created_at?: string
+          evidencia_url?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["rh_auditoria_item_status"]
+          updated_at?: string
+        }
+        Update: {
+          atividade_id?: string
+          auditoria_id?: string
+          avaliado_em?: string | null
+          comentario?: string | null
+          created_at?: string
+          evidencia_url?: string | null
+          id?: string
+          status?: Database["public"]["Enums"]["rh_auditoria_item_status"]
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_auditoria_itens_atividade_id_fkey"
+            columns: ["atividade_id"]
+            isOneToOne: false
+            referencedRelation: "rh_atividades_auditoria"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_auditoria_itens_auditoria_id_fkey"
+            columns: ["auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "rh_auditorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_auditoria_resultado_snapshot: {
+        Row: {
+          atividade_id: string
+          auditoria_id: string
+          comentario: string | null
+          created_at: string
+          evidencia_url: string | null
+          grupo_id: string
+          id: string
+          nome_atividade: string
+          nome_grupo: string
+          peso_atividade: number
+          peso_grupo: number
+          status: Database["public"]["Enums"]["rh_auditoria_item_status"]
+        }
+        Insert: {
+          atividade_id: string
+          auditoria_id: string
+          comentario?: string | null
+          created_at?: string
+          evidencia_url?: string | null
+          grupo_id: string
+          id?: string
+          nome_atividade: string
+          nome_grupo: string
+          peso_atividade: number
+          peso_grupo: number
+          status: Database["public"]["Enums"]["rh_auditoria_item_status"]
+        }
+        Update: {
+          atividade_id?: string
+          auditoria_id?: string
+          comentario?: string | null
+          created_at?: string
+          evidencia_url?: string | null
+          grupo_id?: string
+          id?: string
+          nome_atividade?: string
+          nome_grupo?: string
+          peso_atividade?: number
+          peso_grupo?: number
+          status?: Database["public"]["Enums"]["rh_auditoria_item_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_auditoria_resultado_snapshot_auditoria_id_fkey"
+            columns: ["auditoria_id"]
+            isOneToOne: false
+            referencedRelation: "rh_auditorias"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_auditorias: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          auditor_user_id: string
+          created_at: string
+          criado_por: string
+          data_referencia: string
+          equipe_id: string | null
+          id: string
+          observacao_geral: string | null
+          percentual_final: number | null
+          rejeitado_motivo: string | null
+          status: Database["public"]["Enums"]["rh_auditoria_status"]
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          auditor_user_id: string
+          created_at?: string
+          criado_por?: string
+          data_referencia?: string
+          equipe_id?: string | null
+          id?: string
+          observacao_geral?: string | null
+          percentual_final?: number | null
+          rejeitado_motivo?: string | null
+          status?: Database["public"]["Enums"]["rh_auditoria_status"]
+          titulo: string
+          updated_at?: string
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          auditor_user_id?: string
+          created_at?: string
+          criado_por?: string
+          data_referencia?: string
+          equipe_id?: string | null
+          id?: string
+          observacao_geral?: string | null
+          percentual_final?: number | null
+          rejeitado_motivo?: string | null
+          status?: Database["public"]["Enums"]["rh_auditoria_status"]
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_auditorias_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "rh_equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rh_avaliacoes: {
         Row: {
           anexo_name: string | null
@@ -7458,6 +7760,7 @@ export type Database = {
           telefone: string | null
           tipo_contrato: string | null
           updated_at: string
+          valor_km: number
         }
         Insert: {
           aniversario?: string | null
@@ -7478,6 +7781,7 @@ export type Database = {
           telefone?: string | null
           tipo_contrato?: string | null
           updated_at?: string
+          valor_km?: number
         }
         Update: {
           aniversario?: string | null
@@ -7498,6 +7802,7 @@ export type Database = {
           telefone?: string | null
           tipo_contrato?: string | null
           updated_at?: string
+          valor_km?: number
         }
         Relationships: [
           {
@@ -7553,6 +7858,116 @@ export type Database = {
           {
             foreignKeyName: "rh_grupos_atividades_responsavel_id_fkey"
             columns: ["responsavel_id"]
+            isOneToOne: false
+            referencedRelation: "rh_funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_grupos_atividades_auditoria: {
+        Row: {
+          ativo: boolean
+          created_at: string
+          equipe_id: string | null
+          id: string
+          nome: string
+          ordem: number
+          peso: number
+          updated_at: string
+        }
+        Insert: {
+          ativo?: boolean
+          created_at?: string
+          equipe_id?: string | null
+          id?: string
+          nome: string
+          ordem?: number
+          peso?: number
+          updated_at?: string
+        }
+        Update: {
+          ativo?: boolean
+          created_at?: string
+          equipe_id?: string | null
+          id?: string
+          nome?: string
+          ordem?: number
+          peso?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_grupos_atividades_auditoria_equipe_id_fkey"
+            columns: ["equipe_id"]
+            isOneToOne: false
+            referencedRelation: "rh_equipes"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rh_km_lancamentos: {
+        Row: {
+          aprovado_em: string | null
+          aprovado_por: string | null
+          created_at: string
+          criado_por: string | null
+          data: string
+          descricao: string | null
+          folha_reembolso_id: string | null
+          funcionario_id: string
+          id: string
+          km: number
+          motivo_rejeicao: string | null
+          status: string
+          updated_at: string
+          valor_km_snapshot: number
+          valor_total: number
+        }
+        Insert: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data: string
+          descricao?: string | null
+          folha_reembolso_id?: string | null
+          funcionario_id: string
+          id?: string
+          km: number
+          motivo_rejeicao?: string | null
+          status?: string
+          updated_at?: string
+          valor_km_snapshot?: number
+          valor_total?: number
+        }
+        Update: {
+          aprovado_em?: string | null
+          aprovado_por?: string | null
+          created_at?: string
+          criado_por?: string | null
+          data?: string
+          descricao?: string | null
+          folha_reembolso_id?: string | null
+          funcionario_id?: string
+          id?: string
+          km?: number
+          motivo_rejeicao?: string | null
+          status?: string
+          updated_at?: string
+          valor_km_snapshot?: number
+          valor_total?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rh_km_lancamentos_folha_reembolso_id_fkey"
+            columns: ["folha_reembolso_id"]
+            isOneToOne: false
+            referencedRelation: "rh_folha_reembolsos"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rh_km_lancamentos_funcionario_id_fkey"
+            columns: ["funcionario_id"]
             isOneToOne: false
             referencedRelation: "rh_funcionarios"
             referencedColumns: ["id"]
@@ -7745,24 +8160,38 @@ export type Database = {
       }
       rh_user_roles: {
         Row: {
+          funcionario_id: string | null
           id: string
           nome: string | null
           role: Database["public"]["Enums"]["rh_app_role"]
+          status: string
           user_id: string
         }
         Insert: {
+          funcionario_id?: string | null
           id?: string
           nome?: string | null
           role?: Database["public"]["Enums"]["rh_app_role"]
+          status?: string
           user_id: string
         }
         Update: {
+          funcionario_id?: string | null
           id?: string
           nome?: string | null
           role?: Database["public"]["Enums"]["rh_app_role"]
+          status?: string
           user_id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "rh_user_roles_funcionario_id_fkey"
+            columns: ["funcionario_id"]
+            isOneToOne: false
+            referencedRelation: "rh_funcionarios"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sienge_clientes: {
         Row: {
@@ -9457,6 +9886,96 @@ export type Database = {
       }
     }
     Views: {
+      comercial_corretores: {
+        Row: {
+          ativo: boolean | null
+          bairro: string | null
+          banco_agencia: string | null
+          banco_chave_pix: string | null
+          banco_conta: string | null
+          banco_nome: string | null
+          banco_tipo: string | null
+          cep: string | null
+          cidade: string | null
+          cnpj: string | null
+          cpf: string | null
+          created_at: string | null
+          creci: string | null
+          dados_bancarios: string | null
+          email: string | null
+          email_secundario: string | null
+          endereco: string | null
+          id: string | null
+          imobiliaria_origem_id: string | null
+          is_cadastro_completo: boolean | null
+          nome: string | null
+          nome_exibicao: string | null
+          razao_social: string | null
+          telefone: string | null
+          tipo: string | null
+          uf: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          ativo?: never
+          bairro?: string | null
+          banco_agencia?: string | null
+          banco_chave_pix?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          creci?: string | null
+          dados_bancarios?: string | null
+          email?: string | null
+          email_secundario?: string | null
+          endereco?: string | null
+          id?: string | null
+          imobiliaria_origem_id?: string | null
+          is_cadastro_completo?: boolean | null
+          nome?: string | null
+          nome_exibicao?: string | null
+          razao_social?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          uf?: string | null
+          updated_at?: never
+        }
+        Update: {
+          ativo?: never
+          bairro?: string | null
+          banco_agencia?: string | null
+          banco_chave_pix?: string | null
+          banco_conta?: string | null
+          banco_nome?: string | null
+          banco_tipo?: string | null
+          cep?: string | null
+          cidade?: string | null
+          cnpj?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          creci?: string | null
+          dados_bancarios?: string | null
+          email?: string | null
+          email_secundario?: string | null
+          endereco?: string | null
+          id?: string | null
+          imobiliaria_origem_id?: string | null
+          is_cadastro_completo?: boolean | null
+          nome?: string | null
+          nome_exibicao?: string | null
+          razao_social?: string | null
+          telefone?: string | null
+          tipo?: string | null
+          uf?: string | null
+          updated_at?: never
+        }
+        Relationships: []
+      }
       comissoes_sienge_contratos: {
         Row: {
           atualizado_em: string | null
@@ -9992,14 +10511,32 @@ export type Database = {
       }
       registros_manutencao_diaria: { Args: never; Returns: Json }
       registros_refresh_mv_valor_pago: { Args: never; Returns: undefined }
+      rh_auditor_em_equipe: {
+        Args: { _equipe_id: string; _uid: string }
+        Returns: boolean
+      }
+      rh_criar_auditoria: {
+        Args: {
+          p_data_referencia?: string
+          p_equipe_id: string
+          p_titulo: string
+        }
+        Returns: string
+      }
+      rh_current_funcionario_id: { Args: never; Returns: string }
+      rh_fechar_auditoria: { Args: { p_auditoria_id: string }; Returns: number }
       rh_get_all_users_with_roles: {
         Args: never
         Returns: {
           created_at: string
           email: string
+          funcionario_id: string
+          funcionario_nome: string
           id: string
+          is_auditor: boolean
           nome: string
           role: Database["public"]["Enums"]["rh_app_role"]
+          status: string
         }[]
       }
       rh_has_role: {
@@ -10008,6 +10545,41 @@ export type Database = {
           _user_id: string
         }
         Returns: boolean
+      }
+      rh_is_auditor: { Args: { _uid: string }; Returns: boolean }
+      rh_list_funcionarios_para_vinculo: {
+        Args: never
+        Returns: {
+          cpf_masked: string
+          id: string
+          nome_completo: string
+        }[]
+      }
+      rh_listar_atividades_auditoria: {
+        Args: never
+        Returns: {
+          ativo: boolean
+          created_at: string
+          equipe_id: string
+          grupo_id: string
+          grupo_nome: string
+          grupo_ordem: number
+          grupo_peso: number
+          id: string
+          indicadores: string
+          manuais: string
+          metodo_auditoria: string
+          nome: string
+          normas: string
+          ordem: number
+          peso: number
+          responsavel_funcionario_id: string
+          updated_at: string
+        }[]
+      }
+      rh_set_my_funcionario: {
+        Args: { p_funcionario_id: string }
+        Returns: undefined
       }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
@@ -10086,7 +10658,22 @@ export type Database = {
       paver_app_role: "admin" | "engenharia"
       permuta_status: "incerto" | "nao" | "sim"
       registros_user_role: "gestor" | "operador" | "leitor"
-      rh_app_role: "admin" | "coordenador" | "usuario"
+      rh_app_role:
+        | "admin"
+        | "coordenador"
+        | "usuario"
+        | "colaborador"
+        | "auditor"
+      rh_auditoria_item_status:
+        | "pendente"
+        | "positivo"
+        | "inconformidade"
+        | "nao_aplica"
+      rh_auditoria_status:
+        | "em_andamento"
+        | "finalizada"
+        | "aprovada"
+        | "rejeitada"
       tipo_anexo_gleba:
         | "pesquisa_mercado"
         | "planilha_viabilidade"
@@ -10262,7 +10849,25 @@ export const Constants = {
       paver_app_role: ["admin", "engenharia"],
       permuta_status: ["incerto", "nao", "sim"],
       registros_user_role: ["gestor", "operador", "leitor"],
-      rh_app_role: ["admin", "coordenador", "usuario"],
+      rh_app_role: [
+        "admin",
+        "coordenador",
+        "usuario",
+        "colaborador",
+        "auditor",
+      ],
+      rh_auditoria_item_status: [
+        "pendente",
+        "positivo",
+        "inconformidade",
+        "nao_aplica",
+      ],
+      rh_auditoria_status: [
+        "em_andamento",
+        "finalizada",
+        "aprovada",
+        "rejeitada",
+      ],
       tipo_anexo_gleba: [
         "pesquisa_mercado",
         "planilha_viabilidade",
