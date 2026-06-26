@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserMeta = async (userId: string) => {
     const [roleRes, profileRes] = await Promise.all([
-      supabase.from("user_roles").select("role").eq("user_id", userId).maybeSingle(),
+      supabase.from("crm_user_roles").select("role").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
     ]);
     setRole((roleRes.data?.role as UserRole) ?? "user");

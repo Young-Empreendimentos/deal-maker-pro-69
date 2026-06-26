@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
     const { data: { user: caller } } = await callerClient.auth.getUser();
     if (!caller) return new Response(JSON.stringify({ error: "Não autenticado" }), { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
-    const { data: roleCheck } = await supabaseAdmin.from("user_roles").select("role").eq("user_id", caller.id).eq("role", "admin").maybeSingle();
+    const { data: roleCheck } = await supabaseAdmin.from("crm_user_roles").select("role").eq("user_id", caller.id).eq("role", "admin").maybeSingle();
     if (!roleCheck) return new Response(JSON.stringify({ error: "Apenas administradores podem criar usuários" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { email, password, nome, role } = await req.json();
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
 
     // Set role
     if (role && role !== "user") {
-      await supabaseAdmin.from("user_roles").insert({ user_id: userId, role });
+      await supabaseAdmin.from("crm_user_roles").insert({ user_id: userId, role });
     }
 
     return new Response(JSON.stringify({ success: true, user_id: userId }), { headers: { ...corsHeaders, "Content-Type": "application/json" } });

@@ -273,7 +273,7 @@ export default function Configuracoes() {
   const fetchMotivos = async () => { const { data } = await supabase.from("crm_motivos_perda").select("*").order("nome"); setMotivos((data as MotivoPerda[]) ?? []); };
   const fetchEmpreendimentos = async () => { const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome"); setEmpreendimentos((data as Empreendimento[]) ?? []); };
   const fetchUsers = async () => {
-    const { data } = await supabase.rpc("get_all_users_with_roles");
+    const { data } = await supabase.rpc("crm_get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
     const { data: profs } = await supabase.from("user_profiles").select("user_id, nome, ativo");
     const map = new Map<string, UserProfile>();
@@ -304,8 +304,8 @@ export default function Configuracoes() {
     if (profError) { toast({ title: "Erro ao atualizar nome", description: profError.message, variant: "destructive" }); return; }
     const currentUser = users.find((u) => u.id === userId);
     if (currentUser && currentUser.role !== editRole) {
-      await supabase.from("user_roles").delete().eq("user_id", userId);
-      const { error: roleError } = await supabase.from("user_roles").insert({ user_id: userId, role: editRole as any });
+      await supabase.from("crm_user_roles").delete().eq("user_id", userId);
+      const { error: roleError } = await supabase.from("crm_user_roles").insert({ user_id: userId, role: editRole as any });
       if (roleError) { toast({ title: "Erro ao atualizar perfil", description: roleError.message, variant: "destructive" }); return; }
     }
     toast({ title: "Usuário atualizado!" });
