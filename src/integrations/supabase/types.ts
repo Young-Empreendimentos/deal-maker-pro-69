@@ -3379,6 +3379,24 @@ export type Database = {
         }
         Relationships: []
       }
+      crm_usuarios: {
+        Row: {
+          ativo: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ativo?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ativo?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dashboard_comunicados: {
         Row: {
           autor_id: string
@@ -10438,6 +10456,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      crm_is_active: { Args: { _user_id: string }; Returns: boolean }
       enriquecer_deals: { Args: { p_data: Json }; Returns: Json }
       esquadro_has_role: {
         Args: {

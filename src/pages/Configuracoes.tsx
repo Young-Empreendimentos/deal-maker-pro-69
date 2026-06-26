@@ -23,7 +23,7 @@ type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
 type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
-type UserProfile = { user_id: string; nome: string; ativo: boolean };
+type UserProfile = { user_id: string; ativo: boolean };
 
 function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<boolean> }) {
   const [nome, setNome] = useState("");
@@ -275,7 +275,7 @@ export default function Configuracoes() {
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("crm_get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
-    const { data: profs } = await supabase.from("user_profiles").select("user_id, nome, ativo");
+    const { data: profs } = await supabase.from("crm_usuarios").select("user_id, ativo");
     const map = new Map<string, UserProfile>();
     ((profs as UserProfile[]) ?? []).forEach((p) => map.set(p.user_id, p));
     setProfiles(map);
@@ -291,7 +291,7 @@ export default function Configuracoes() {
   }, [isAdmin]);
 
   const toggleUserAtivo = async (userId: string, currentAtivo: boolean) => {
-    const { error } = await supabase.from("user_profiles").update({ ativo: !currentAtivo }).eq("user_id", userId);
+    const { error } = await supabase.from("crm_usuarios").upsert({ user_id: userId, ativo: !currentAtivo });
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else fetchUsers();
   };
