@@ -36,8 +36,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const fetchUserMeta = async (userId: string) => {
     const [roleRes, profileRes] = await Promise.all([
       supabase.from("crm_user_roles").select("role").eq("user_id", userId).maybeSingle(),
-      supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
+      supabase.from("user_profiles").select("nome, ativo").eq("user_id", userId).maybeSingle(),
     ]);
+    // Acesso ao CRM desativado: encerra a sessão com mensagem clara.
+    // (O bloqueio de verdade é no banco; aqui é só UX.)
+    if (profileRes.data?.ativo === false) {
+      await supabase.auth.signOut();
+      setSession(null);
+      setUser(null);
+      setRole("user");
+      setNome("");
+      setAuthError("Seu acesso ao CRM foi desativado. Fale com um administrador.");
+      return;
+    }
     setRole((roleRes.data?.role as UserRole) ?? "user");
     setNome(profileRes.data?.nome ?? "");
   };
