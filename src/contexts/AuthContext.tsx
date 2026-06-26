@@ -34,14 +34,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const fetchUserMeta = async (userId: string) => {
-    const [roleRes, profileRes, statusRes] = await Promise.all([
-      supabase.from("crm_user_roles").select("role").eq("user_id", userId).maybeSingle(),
+    const [roleRes, profileRes] = await Promise.all([
+      supabase.from("crm_user_roles").select("role, ativo").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
-      supabase.from("crm_usuarios").select("ativo").eq("user_id", userId).maybeSingle(),
     ]);
     // Acesso ao CRM desativado: encerra a sessão com mensagem clara.
     // (O bloqueio de verdade é no banco; aqui é só UX.)
-    if (statusRes.data?.ativo === false) {
+    if (roleRes.data?.ativo === false) {
       await supabase.auth.signOut();
       setSession(null);
       setUser(null);

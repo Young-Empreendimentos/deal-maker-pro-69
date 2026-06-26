@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
     if (!roleCheck) return new Response(JSON.stringify({ error: "Apenas administradores podem criar usuários" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     // Admin desativado no CRM não pode criar usuários
-    const { data: callerStatus } = await supabaseAdmin.from("crm_usuarios").select("ativo").eq("user_id", caller.id).maybeSingle();
+    const { data: callerStatus } = await supabaseAdmin.from("crm_user_roles").select("ativo").eq("user_id", caller.id).maybeSingle();
     if (callerStatus?.ativo === false) return new Response(JSON.stringify({ error: "Seu acesso ao CRM foi desativado" }), { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } });
 
     const { email, password, nome, role } = await req.json();

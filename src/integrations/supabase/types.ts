@@ -3360,39 +3360,24 @@ export type Database = {
       }
       crm_user_roles: {
         Row: {
+          ativo: boolean
           created_at: string
           id: string
           role: Database["public"]["Enums"]["crm_app_role"]
           user_id: string
         }
         Insert: {
-          created_at?: string
-          id?: string
-          role: Database["public"]["Enums"]["crm_app_role"]
-          user_id: string
-        }
-        Update: {
+          ativo?: boolean
           created_at?: string
           id?: string
           role?: Database["public"]["Enums"]["crm_app_role"]
-          user_id?: string
-        }
-        Relationships: []
-      }
-      crm_usuarios: {
-        Row: {
-          ativo: boolean
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          ativo?: boolean
-          updated_at?: string
           user_id: string
         }
         Update: {
           ativo?: boolean
-          updated_at?: string
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["crm_app_role"]
           user_id?: string
         }
         Relationships: []

@@ -275,7 +275,7 @@ export default function Configuracoes() {
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("crm_get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
-    const { data: profs } = await supabase.from("crm_usuarios").select("user_id, ativo");
+    const { data: profs } = await supabase.from("crm_user_roles").select("user_id, ativo");
     const map = new Map<string, UserProfile>();
     ((profs as UserProfile[]) ?? []).forEach((p) => map.set(p.user_id, p));
     setProfiles(map);
@@ -291,7 +291,7 @@ export default function Configuracoes() {
   }, [isAdmin]);
 
   const toggleUserAtivo = async (userId: string, currentAtivo: boolean) => {
-    const { error } = await supabase.from("crm_usuarios").upsert({ user_id: userId, ativo: !currentAtivo });
+    const { error } = await supabase.from("crm_user_roles").upsert({ user_id: userId, ativo: !currentAtivo }, { onConflict: "user_id" });
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else fetchUsers();
   };
@@ -304,8 +304,7 @@ export default function Configuracoes() {
     if (profError) { toast({ title: "Erro ao atualizar nome", description: profError.message, variant: "destructive" }); return; }
     const currentUser = users.find((u) => u.id === userId);
     if (currentUser && currentUser.role !== editRole) {
-      await supabase.from("crm_user_roles").delete().eq("user_id", userId);
-      const { error: roleError } = await supabase.from("crm_user_roles").insert({ user_id: userId, role: editRole as any });
+      const { error: roleError } = await supabase.from("crm_user_roles").upsert({ user_id: userId, role: editRole as any }, { onConflict: "user_id" });
       if (roleError) { toast({ title: "Erro ao atualizar perfil", description: roleError.message, variant: "destructive" }); return; }
     }
     toast({ title: "Usuário atualizado!" });
