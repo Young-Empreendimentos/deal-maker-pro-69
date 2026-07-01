@@ -313,7 +313,15 @@ export default function NegociacaoDetalhes() {
   };
 
   const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
-  const isOverdue = (t: Task) => t.data_vencimento && !t.concluida && parseLocalDate(t.data_vencimento) < new Date();
+  const isOverdue = (t: Task) => {
+    if (!t.data_vencimento || t.concluida) return false;
+    const agora = new Date();
+    // Com hora definida: atrasada se já passou do dia + hora
+    if (t.hora_vencimento) return new Date(`${t.data_vencimento}T${t.hora_vencimento}`) < agora;
+    // Só data: o dia inteiro é prazo — atrasada apenas se venceu antes de hoje
+    const hoje = new Date(agora); hoje.setHours(0, 0, 0, 0);
+    return parseLocalDate(t.data_vencimento) < hoje;
+  };
 
   // Filtrar tarefas (precisa ficar antes dos early returns para respeitar regras de hooks)
   const filteredTasks = useMemo(() => {
