@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fetchAllPaged } from "@/lib/supabasePagination";
+import { isTaskOverdue } from "@/lib/taskOverdue";
 
 export const TASK_TIPOS = ["Ligação", "E-mail", "Visita", "Whatsapp", "Reunião"] as const;
 export type TaskTipo = typeof TASK_TIPOS[number];
@@ -278,15 +279,6 @@ export default function Tarefas() {
   });
 
   const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
-  const isOverdue = (t: Task) => {
-    if (!t.data_vencimento || t.concluida) return false;
-    const agora = new Date();
-    // Com hora definida: atrasada se já passou do dia + hora
-    if (t.hora_vencimento) return new Date(`${t.data_vencimento}T${t.hora_vencimento}`) < agora;
-    // Só data: o dia inteiro é prazo — atrasada apenas se venceu antes de hoje
-    const hoje = new Date(agora); hoje.setHours(0, 0, 0, 0);
-    return parseLocalDate(t.data_vencimento) < hoje;
-  };
 
   return (
     <AppLayout>
@@ -340,7 +332,7 @@ export default function Tarefas() {
                           </span>
                         );
                       })()}
-                      {isOverdue(task) && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Atrasada</Badge>}
+                      {isTaskOverdue(task) && <Badge variant="destructive" className="text-[10px] px-1.5 py-0">Atrasada</Badge>}
                     </div>
                     {task.descricao && <p className="text-xs text-muted-foreground mt-1 line-clamp-1">{task.descricao}</p>}
                     <div className="flex items-center gap-3 mt-2 flex-wrap text-xs text-muted-foreground">
@@ -356,7 +348,7 @@ export default function Tarefas() {
                         <PopoverTrigger asChild>
                           <button
                             onClick={(e) => { e.stopPropagation(); startEditDate(task); }}
-                            className={cn("flex items-center gap-1 hover:underline", task.data_vencimento && isOverdue(task) ? "text-destructive" : "text-muted-foreground")}
+                            className={cn("flex items-center gap-1 hover:underline", task.data_vencimento && isTaskOverdue(task) ? "text-destructive" : "text-muted-foreground")}
                           >
                             <Calendar className="h-3 w-3" />
                             {task.data_vencimento
