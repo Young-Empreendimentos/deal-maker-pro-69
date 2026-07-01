@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchAllPaged } from "@/lib/supabasePagination";
+import { isTaskOverdue } from "@/lib/taskOverdue";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -313,15 +314,6 @@ export default function NegociacaoDetalhes() {
   };
 
   const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
-  const isOverdue = (t: Task) => {
-    if (!t.data_vencimento || t.concluida) return false;
-    const agora = new Date();
-    // Com hora definida: atrasada se já passou do dia + hora
-    if (t.hora_vencimento) return new Date(`${t.data_vencimento}T${t.hora_vencimento}`) < agora;
-    // Só data: o dia inteiro é prazo — atrasada apenas se venceu antes de hoje
-    const hoje = new Date(agora); hoje.setHours(0, 0, 0, 0);
-    return parseLocalDate(t.data_vencimento) < hoje;
-  };
 
   // Filtrar tarefas (precisa ficar antes dos early returns para respeitar regras de hooks)
   const filteredTasks = useMemo(() => {
@@ -558,7 +550,7 @@ export default function NegociacaoDetalhes() {
                   </div>
                   {task.descricao && <p className="text-xs text-muted-foreground mt-0.5">{task.descricao}</p>}
                   {task.data_vencimento && (
-                    <span className={cn("text-xs flex items-center gap-1 mt-1", isOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
+                    <span className={cn("text-xs flex items-center gap-1 mt-1", isTaskOverdue(task) ? "text-destructive" : "text-muted-foreground")}>
                       <Calendar className="h-3 w-3" /> {parseLocalDate(task.data_vencimento).toLocaleDateString("pt-BR")}
                       {task.hora_vencimento && <span className="ml-1">às {task.hora_vencimento}</span>}
                     </span>
