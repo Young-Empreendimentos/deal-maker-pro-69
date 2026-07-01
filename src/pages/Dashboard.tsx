@@ -38,7 +38,8 @@ type Task = { id: string; deal_id: string; titulo?: string; responsavel_id: stri
 type DatePreset = "hoje" | "semana_passada" | "mes" | "mes_passado" | "4_meses" | "ano" | "custom";
 type DrillDown =
   | { kind: "deals"; label: string; items: Deal[] }
-  | { kind: "tasks"; label: string; items: Task[] };
+  | { kind: "tasks"; label: string; items: Task[] }
+  | { kind: "gatilho"; label: string; items: Deal[] };
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const FUNNEL_COLORS = [
@@ -77,6 +78,24 @@ function getPresetRange(preset: DatePreset): [Date, Date] {
 }
 
 function fmtDate(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }); }
+
+// ── Gatilho de entrada ──────────────────────────────────────────────────────
+// Regra de negócio: a venda "atinge o gatilho" quando a entrada dada na
+// assinatura é >= 10% do preço à vista do lote (preco_lote, vindo de
+// comercial_tabela_precos.preco_av). Vendas à vista contam como atingidas,
+// pois o valor pago já supera 10%.
+const GATILHO_PCT = 0.10;
+
+function entradaDeal(d: Deal): number {
+  return ((d as any).valor_entrada ?? (d as any).auto_valor_entrada ?? 0) as number;
+}
+
+function atingiuGatilho(d: Deal): boolean {
+  if ((d as any).forma_pagamento === "à vista") return true;
+  const preco = d.preco_lote ?? 0;
+  if (preco <= 0) return false;
+  return entradaDeal(d) >= preco * GATILHO_PCT;
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
@@ -331,6 +350,13 @@ export default function Dashboard() {
     [filteredVendas],
   );
 
+  // Gatilho: quantas das vendas do período tiveram entrada >= 10% do valor à vista
+  const gatilhoCount = useMemo(
+    () => filteredVendas.filter(atingiuGatilho).length,
+    [filteredVendas],
+  );
+  const gatilhoPct = vendasCount > 0 ? Math.round((gatilhoCount / vendasCount) * 100) : 0;
+
   const fmtBRL = (v: number) =>
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
@@ -569,6 +595,31 @@ export default function Dashboard() {
           </p>
         </button>
 
+        {/* Gatilho de Entrada ---------------------------------------------- */}
+        <button
+          className="w-full text-left rounded-xl border bg-card px-5 py-4 hover:bg-accent/40 transition-colors"
+          onClick={() => setDrillDown({ kind: "gatilho", label: "Gatilho de Entrada (≥ 10%)", items: filteredVendas })}
+        >
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Gatilho de Entrada</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Entrada ≥ 10% do valor à vista do lote</p>
+            </div>
+            <div className="text-right flex-shrink-0">
+              <p className={cn("text-2xl font-bold tabular-nums", gatilhoCount > 0 ? "text-green-600 dark:text-green-400" : "text-muted-foreground")}>
+                {gatilhoCount}
+                <span className="text-base font-medium text-muted-foreground"> / {vendasCount}</span>
+              </p>
+              <p className="text-xs text-muted-foreground tabular-nums">{gatilhoPct}% das vendas</p>
+            </div>
+          </div>
+          {vendasCount > 0 && (
+            <div className="mt-3 h-1.5 w-full rounded-full bg-muted overflow-hidden">
+              <div className="h-full rounded-full bg-green-500 transition-all" style={{ width: `${gatilhoPct}%` }} />
+            </div>
+          )}
+        </button>
+
         {/* Atividades Realizadas ------------------------------------------- */}
         <div className="rounded-xl border bg-card">
           <div className="px-5 pt-4 pb-2 flex items-center justify-between">
@@ -658,7 +709,7 @@ export default function Dashboard() {
           <SheetHeader className="px-6 py-4 border-b">
             <SheetTitle className="text-base font-display">{drillDown?.label}</SheetTitle>
             <p className="text-xs text-muted-foreground">
-              {drillDown?.items.length ?? 0} {drillDown?.kind === "deals" ? "negociação" : "tarefa"}{(drillDown?.items.length ?? 0) !== 1 ? "s" : ""}
+              {drillDown?.items.length ?? 0} {drillDown?.kind === "tasks" ? "tarefa" : drillDown?.kind === "gatilho" ? "venda" : "negociação"}{(drillDown?.items.length ?? 0) !== 1 ? "s" : ""}
             </p>
           </SheetHeader>
 
@@ -688,6 +739,53 @@ export default function Dashboard() {
                     <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
                   </button>
                 ))}
+              </div>
+            )}
+
+            {drillDown?.kind === "gatilho" && (
+              <div className="divide-y">
+                {drillDown.items.length === 0 ? (
+                  <p className="text-sm text-muted-foreground text-center py-10">Nenhuma venda</p>
+                ) : [...drillDown.items]
+                    .sort((a, b) => Number(atingiuGatilho(a)) - Number(atingiuGatilho(b)))
+                    .map((deal) => {
+                  const preco   = deal.preco_lote ?? 0;
+                  const entrada = entradaDeal(deal);
+                  const pct     = preco > 0 ? Math.round((entrada / preco) * 100) : 0;
+                  const ok      = atingiuGatilho(deal);
+                  const aVista  = (deal as any).forma_pagamento === "à vista";
+                  return (
+                    <button
+                      key={deal.id}
+                      className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
+                      onClick={() => {
+                        setDrillDown(null);
+                        setTimeout(() => navigate(`/negociacoes/${deal.id}`), 50);
+                      }}
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium truncate">{deal.cliente_nome}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                          {aVista
+                            ? "À vista"
+                            : entrada > 0
+                              ? `Entrada ${fmtBRL(entrada)} · ${pct}%`
+                              : "Sem entrada"}
+                          {preco > 0 && ` · lote ${fmtBRL(preco)}`}
+                        </p>
+                      </div>
+                      <Badge className={cn(
+                        "text-xs flex-shrink-0",
+                        ok
+                          ? "bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
+                          : "bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300",
+                      )}>
+                        {ok ? "Atingiu" : "Não atingiu"}
+                      </Badge>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    </button>
+                  );
+                })}
               </div>
             )}
 
