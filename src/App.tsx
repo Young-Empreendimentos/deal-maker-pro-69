@@ -16,13 +16,18 @@ import RelatorioDiario from "./pages/RelatorioDiario";
 import PublicoAlvo from "./pages/PublicoAlvo";
 import AuthCallback from "./pages/AuthCallback";
 import NotFound from "./pages/NotFound";
+import { AcessoPendente } from "@/components/crm/AcessoPendente";
 
 const queryClient = new QueryClient();
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, isAdmin } = useAuth();
+  const { user, loading, isAdmin, authStatus } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
   if (!user) return <Navigate to="/login" replace />;
+  // Meta do usuário (papel/autorização) ainda carregando
+  if (authStatus === null) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
+  // Logado mas sem acesso ao CRM → tela de aviso (não o app vazio)
+  if (authStatus !== "authorized") return <AcessoPendente status={authStatus} />;
   if (adminOnly && !isAdmin) return <Navigate to="/negociacoes" replace />;
   return <>{children}</>;
 }

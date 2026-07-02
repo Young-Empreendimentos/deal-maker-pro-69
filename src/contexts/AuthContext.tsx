@@ -3,6 +3,12 @@ import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
 type UserRole = "admin" | "user";
+// Situação de acesso ao CRM (o bloqueio real é o RLS no banco; isto é só UX):
+//   authorized = está na crm_user_roles com ativo
+//   pending    = logado (domínio ok) mas sem linha na lista → aguardando liberação
+//   inactive   = na lista, porém ativo=false
+//   null       = ainda carregando a meta do usuário
+type AuthStatus = "authorized" | "pending" | "inactive" | null;
 
 interface AuthContextType {
   session: Session | null;
@@ -15,6 +21,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  authStatus: AuthStatus;
+  authorized: boolean;
   clearAuthError: () => void;
 }
 
@@ -32,25 +40,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [nome, setNome] = useState("");
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authStatus, setAuthStatus] = useState<AuthStatus>(null);
 
   const fetchUserMeta = async (userId: string) => {
     const [roleRes, profileRes] = await Promise.all([
       supabase.from("crm_user_roles").select("role, ativo").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
     ]);
-    // Acesso ao CRM desativado: encerra a sessão com mensagem clara.
-    // (O bloqueio de verdade é no banco; aqui é só UX.)
-    if (roleRes.data?.ativo === false) {
-      await supabase.auth.signOut();
-      setSession(null);
-      setUser(null);
-      setRole("user");
-      setNome("");
-      setAuthError("Seu acesso ao CRM foi desativado. Fale com um administrador.");
-      return;
-    }
-    setRole((roleRes.data?.role as UserRole) ?? "user");
     setNome(profileRes.data?.nome ?? "");
+    setRole((roleRes.data?.role as UserRole) ?? "user");
+    // Define a situação de acesso ao CRM (a UI decide o que mostrar; o RLS já bloqueia no banco)
+    if (!roleRes.data)                     setAuthStatus("pending");
+    else if (roleRes.data.ativo === false) setAuthStatus("inactive");
+    else                                   setAuthStatus("authorized");
   };
 
   useEffect(() => {
@@ -73,6 +75,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(null);
           setRole("user");
           setNome("");
+          setAuthStatus(null);
           setAuthError(
             `Apenas e-mails ${ALLOWED_DOMAINS.join(" ou ")} têm acesso via Google.`,
           );
@@ -87,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
         setRole("user");
         setNome("");
+        setAuthStatus(null);
       }
     });
 
@@ -121,6 +125,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session, user, role, nome, loading, authError,
       signIn, signInWithGoogle, signOut,
       isAdmin: role === "admin",
+      authStatus,
+      authorized: authStatus === "authorized",
       clearAuthError,
     }}>
       {children}
