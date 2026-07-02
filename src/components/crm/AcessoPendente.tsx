@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Clock, Lock } from "lucide-react";
 
@@ -8,8 +10,18 @@ import { Clock, Lock } from "lucide-react";
  * esta tela só evita que a pessoa veja telas vazias sem entender o porquê.
  */
 export function AcessoPendente({ status }: { status: "pending" | "inactive" }) {
-  const { user, signOut } = useAuth();
+  const { user, nome, signOut } = useAuth();
   const isInactive = status === "inactive";
+
+  // Ao cair aqui como "pendente", registra a solicitação de acesso para os
+  // admins aprovarem/rejeitarem (idempotente por user_id — não duplica).
+  useEffect(() => {
+    if (status !== "pending" || !user) return;
+    void (supabase as any).from("crm_solicitacoes_acesso").upsert(
+      { user_id: user.id, email: user.email ?? null, nome: nome || null, status: "pendente" },
+      { onConflict: "user_id", ignoreDuplicates: true },
+    );
+  }, [status, user, nome]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
