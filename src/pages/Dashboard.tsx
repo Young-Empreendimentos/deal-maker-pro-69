@@ -30,10 +30,12 @@ import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, Chevr
 import { cn } from "@/lib/utils";
 import { isVisibleUser } from "@/lib/filteredUsers";
 import { fetchAllPaged } from "@/lib/supabasePagination";
+import { useToast } from "@/hooks/use-toast";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 type UserOption = { id: string; nome: string };
 type Emp = { id: string; nome: string; cidade: string };
+type Solicitacao = { id: string; user_id: string; email: string | null; nome: string | null; created_at: string };
 type Task = { id: string; deal_id: string; titulo?: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
 type DatePreset = "hoje" | "semana_passada" | "mes" | "mes_passado" | "4_meses" | "ano" | "custom";
 type DrillDown =
@@ -101,6 +103,7 @@ function atingiuGatilho(d: Deal): boolean {
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
+  const { toast } = useToast();
 
   const [deals,  setDeals]  = useState<Deal[]>([]);
   const [tasks,  setTasks]  = useState<Task[]>([]);
@@ -111,6 +114,36 @@ export default function Dashboard() {
   const [vendasDeals, setVendasDeals] = useState<Deal[]>([]);
   const [perdasDeals, setPerdasDeals] = useState<Deal[]>([]);
   const fetchSeqRef = useRef(0);
+
+  // ── Solicitações de acesso ao CRM (admin) ─────────────────────────────────
+  const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
+  const fetchSolicitacoes = async () => {
+    const { data } = await (supabase as any)
+      .from("crm_solicitacoes_acesso")
+      .select("id, user_id, email, nome, created_at")
+      .eq("status", "pendente")
+      .order("created_at", { ascending: true });
+    setSolicitacoes((data as Solicitacao[]) ?? []);
+  };
+  useEffect(() => { if (isAdmin) fetchSolicitacoes(); }, [isAdmin]);
+
+  const aprovarSolicitacao = async (s: Solicitacao) => {
+    const { error } = await supabase.from("crm_user_roles").upsert(
+      { user_id: s.user_id, role: "user" as any, ativo: true },
+      { onConflict: "user_id" },
+    );
+    if (error) { toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" }); return; }
+    await (supabase as any).from("crm_solicitacoes_acesso").delete().eq("id", s.id);
+    toast({ title: "Acesso liberado!" });
+    fetchSolicitacoes();
+  };
+  const rejeitarSolicitacao = async (s: Solicitacao) => {
+    const { error } = await (supabase as any)
+      .from("crm_solicitacoes_acesso").update({ status: "rejeitada" }).eq("id", s.id);
+    if (error) { toast({ title: "Erro ao rejeitar", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Solicitação rejeitada" });
+    fetchSolicitacoes();
+  };
 
   // ── Applied filters ──────────────────────────────────────────────────────
   const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
@@ -531,6 +564,30 @@ export default function Dashboard() {
             )}
           </div>
         </div>
+
+        {/* Solicitações de acesso (admin) ---------------------------------- */}
+        {isAdmin && solicitacoes.length > 0 && (
+          <div className="rounded-xl border border-amber-300 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 px-5 py-4">
+            <div className="flex items-center gap-2 mb-2">
+              <p className="text-sm font-semibold">Solicitações de acesso</p>
+              <Badge variant="secondary">{solicitacoes.length}</Badge>
+            </div>
+            <div className="divide-y">
+              {solicitacoes.map((s) => (
+                <div key={s.id} className="flex items-center justify-between gap-3 py-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium truncate">{s.nome || "—"}</p>
+                    <p className="text-xs text-muted-foreground truncate">{s.email}</p>
+                  </div>
+                  <div className="flex gap-2 flex-shrink-0">
+                    <Button size="sm" onClick={() => aprovarSolicitacao(s)}>Aprovar</Button>
+                    <Button size="sm" variant="outline" onClick={() => rejeitarSolicitacao(s)}>Rejeitar</Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* KPI Cards ------------------------------------------------------- */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
