@@ -128,11 +128,13 @@ export default function Dashboard() {
   useEffect(() => { if (isAdmin) fetchSolicitacoes(); }, [isAdmin]);
 
   const aprovarSolicitacao = async (s: Solicitacao) => {
-    const { error } = await supabase.from("crm_user_roles").upsert(
-      { user_id: s.user_id, role: "user" as any, ativo: true },
-      { onConflict: "user_id" },
-    );
-    if (error) { toast({ title: "Erro ao aprovar", description: error.message, variant: "destructive" }); return; }
+    // Reativa preservando o papel se ja existe; senao cria como 'user'
+    const { data: existente } = await supabase
+      .from("crm_user_roles").select("user_id").eq("user_id", s.user_id).maybeSingle();
+    const res = existente
+      ? await supabase.from("crm_user_roles").update({ ativo: true }).eq("user_id", s.user_id)
+      : await supabase.from("crm_user_roles").insert({ user_id: s.user_id, role: "user" as any, ativo: true });
+    if (res.error) { toast({ title: "Erro ao aprovar", description: res.error.message, variant: "destructive" }); return; }
     await (supabase as any).from("crm_solicitacoes_acesso").delete().eq("id", s.id);
     toast({ title: "Acesso liberado!" });
     fetchSolicitacoes();

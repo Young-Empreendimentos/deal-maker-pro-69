@@ -13,15 +13,16 @@ export function AcessoPendente({ status }: { status: "pending" | "inactive" }) {
   const { user, nome, signOut } = useAuth();
   const isInactive = status === "inactive";
 
-  // Ao cair aqui como "pendente", registra a solicitação de acesso para os
-  // admins aprovarem/rejeitarem (idempotente por user_id — não duplica).
+  // Registra a solicitação de acesso para os admins aprovarem/rejeitarem —
+  // tanto para quem nunca teve acesso (pendente) quanto para quem foi
+  // desativado e quer voltar (idempotente por user_id — não duplica).
   useEffect(() => {
-    if (status !== "pending" || !user) return;
+    if (!user) return;
     void (supabase as any).from("crm_solicitacoes_acesso").upsert(
       { user_id: user.id, email: user.email ?? null, nome: nome || null, status: "pendente" },
       { onConflict: "user_id", ignoreDuplicates: true },
     );
-  }, [status, user, nome]);
+  }, [user, nome]);
 
   return (
     <div className="min-h-screen flex items-center justify-center p-6 bg-background">
@@ -36,8 +37,8 @@ export function AcessoPendente({ status }: { status: "pending" | "inactive" }) {
         </h1>
         <p className="text-sm text-muted-foreground">
           {isInactive
-            ? "Seu acesso ao CRM foi desativado. Fale com um administrador para reativar."
-            : "Sua conta ainda não tem acesso ao CRM. Um administrador precisa liberar seu acesso."}
+            ? "Seu acesso ao CRM foi desativado. Enviamos um pedido de reativação aos administradores."
+            : "Sua conta ainda não tem acesso ao CRM. Enviamos seu pedido aos administradores para liberação."}
         </p>
         {user?.email && (
           <p className="text-xs text-muted-foreground">Conectado como {user.email}</p>
