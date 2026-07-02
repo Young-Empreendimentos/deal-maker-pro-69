@@ -483,6 +483,9 @@ export default function Configuracoes() {
                   <Button size="sm" onClick={() => setShowAddUser(true)}><UserPlus className="h-4 w-4 mr-2" />Novo Usuário</Button>
                 </CardHeader>
                 <CardContent>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Todos os logins do portal aparecem aqui. Um usuário só acessa o CRM quando a chave <strong>Ativo</strong> está ligada; enquanto isso ele fica <span className="text-amber-600 dark:text-amber-400">pendente</span> e vê "aguardando autorização".
+                  </p>
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -496,7 +499,10 @@ export default function Configuracoes() {
                     <TableBody>
                       {users.map((u) => {
                         const profile = profiles.get(u.id);
-                        const isAtivo = profile?.ativo ?? true;
+                        // Sem linha na crm_user_roles = ainda não liberado (pendente).
+                        // Só é "ativo" quem tem linha com ativo=true.
+                        const isAtivo = profile?.ativo ?? false;
+                        const isPendente = !profile;
                         const isEditing = editingId === u.id;
                         return (
                           <TableRow key={u.id} className={!isAtivo ? "opacity-50" : ""}>
@@ -512,7 +518,12 @@ export default function Configuracoes() {
                                 <Badge variant={u.role === "admin" ? "default" : "secondary"} className="capitalize">{u.role === "admin" ? "Admin" : "Vendedor"}</Badge>
                               )}
                             </TableCell>
-                            <TableCell><Switch checked={isAtivo} onCheckedChange={() => toggleUserAtivo(u.id, isAtivo)} /></TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Switch checked={isAtivo} onCheckedChange={() => toggleUserAtivo(u.id, isAtivo)} />
+                                {isPendente && <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">pendente</span>}
+                              </div>
+                            </TableCell>
                             <TableCell>
                               {isEditing ? (
                                 <div className="flex gap-1">
