@@ -6,7 +6,7 @@ import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown, ChevronDown, ChevronRight, TrendingDown } from "lucide-react";
+import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown, ChevronDown, ChevronRight, TrendingDown, Clock, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
@@ -224,9 +224,11 @@ export default function Negociacoes() {
 
   const taskTag = (dealId: string) => {
     const st = dealTaskState(dealId);
-    if (st === "atrasada") return <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 leading-none">atrasada</Badge>;
-    if (st === "sem_tarefa") return <Badge className="text-[9px] px-1.5 py-0 h-4 leading-none border-0 bg-amber-500 hover:bg-amber-500 text-white">⚠ atenção</Badge>;
-    return null;
+    if (st === "atrasada")
+      return <span title="Tarefa atrasada" className="inline-flex shrink-0"><Clock className="h-3.5 w-3.5 text-red-500" /></span>;
+    if (st === "sem_tarefa")
+      return <span title="Sem tarefa (atenção)" className="inline-flex shrink-0"><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>;
+    return <span title="Tarefa em dia" className="inline-flex shrink-0"><Clock className="h-3.5 w-3.5 text-green-500" /></span>;
   };
 
   // Seleção em massa (apenas admin, tabela)
