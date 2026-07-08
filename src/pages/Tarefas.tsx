@@ -138,10 +138,14 @@ export default function Tarefas() {
     let profileMap = new Map<string, string>();
 
     if (rawList.length > 0) {
-      // Buscar nomes de deals que faltam no dealsMap
-      const missingDealIds = [...new Set(rawList.map((t) => t.deal_id).filter((id: string) => id && !dealsMap.has(id)))];
-      if (missingDealIds.length > 0) {
-        const { data: extraDeals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", missingDealIds);
+      // Buscar nomes de deals que faltam no dealsMap.
+      // Em LOTES: tanto o .in() quanto o tamanho da URL têm limite; com milhares
+      // de ids numa só consulta ela falha e os nomes ficam "—".
+      const missingDealIds = [...new Set(rawList.map((t) => t.deal_id).filter((id: string) => id && !dealsMap.has(id)) as string[])];
+      const CHUNK = 300;
+      for (let i = 0; i < missingDealIds.length; i += CHUNK) {
+        const slice = missingDealIds.slice(i, i + CHUNK);
+        const { data: extraDeals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", slice);
         ((extraDeals as any[]) ?? []).forEach((d) => dealsMap.set(d.id, d.cliente_nome));
       }
 
