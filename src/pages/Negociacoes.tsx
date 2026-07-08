@@ -12,6 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { cn } from "@/lib/utils";
 import { isVisibleUser } from "@/lib/filteredUsers";
 import { isTaskOverdue } from "@/lib/taskOverdue";
+import { fetchAllPaged } from "@/lib/supabasePagination";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
