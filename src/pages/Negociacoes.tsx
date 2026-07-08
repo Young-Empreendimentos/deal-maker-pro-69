@@ -111,7 +111,7 @@ const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
 
 // Persistência dos filtros/visão entre navegações (sessão do navegador):
 // ao abrir uma negociação e voltar para a lista, os filtros continuam.
-const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v1";
+const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v2";
 type PersistedState = {
   view?: "kanban" | "table" | "funil";
   sortBy?: "created_at" | "cliente_nome" | "qualificacao" | "updated_at";
@@ -150,7 +150,7 @@ export default function Negociacoes() {
   const [users, setUsers] = useState<UserOption[]>([]);
 
   // Multi-select filter state (inicializa do persistido, com defaults)
-  const [fStatusGroup, setFStatusGroup] = useState<string[]>(persisted.fStatusGroup ?? ["em_andamento"]);
+  const [fStatusGroup, setFStatusGroup] = useState<string[]>(persisted.fStatusGroup?.length ? persisted.fStatusGroup : ["em_andamento"]);
   const [fEtapa, setFEtapa] = useState<string[]>(persisted.fEtapa ?? []);
   const [fTarefa, setFTarefa] = useState<string[]>(persisted.fTarefa ?? []);
   const [fConsultor, setFConsultor] = useState<string[]>(
@@ -250,6 +250,7 @@ export default function Negociacoes() {
   const fetchDeals = async () => {
     const seq = ++fetchSeq.current;
     setLoading(true);
+    try {
 
     // Determinar quais status buscar no servidor baseado no filtro
     const statusesToFetch: string[] = [];
@@ -341,9 +342,14 @@ export default function Negociacoes() {
       from += pageSize;
     }
 
-    if (seq === fetchSeq.current) {
-      setDeals(allDeals);
-      setLoading(false);
+    if (seq === fetchSeq.current) setDeals(allDeals);
+    } catch (e: any) {
+      if (seq === fetchSeq.current) {
+        toast({ title: "Erro ao carregar negociações", description: e?.message ?? "Falha inesperada", variant: "destructive" });
+        setDeals([]);
+      }
+    } finally {
+      if (seq === fetchSeq.current) setLoading(false);
     }
   };
 
