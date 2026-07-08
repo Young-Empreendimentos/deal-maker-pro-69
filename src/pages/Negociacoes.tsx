@@ -11,6 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { isVisibleUser } from "@/lib/filteredUsers";
+import { isTaskOverdue } from "@/lib/taskOverdue";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
@@ -54,6 +55,7 @@ export type Deal = {
 
 type Empreendimento = { id: string; nome: string; cidade: string };
 type FonteLead = { id: string; nome: string };
+type PendingTask = { deal_id: string; data_vencimento: string | null; hora_vencimento: string | null; concluida: boolean };
 type UserOption = { id: string; email: string; nome: string };
 
 const STATUS_FILTER_OPTIONS = [
@@ -98,6 +100,13 @@ const LAST_90_DAYS_RANGE = (): DateRange => {
 // Opções do filtro por Etapa = as colunas do kanban (status "em andamento")
 const ETAPA_OPTIONS = KANBAN_COLUMNS.map((c) => ({ value: c.value as string, label: c.label }));
 
+// Filtro por situação de tarefas da negociação
+const TAREFA_OPTIONS = [
+  { value: "sem_tarefa", label: "Sem tarefa (atenção)" },
+  { value: "pendente",   label: "Com tarefa pendente" },
+  { value: "atrasada",   label: "Com tarefa atrasada" },
+];
+
 const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
 
 // Persistência dos filtros/visão entre navegações (sessão do navegador):
@@ -108,7 +117,7 @@ type PersistedState = {
   sortBy?: "created_at" | "cliente_nome" | "qualificacao" | "updated_at";
   sortDir?: "asc" | "desc";
   showFilters?: boolean;
-  fStatusGroup?: string[]; fEtapa?: string[]; fConsultor?: string[];
+  fStatusGroup?: string[]; fEtapa?: string[]; fTarefa?: string[]; fConsultor?: string[];
   fEmpreendimento?: string[]; fFonte?: string[]; fInteresse?: string[]; fPreco?: string[];
   fDateCriacao?: DateRange; fDateContato?: DateRange; fDateVenda?: DateRange; fDatePerda?: DateRange;
 };
@@ -143,6 +152,7 @@ export default function Negociacoes() {
   // Multi-select filter state (inicializa do persistido, com defaults)
   const [fStatusGroup, setFStatusGroup] = useState<string[]>(persisted.fStatusGroup ?? ["em_andamento"]);
   const [fEtapa, setFEtapa] = useState<string[]>(persisted.fEtapa ?? []);
+  const [fTarefa, setFTarefa] = useState<string[]>(persisted.fTarefa ?? []);
   const [fConsultor, setFConsultor] = useState<string[]>(
     persisted.fConsultor ?? (user?.id === CAROLINE_BORTOLUZZI_ID ? [CAROLINE_BORTOLUZZI_ID] : [])
   );
@@ -179,11 +189,44 @@ export default function Negociacoes() {
     try {
       sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({
         view, sortBy, sortDir, showFilters,
-        fStatusGroup, fEtapa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+        fStatusGroup, fEtapa, fTarefa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
         fDateCriacao, fDateContato, fDateVenda, fDatePerda,
       } as PersistedState));
     } catch { /* ignora quota/serialização */ }
-  }, [view, sortBy, sortDir, showFilters, fStatusGroup, fEtapa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao, fDateContato, fDateVenda, fDatePerda]);
+  }, [view, sortBy, sortDir, showFilters, fStatusGroup, fEtapa, fTarefa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao, fDateContato, fDateVenda, fDatePerda]);
+
+  // Tarefas pendentes por negociação → alimenta o filtro e a tag de tarefas
+  const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
+  useEffect(() => {
+    fetchAllPaged<PendingTask>((from, to) =>
+      supabase.from("crm_tasks").select("deal_id, data_vencimento, hora_vencimento, concluida")
+        .eq("concluida", false).is("deleted_at", null).range(from, to)
+    ).then(setPendingTasks).catch(() => setPendingTasks([]));
+  }, []);
+
+  const taskStateByDeal = useMemo(() => {
+    const m = new Map<string, { pending: boolean; overdue: boolean }>();
+    for (const t of pendingTasks) {
+      const cur = m.get(t.deal_id) ?? { pending: false, overdue: false };
+      cur.pending = true;
+      if (isTaskOverdue(t)) cur.overdue = true;
+      m.set(t.deal_id, cur);
+    }
+    return m;
+  }, [pendingTasks]);
+
+  const dealTaskState = (dealId: string): "atrasada" | "pendente" | "sem_tarefa" => {
+    const st = taskStateByDeal.get(dealId);
+    if (!st || !st.pending) return "sem_tarefa";
+    return st.overdue ? "atrasada" : "pendente";
+  };
+
+  const taskTag = (dealId: string) => {
+    const st = dealTaskState(dealId);
+    if (st === "atrasada") return <Badge variant="destructive" className="text-[9px] px-1.5 py-0 h-4 leading-none">atrasada</Badge>;
+    if (st === "sem_tarefa") return <Badge className="text-[9px] px-1.5 py-0 h-4 leading-none border-0 bg-amber-500 hover:bg-amber-500 text-white">⚠ atenção</Badge>;
+    return null;
+  };
 
   // Seleção em massa (apenas admin, tabela)
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -195,7 +238,7 @@ export default function Negociacoes() {
     });
 
   const hasDateFilter = (r: DateRange) => r.from !== "" || r.to !== "";
-  const hasFilters = fEtapa.length > 0 || fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
+  const hasFilters = fEtapa.length > 0 || fTarefa.length > 0 || fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda) || hasDateFilter(fDatePerda);
 
   const handleStatusChange = (next: string[]) => {
@@ -344,6 +387,7 @@ export default function Negociacoes() {
         if (!matchesGroup) return false;
       }
       if (fEtapa.length > 0 && !fEtapa.includes(d.status)) return false;
+      if (fTarefa.length > 0 && !fTarefa.includes(dealTaskState(d.id))) return false;
       if (fConsultor.length > 0) {
         const semDono = fConsultor.includes("__sem_dono__");
         const outras = fConsultor.filter((v) => v !== "__sem_dono__");
@@ -393,11 +437,12 @@ export default function Negociacoes() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [deals, fStatusGroup, fEtapa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+  }, [deals, fStatusGroup, fEtapa, fTarefa, taskStateByDeal, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
       fDateCriacao, fDateContato, fDateVenda, fDatePerda, sortBy, sortDir]);
 
   const clearFilters = () => {
     setFEtapa([]);
+    setFTarefa([]);
     setFConsultor([]);
     setFEmpreendimento([]);
     setFFonte([]);
@@ -492,6 +537,7 @@ export default function Negociacoes() {
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={handleStatusChange} />
                 <MultiSelectFilter label="Etapa" options={ETAPA_OPTIONS} selected={fEtapa} onChange={setFEtapa} />
+                <MultiSelectFilter label="Tarefas" options={TAREFA_OPTIONS} selected={fTarefa} onChange={setFTarefa} />
                 {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
@@ -580,6 +626,7 @@ export default function Negociacoes() {
                                     <Badge className={cn("text-[10px] px-1.5 py-0", QUAL_COLORS[deal.qualificacao])}>
                                       {deal.qualificacao}
                                     </Badge>
+                                    {taskTag(deal.id)}
                                     {deal.preco_lote && (
                                       <span className="text-[10px] text-muted-foreground font-medium">
                                         {deal.preco_lote.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
@@ -679,7 +726,10 @@ export default function Negociacoes() {
                                     <CardContent className="p-2 space-y-1.5">
                                       <p className="font-medium text-[13px] leading-tight line-clamp-2 break-words">{deal.cliente_nome}</p>
                                       <div className="flex items-center justify-between gap-1.5">
-                                        <Badge className={cn("text-[9px] px-1.5 py-0 h-4", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
+                                        <div className="flex items-center gap-1 min-w-0">
+                                          <Badge className={cn("text-[9px] px-1.5 py-0 h-4", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
+                                          {taskTag(deal.id)}
+                                        </div>
                                         <span className="text-[9px] text-muted-foreground tabular-nums">
                                           {new Date(deal.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
                                         </span>
@@ -742,7 +792,9 @@ export default function Negociacoes() {
                            />
                          </TableCell>
                        )}
-                      <TableCell className="font-medium">{deal.cliente_nome}</TableCell>
+                      <TableCell className="font-medium">
+                        <span className="inline-flex items-center gap-1.5">{deal.cliente_nome}{taskTag(deal.id)}</span>
+                      </TableCell>
                       <TableCell>
                         <Badge
                           variant={deal.status === "vendido" ? "default" : deal.status === "perdido" ? "destructive" : "outline"}
