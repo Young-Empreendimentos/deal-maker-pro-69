@@ -64,7 +64,11 @@ export default function Tarefas() {
 
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [deals, setDeals] = useState<Deal[]>([]);
+  // Busca de cliente (combobox) no formulário de nova tarefa
+  const [dealSearch, setDealSearch] = useState("");
+  const [dealResults, setDealResults] = useState<Deal[]>([]);
+  const [dealSearchLoading, setDealSearchLoading] = useState(false);
+  const [selectedDealNome, setSelectedDealNome] = useState("");
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas" | "deletadas">("pendentes");
@@ -111,7 +115,6 @@ export default function Tarefas() {
       dealsQuery = dealsQuery.eq("responsavel_id", user.id);
     }
     const { data: dealsData } = await dealsQuery;
-    setDeals((dealsData as Deal[]) ?? []);
 
     // Tarefas: admins veem todas; usuários comuns só as dos seus negócios.
     // Paginamos manualmente porque o Supabase limita 1000 linhas por request.
@@ -170,6 +173,22 @@ export default function Tarefas() {
 
   useEffect(() => { fetchTasks(); }, [isAdmin, user?.id]);
 
+  // Busca de clientes no servidor (debounce) — visibilidade: comum só os seus, admin todos
+  useEffect(() => {
+    const term = dealSearch.trim();
+    if (term.length < 2) { setDealResults([]); setDealSearchLoading(false); return; }
+    setDealSearchLoading(true);
+    const handle = setTimeout(async () => {
+      let q = supabase.from("crm_deals").select("id, cliente_nome")
+        .ilike("cliente_nome", `%${term}%`).order("cliente_nome").limit(20);
+      if (!isAdmin && user) q = q.eq("responsavel_id", user.id);
+      const { data } = await q;
+      setDealResults((data as Deal[]) ?? []);
+      setDealSearchLoading(false);
+    }, 300);
+    return () => clearTimeout(handle);
+  }, [dealSearch, isAdmin, user?.id]);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
@@ -204,6 +223,7 @@ export default function Tarefas() {
       toast({ title: "Tarefa criada!" });
       setShowForm(false);
       setForm({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
+      setSelectedDealNome(""); setDealSearch(""); setDealResults([]);
       fetchTasks();
     }
     setFormLoading(false);
@@ -447,12 +467,48 @@ export default function Tarefas() {
             </div>
             <div className="space-y-2">
               <Label>Negociação *</Label>
-              <Select value={form.deal_id} onValueChange={(v) => setForm((f) => ({ ...f, deal_id: v }))}>
-                <SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger>
-                <SelectContent>
-                  {deals.map((d) => <SelectItem key={d.id} value={d.id}>{d.cliente_nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              {form.deal_id ? (
+                <div className="flex items-center justify-between gap-2 rounded-md border px-3 py-2 text-sm">
+                  <span className="truncate">{selectedDealNome || "Cliente selecionado"}</span>
+                  <button
+                    type="button"
+                    className="shrink-0 text-muted-foreground hover:text-foreground"
+                    onClick={() => { setForm((f) => ({ ...f, deal_id: "" })); setSelectedDealNome(""); setDealSearch(""); setDealResults([]); }}
+                    aria-label="Trocar cliente"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : (
+                <div className="relative">
+                  <Input
+                    value={dealSearch}
+                    onChange={(e) => setDealSearch(e.target.value)}
+                    placeholder="Digite o nome do cliente"
+                    autoComplete="off"
+                  />
+                  {dealSearch.trim().length >= 2 && (
+                    <div className="absolute z-50 mt-1 w-full max-h-60 overflow-y-auto rounded-md border bg-popover shadow-md">
+                      {dealSearchLoading ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">Buscando...</p>
+                      ) : dealResults.length === 0 ? (
+                        <p className="px-3 py-2 text-sm text-muted-foreground">Nenhum cliente encontrado</p>
+                      ) : (
+                        dealResults.map((d) => (
+                          <button
+                            key={d.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent"
+                            onClick={() => { setForm((f) => ({ ...f, deal_id: d.id })); setSelectedDealNome(d.cliente_nome); }}
+                          >
+                            {d.cliente_nome}
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
