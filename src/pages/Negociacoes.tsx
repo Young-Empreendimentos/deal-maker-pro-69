@@ -95,39 +95,67 @@ const LAST_90_DAYS_RANGE = (): DateRange => {
   return { from: fmt(from), to: fmt(to) };
 };
 
+// Opções do filtro por Etapa = as colunas do kanban (status "em andamento")
+const ETAPA_OPTIONS = KANBAN_COLUMNS.map((c) => ({ value: c.value as string, label: c.label }));
+
+const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
+
+// Persistência dos filtros/visão entre navegações (sessão do navegador):
+// ao abrir uma negociação e voltar para a lista, os filtros continuam.
+const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v1";
+type PersistedState = {
+  view?: "kanban" | "table" | "funil";
+  sortBy?: "created_at" | "cliente_nome" | "qualificacao" | "updated_at";
+  sortDir?: "asc" | "desc";
+  showFilters?: boolean;
+  fStatusGroup?: string[]; fEtapa?: string[]; fConsultor?: string[];
+  fEmpreendimento?: string[]; fFonte?: string[]; fInteresse?: string[]; fPreco?: string[];
+  fDateCriacao?: DateRange; fDateContato?: DateRange; fDateVenda?: DateRange; fDatePerda?: DateRange;
+};
+function loadPersistedState(): PersistedState {
+  try {
+    const raw = sessionStorage.getItem(FILTERS_STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as PersistedState) : {};
+  } catch { return {}; }
+}
+
 export default function Negociacoes() {
   const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fetchSeq = useRef(0);
   const [deals, setDeals] = useState<Deal[]>([]);
-  const [view, setView] = useState<"kanban" | "table" | "funil">("kanban");
   const [openStages, setOpenStages] = useState<Set<string>>(new Set());
   const [showForm, setShowForm] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [showFilters, setShowFilters] = useState(false);
+
+  // Estado persistido (filtros/visão) — restaurado ao voltar de uma negociação
+  const [persisted] = useState<PersistedState>(loadPersistedState);
+
+  const [view, setView] = useState<"kanban" | "table" | "funil">(persisted.view ?? "kanban");
+  const [showFilters, setShowFilters] = useState(persisted.showFilters ?? false);
 
   // Filter data
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
 
-  // Multi-select filter state
-  const [fStatusGroup, setFStatusGroup] = useState<string[]>(["em_andamento"]);
-  const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
+  // Multi-select filter state (inicializa do persistido, com defaults)
+  const [fStatusGroup, setFStatusGroup] = useState<string[]>(persisted.fStatusGroup ?? ["em_andamento"]);
+  const [fEtapa, setFEtapa] = useState<string[]>(persisted.fEtapa ?? []);
   const [fConsultor, setFConsultor] = useState<string[]>(
-    user?.id === CAROLINE_BORTOLUZZI_ID ? [CAROLINE_BORTOLUZZI_ID] : []
+    persisted.fConsultor ?? (user?.id === CAROLINE_BORTOLUZZI_ID ? [CAROLINE_BORTOLUZZI_ID] : [])
   );
-  const [fEmpreendimento, setFEmpreendimento] = useState<string[]>([]);
-  const [fFonte, setFFonte] = useState<string[]>([]);
-  const [fInteresse, setFInteresse] = useState<string[]>([]);
-  const [fPreco, setFPreco] = useState<string[]>([]);
+  const [fEmpreendimento, setFEmpreendimento] = useState<string[]>(persisted.fEmpreendimento ?? []);
+  const [fFonte, setFFonte] = useState<string[]>(persisted.fFonte ?? []);
+  const [fInteresse, setFInteresse] = useState<string[]>(persisted.fInteresse ?? []);
+  const [fPreco, setFPreco] = useState<string[]>(persisted.fPreco ?? []);
 
   const EMPTY_RANGE: DateRange = { from: "", to: "" };
-  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(EMPTY_RANGE);
-  const [fDateContato,  setFDateContato]  = useState<DateRange>(EMPTY_RANGE);
-  const [fDateVenda,    setFDateVenda]    = useState<DateRange>(EMPTY_RANGE);
-  const [fDatePerda,    setFDatePerda]    = useState<DateRange>(EMPTY_RANGE);
+  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(persisted.fDateCriacao ?? EMPTY_RANGE);
+  const [fDateContato,  setFDateContato]  = useState<DateRange>(persisted.fDateContato ?? EMPTY_RANGE);
+  const [fDateVenda,    setFDateVenda]    = useState<DateRange>(persisted.fDateVenda ?? EMPTY_RANGE);
+  const [fDatePerda,    setFDatePerda]    = useState<DateRange>(persisted.fDatePerda ?? EMPTY_RANGE);
 
   // Quando o usuário seleciona "Perdido" e não há período definido,
   // preenchemos automaticamente com os últimos 90 dias para evitar carregar 21k+ registros.
@@ -143,8 +171,19 @@ export default function Negociacoes() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fStatusGroup]);
 
-  const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">("created_at");
-  const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [sortBy, setSortBy] = useState<"created_at" | "cliente_nome" | "qualificacao" | "updated_at">(persisted.sortBy ?? "created_at");
+  const [sortDir, setSortDir] = useState<"asc" | "desc">(persisted.sortDir ?? "desc");
+
+  // Salva filtros/visão na sessão para sobreviver à navegação (abrir negociação e voltar)
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({
+        view, sortBy, sortDir, showFilters,
+        fStatusGroup, fEtapa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+        fDateCriacao, fDateContato, fDateVenda, fDatePerda,
+      } as PersistedState));
+    } catch { /* ignora quota/serialização */ }
+  }, [view, sortBy, sortDir, showFilters, fStatusGroup, fEtapa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao, fDateContato, fDateVenda, fDatePerda]);
 
   // Seleção em massa (apenas admin, tabela)
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -156,7 +195,7 @@ export default function Negociacoes() {
     });
 
   const hasDateFilter = (r: DateRange) => r.from !== "" || r.to !== "";
-  const hasFilters = fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
+  const hasFilters = fEtapa.length > 0 || fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda) || hasDateFilter(fDatePerda);
 
   const handleStatusChange = (next: string[]) => {
@@ -304,6 +343,7 @@ export default function Negociacoes() {
         });
         if (!matchesGroup) return false;
       }
+      if (fEtapa.length > 0 && !fEtapa.includes(d.status)) return false;
       if (fConsultor.length > 0) {
         const semDono = fConsultor.includes("__sem_dono__");
         const outras = fConsultor.filter((v) => v !== "__sem_dono__");
@@ -353,10 +393,11 @@ export default function Negociacoes() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [deals, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+  }, [deals, fStatusGroup, fEtapa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
       fDateCriacao, fDateContato, fDateVenda, fDatePerda, sortBy, sortDir]);
 
   const clearFilters = () => {
+    setFEtapa([]);
     setFConsultor([]);
     setFEmpreendimento([]);
     setFFonte([]);
@@ -450,6 +491,7 @@ export default function Negociacoes() {
             <CardContent className="p-4 space-y-3">
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
                 <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={handleStatusChange} />
+                <MultiSelectFilter label="Etapa" options={ETAPA_OPTIONS} selected={fEtapa} onChange={setFEtapa} />
                 {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
