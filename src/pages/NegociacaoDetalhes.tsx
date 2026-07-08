@@ -70,12 +70,23 @@ type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo
 type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
 type Anotacao   = { id: string; texto: string; created_at: string; user_id: string; user_nome?: string };
+type StatusLogRow = { status_anterior: string | null; status_novo: string; created_at: string };
 
 const ALL_STATUSES = [
   ...KANBAN_COLUMNS,
   { value: "vendido", label: "Vendido" },
   { value: "perdido", label: "Perdido" },
 ];
+
+// Humaniza uma duração em ms: "5min", "2h 15min", "3d 4h"
+function formatDuracao(ms: number): string {
+  const min = Math.floor(Math.max(0, ms) / 60000);
+  if (min < 60) return `${min}min`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return min % 60 ? `${h}h ${min % 60}min` : `${h}h`;
+  const d = Math.floor(h / 24);
+  return h % 24 ? `${d}d ${h % 24}h` : `${d}d`;
+}
 
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
@@ -98,6 +109,7 @@ export default function NegociacaoDetalhes() {
   const [anotacoes, setAnotacoes]         = useState<Anotacao[]>([]);
   const [anotacaoTexto, setAnotacaoTexto] = useState("");
   const [anotacaoLoading, setAnotacaoLoading] = useState(false);
+  const [statusLog, setStatusLog]         = useState<StatusLogRow[]>([]);
 
   const [showDeleteDealDialog, setShowDeleteDealDialog] = useState(false);
   const [showLossDialog, setShowLossDialog] = useState(false);
@@ -107,7 +119,7 @@ export default function NegociacaoDetalhes() {
   const fetchAll = async () => {
     if (!id) return;
 
-    const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes] = await Promise.all([
+    const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes, statusLogRes] = await Promise.all([
       supabase.from("crm_deals").select("*").eq("id", id).single(),
       supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
       // Tarefas: paginação manual (Supabase limita 1000 por request)
@@ -118,6 +130,7 @@ export default function NegociacaoDetalhes() {
       ).then((data) => ({ data, error: null })),
       supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
       supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
+      supabase.from("crm_deal_status_log").select("status_anterior, status_novo, created_at").eq("deal_id", id).order("created_at", { ascending: true }),
     ]);
 
     const dealData = dealRes.data as DealDetail | null;
@@ -126,6 +139,7 @@ export default function NegociacaoDetalhes() {
     const tasksData = (tasksRes.data as Task[]) ?? [];
     setTasks(tasksData);
     setDealImages((dealImgsRes.data as DealImage[]) ?? []);
+    setStatusLog((statusLogRes.data as StatusLogRow[]) ?? []);
 
     // Anotações — busca nomes dos usuários via user_profiles
     const anotacoesRaw = (anotacoesRes.data as Anotacao[]) ?? [];
@@ -325,6 +339,47 @@ export default function NegociacaoDetalhes() {
     if (taskFilter === "concluidas") return activeTasks.filter((t) => t.concluida);
     return activeTasks;
   }, [tasks, taskFilter]);
+
+  // #4 — tempo em cada etapa (via crm_deal_status_log)
+  const stageTimes = useMemo(() => {
+    if (!deal) return [] as { status: string; label: string; ms: number; atual: boolean }[];
+    const finalizado = deal.status === "vendido" || deal.status === "perdido";
+    const fim = finalizado
+      ? new Date(deal.data_vendido ?? deal.data_perdido ?? deal.updated_at).getTime()
+      : Date.now();
+    const primeiro = statusLog.length > 0 ? (statusLog[0].status_anterior ?? deal.status) : deal.status;
+    const eventos: { status: string; at: number }[] = [{ status: primeiro, at: new Date(deal.created_at).getTime() }];
+    for (const e of statusLog) eventos.push({ status: e.status_novo, at: new Date(e.created_at).getTime() });
+    const dur = new Map<string, number>();
+    const ordem: string[] = [];
+    for (let i = 0; i < eventos.length; i++) {
+      const ate = i + 1 < eventos.length ? eventos[i + 1].at : fim;
+      if (!dur.has(eventos[i].status)) ordem.push(eventos[i].status);
+      dur.set(eventos[i].status, (dur.get(eventos[i].status) ?? 0) + Math.max(0, ate - eventos[i].at));
+    }
+    const atual = eventos[eventos.length - 1].status;
+    return ordem.map((s) => ({
+      status: s,
+      label: ALL_STATUSES.find((c) => c.value === s)?.label ?? s,
+      ms: dur.get(s) ?? 0,
+      atual: !finalizado && s === atual,
+    }));
+  }, [deal, statusLog]);
+
+  // #5 — ritmo de atividades (tarefas + anotações) + criação → 1ª atividade
+  const atividades = useMemo(() => {
+    const vazio = { criacaoAtePrimeira: null as number | null, itens: [] as { tipo: "tarefa" | "anotação"; label: string; at: number; desdeAnterior: number }[] };
+    if (!deal) return vazio;
+    const evs = [
+      ...tasks.filter((t) => !t.deleted_at).map((t) => ({ tipo: "tarefa" as const, label: t.titulo, at: new Date(t.created_at).getTime() })),
+      ...anotacoes.map((a) => ({ tipo: "anotação" as const, label: a.texto, at: new Date(a.created_at).getTime() })),
+    ].sort((a, b) => a.at - b.at);
+    const criacao = new Date(deal.created_at).getTime();
+    return {
+      criacaoAtePrimeira: evs.length > 0 ? evs[0].at - criacao : null,
+      itens: evs.map((e, i) => ({ ...e, desdeAnterior: i === 0 ? e.at - criacao : e.at - evs[i - 1].at })),
+    };
+  }, [deal, tasks, anotacoes]);
 
   if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
   if (!deal) return <AppLayout><div className="text-center text-muted-foreground py-12">Negociação não encontrada</div></AppLayout>;
@@ -589,6 +644,57 @@ export default function NegociacaoDetalhes() {
                 }
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Tempos: tempo por etapa (#4) e ritmo de atividades (#5) */}
+        <Card>
+          <CardHeader className="pb-3"><CardTitle className="text-sm font-semibold">Tempos</CardTitle></CardHeader>
+          <CardContent className="space-y-5">
+            {/* Tempo em cada etapa */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Tempo em cada etapa</p>
+              {stageTimes.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Sem histórico de etapas registrado.</p>
+              ) : (
+                <div className="space-y-1.5">
+                  {stageTimes.map((s) => (
+                    <div key={s.status} className="flex items-center justify-between gap-2 text-sm">
+                      <span className="flex items-center gap-2">
+                        {s.label}
+                        {s.atual && <Badge variant="outline" className="text-[10px] px-1.5 py-0">atual</Badge>}
+                      </span>
+                      <span className="tabular-nums text-muted-foreground">{formatDuracao(s.ms)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Ritmo de atividades */}
+            <div className="space-y-2 border-t pt-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Ritmo de atividades</p>
+              {atividades.criacaoAtePrimeira == null ? (
+                <p className="text-sm text-muted-foreground">Nenhuma tarefa ou anotação registrada.</p>
+              ) : (
+                <>
+                  <div className="flex items-center justify-between gap-2 text-sm">
+                    <span className="text-muted-foreground">Criação → 1ª atividade</span>
+                    <span className="tabular-nums font-medium">{formatDuracao(atividades.criacaoAtePrimeira)}</span>
+                  </div>
+                  <div className="space-y-1.5 pt-1">
+                    {atividades.itens.map((it, i) => (
+                      <div key={i} className="flex items-center gap-2 text-sm">
+                        <span className="text-[10px] text-muted-foreground w-[70px] shrink-0 tabular-nums">+{formatDuracao(it.desdeAnterior)}</span>
+                        <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full shrink-0", it.tipo === "tarefa" ? "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300")}>{it.tipo}</span>
+                        <span className="truncate text-foreground/80">{it.label}</span>
+                        <span className="ml-auto text-[10px] text-muted-foreground shrink-0">{new Date(it.at).toLocaleDateString("pt-BR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
           </CardContent>
         </Card>
 
