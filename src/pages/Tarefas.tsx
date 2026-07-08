@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
@@ -59,6 +60,7 @@ type TaskImage = {
 
 export default function Tarefas() {
   const { user, isAdmin } = useAuth();
+  const navigate = useNavigate();
 
   const { toast } = useToast();
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -320,9 +322,13 @@ export default function Tarefas() {
                       <Circle className="h-5 w-5 text-muted-foreground" />
                     )}
                   </button>
-                  <div className="flex-1 min-w-0">
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => navigate(`/negociacoes/${task.deal_id}`)}
+                    title="Abrir negociação"
+                  >
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className={cn("font-medium text-sm", task.concluida && "line-through")}>{task.titulo}</p>
+                      <p className={cn("font-medium text-sm hover:underline", task.concluida && "line-through")}>{task.titulo}</p>
                       {task.tipo && (() => {
                         const cfg = TIPO_CONFIG[task.tipo];
                         const Icon = cfg?.icon;

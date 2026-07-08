@@ -11,7 +11,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { X, UserCog, TrendingDown, ArrowRightLeft, Trash2, FileText, FileSpreadsheet } from "lucide-react";
+import { X, UserCog, TrendingDown, ArrowRightLeft, Trash2, FileText, FileSpreadsheet, Building2 } from "lucide-react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { KANBAN_COLUMNS, type Deal } from "@/pages/Negociacoes";
@@ -37,7 +37,9 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
   const [openStatus, setOpenStatus] = useState(false);
   const [openPerda, setOpenPerda] = useState(false);
   const [openDelete, setOpenDelete] = useState(false);
+  const [openTransferEmp, setOpenTransferEmp] = useState(false);
   const [novoResp, setNovoResp] = useState("");
+  const [novoEmp, setNovoEmp] = useState("");
   const [novoStatus, setNovoStatus] = useState("");
   const [motivoId, setMotivoId] = useState("");
   const [motivos, setMotivos] = useState<Motivo[]>([]);
@@ -74,6 +76,23 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
       toast({ title: `${count} negociação(ões) transferida(s) para ${newNome}` });
       setOpenTransfer(false);
       setNovoResp("");
+      onClear();
+      onRefresh();
+    }
+    setLoading(false);
+  };
+
+  const doTransferEmp = async () => {
+    if (!novoEmp) return;
+    setLoading(true);
+    const { error } = await supabase.from("crm_deals").update({ empreendimento_id: novoEmp } as any).in("id", ids);
+    if (error) {
+      toast({ title: "Erro", description: error.message, variant: "destructive" });
+    } else {
+      const nome = empreendimentos.find((e) => e.id === novoEmp)?.nome || "—";
+      toast({ title: `${count} negociação(ões) movida(s) para ${nome}` });
+      setOpenTransferEmp(false);
+      setNovoEmp("");
       onClear();
       onRefresh();
     }
@@ -195,6 +214,9 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
         <Button size="sm" variant="outline" onClick={() => setOpenTransfer(true)}>
           <UserCog className="h-4 w-4 mr-1" /> Transferir
         </Button>
+        <Button size="sm" variant="outline" onClick={() => setOpenTransferEmp(true)}>
+          <Building2 className="h-4 w-4 mr-1" /> Empreendimento
+        </Button>
         <Button size="sm" variant="outline" onClick={() => setOpenStatus(true)}>
           <ArrowRightLeft className="h-4 w-4 mr-1" /> Alterar status
         </Button>
@@ -228,6 +250,26 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenTransfer(false)}>Cancelar</Button>
             <Button onClick={doTransfer} disabled={!novoResp || loading}>{loading ? "Transferindo..." : "Confirmar"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Transferir Empreendimento */}
+      <Dialog open={openTransferEmp} onOpenChange={setOpenTransferEmp}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mover {count} negociação(ões) de empreendimento</DialogTitle>
+            <DialogDescription>Selecione o novo empreendimento.</DialogDescription>
+          </DialogHeader>
+          <Select value={novoEmp} onValueChange={setNovoEmp}>
+            <SelectTrigger><SelectValue placeholder="Selecione o empreendimento" /></SelectTrigger>
+            <SelectContent>
+              {empreendimentos.map((e) => <SelectItem key={e.id} value={e.id}>{e.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenTransferEmp(false)}>Cancelar</Button>
+            <Button onClick={doTransferEmp} disabled={!novoEmp || loading}>{loading ? "Movendo..." : "Confirmar"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
