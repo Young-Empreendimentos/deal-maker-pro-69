@@ -26,11 +26,11 @@ export function AppSidebar() {
       {/* Rail recolhido (w-16) que expande no hover (w-64), sobrepondo o conteúdo */}
       <aside className="group hidden md:flex fixed left-0 top-0 z-40 h-screen w-16 hover:w-64 flex-col overflow-hidden bg-sidebar text-sidebar-foreground border-r border-sidebar-border transition-[width] duration-200 ease-out">
         {/* Marca */}
-        <div className="flex items-center gap-3 h-16 px-3 shrink-0">
+        <div className="flex items-center justify-center group-hover:justify-start gap-3 h-16 px-3 shrink-0">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-ember shadow-ember">
             <Droplet className="h-5 w-5 text-white" fill="currentColor" />
           </div>
-          <span className="text-lg font-bold tracking-tight whitespace-nowrap">
+          <span className="hidden group-hover:inline text-lg font-bold tracking-tight whitespace-nowrap">
             Pingo<span className="text-sidebar-primary">'lead</span>
           </span>
         </div>
@@ -45,32 +45,32 @@ export function AppSidebar() {
                 to={link.to}
                 title={link.label}
                 className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
+                  "flex items-center justify-center group-hover:justify-start gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors",
                   active
                     ? "bg-sidebar-accent text-sidebar-primary"
                     : "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                 )}
               >
                 <link.icon className="h-5 w-5 shrink-0" />
-                <span className="whitespace-nowrap">{link.label}</span>
+                <span className="hidden group-hover:inline whitespace-nowrap">{link.label}</span>
               </NavLink>
             );
           })}
         </nav>
 
         <div className="p-3 border-t border-sidebar-border">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center group-hover:justify-start gap-3">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-sidebar-accent text-sm font-semibold text-sidebar-primary">
               {inicial}
             </div>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 hidden group-hover:block">
               <p className="text-sm font-medium truncate">{nome || user?.email}</p>
               <p className="text-xs text-sidebar-foreground/50 capitalize">{isAdmin ? "Admin" : "Vendedor"}</p>
             </div>
             <button
               onClick={signOut}
               title="Sair"
-              className="shrink-0 p-2 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors"
+              className="shrink-0 p-2 rounded-md hover:bg-sidebar-accent text-sidebar-foreground/60 hover:text-sidebar-foreground transition-colors hidden group-hover:inline-flex"
             >
               <LogOut className="h-4 w-4" />
             </button>
