@@ -18,6 +18,21 @@ function fmt(iso: string) {
   return `${d}/${m}/${y}`;
 }
 
+// Data (YYYY-MM-DD) em America/Sao_Paulo, com offset em dias. Ancoramos ao meio-dia
+// UTC da data-calendário de SP para o offset não virar o dia por causa do fuso.
+function spDate(offsetDays = 0): string {
+  const todaySp = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(new Date());
+  if (offsetDays === 0) return todaySp;
+  const base = new Date(`${todaySp}T12:00:00Z`);
+  base.setUTCDate(base.getUTCDate() + offsetDays);
+  return base.toISOString().slice(0, 10);
+}
+
 export function DateRangeFilter({ label, value, onChange }: Props) {
   const [open, setOpen] = useState(false);
   const hasValue = value.from || value.to;
@@ -55,6 +70,26 @@ export function DateRangeFilter({ label, value, onChange }: Props) {
       </PopoverTrigger>
       <PopoverContent className="w-64 p-4 space-y-3" align="start">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{label}</p>
+        <div className="flex gap-1.5">
+          {[
+            { lbl: "Hoje", off: 0 },
+            { lbl: "Ontem", off: -1 },
+          ].map((p) => {
+            const d = spDate(p.off);
+            const ativo = value.from === d && value.to === d;
+            return (
+              <Button
+                key={p.lbl}
+                variant={ativo ? "default" : "outline"}
+                size="sm"
+                className="h-7 flex-1 text-xs"
+                onClick={() => { onChange({ from: d, to: d }); setOpen(false); }}
+              >
+                {p.lbl}
+              </Button>
+            );
+          })}
+        </div>
         <div className="space-y-2">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">De</label>

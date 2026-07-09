@@ -1,7 +1,7 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -52,6 +52,7 @@ export type Deal = {
   preco_lote: number | null;
   data_vendido: string | null;
   data_perdido: string | null;
+  motivo_perda_id: string | null;
 };
 
 type Empreendimento = { id: string; nome: string; cidade: string };
@@ -88,7 +89,7 @@ const PRECO_FAIXAS = [
   { value: "500000-99999999", label: "Acima de R$ 500 mil" },
 ];
 
-const DEAL_LIST_COLUMNS = "id, cliente_nome, cliente_email, qualificacao, status, responsavel_id, created_at, updated_at, empreendimento_id, fonte_id, ordem_kanban, interesse, preco_lote, data_vendido, data_perdido";
+const DEAL_LIST_COLUMNS = "id, cliente_nome, cliente_email, qualificacao, status, responsavel_id, created_at, updated_at, empreendimento_id, fonte_id, ordem_kanban, interesse, preco_lote, data_vendido, data_perdido, motivo_perda_id";
 
 const LAST_90_DAYS_RANGE = (): DateRange => {
   const to = new Date();
@@ -120,6 +121,7 @@ type PersistedState = {
   showFilters?: boolean;
   fStatusGroup?: string[]; fEtapa?: string[]; fTarefa?: string[]; fConsultor?: string[];
   fEmpreendimento?: string[]; fFonte?: string[]; fInteresse?: string[]; fPreco?: string[];
+  fMotivoPerda?: string[];
   fDateCriacao?: DateRange; fDateContato?: DateRange; fDateVenda?: DateRange; fDatePerda?: DateRange;
 };
 function loadPersistedState(): PersistedState {
@@ -149,6 +151,7 @@ export default function Negociacoes() {
   const [empreendimentos, setEmpreendimentos] = useState<Empreendimento[]>([]);
   const [fontes, setFontes] = useState<FonteLead[]>([]);
   const [users, setUsers] = useState<UserOption[]>([]);
+  const [motivosPerda, setMotivosPerda] = useState<{ id: string; nome: string }[]>([]);
 
   // Multi-select filter state (inicializa do persistido, com defaults)
   const [fStatusGroup, setFStatusGroup] = useState<string[]>(persisted.fStatusGroup?.length ? persisted.fStatusGroup : ["em_andamento"]);
@@ -161,6 +164,7 @@ export default function Negociacoes() {
   const [fFonte, setFFonte] = useState<string[]>(persisted.fFonte ?? []);
   const [fInteresse, setFInteresse] = useState<string[]>(persisted.fInteresse ?? []);
   const [fPreco, setFPreco] = useState<string[]>(persisted.fPreco ?? []);
+  const [fMotivoPerda, setFMotivoPerda] = useState<string[]>(persisted.fMotivoPerda ?? []);
 
   const EMPTY_RANGE: DateRange = { from: "", to: "" };
   const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(persisted.fDateCriacao ?? EMPTY_RANGE);
@@ -190,11 +194,11 @@ export default function Negociacoes() {
     try {
       sessionStorage.setItem(FILTERS_STORAGE_KEY, JSON.stringify({
         view, sortBy, sortDir, showFilters,
-        fStatusGroup, fEtapa, fTarefa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+        fStatusGroup, fEtapa, fTarefa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fMotivoPerda,
         fDateCriacao, fDateContato, fDateVenda, fDatePerda,
       } as PersistedState));
     } catch { /* ignora quota/serialização */ }
-  }, [view, sortBy, sortDir, showFilters, fStatusGroup, fEtapa, fTarefa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao, fDateContato, fDateVenda, fDatePerda]);
+  }, [view, sortBy, sortDir, showFilters, fStatusGroup, fEtapa, fTarefa, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fMotivoPerda, fDateCriacao, fDateContato, fDateVenda, fDatePerda]);
 
   // Tarefas pendentes por negociação → alimenta o filtro e a tag de tarefas
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
@@ -241,7 +245,7 @@ export default function Negociacoes() {
     });
 
   const hasDateFilter = (r: DateRange) => r.from !== "" || r.to !== "";
-  const hasFilters = fEtapa.length > 0 || fTarefa.length > 0 || fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0
+  const hasFilters = fEtapa.length > 0 || fTarefa.length > 0 || fConsultor.length > 0 || fEmpreendimento.length > 0 || fFonte.length > 0 || fInteresse.length > 0 || fPreco.length > 0 || fMotivoPerda.length > 0
     || hasDateFilter(fDateCriacao) || hasDateFilter(fDateContato) || hasDateFilter(fDateVenda) || hasDateFilter(fDatePerda);
 
   const handleStatusChange = (next: string[]) => {
@@ -267,6 +271,10 @@ export default function Negociacoes() {
       statusesToFetch.push("vendido");
     }
     if (querSemDono || fStatusGroup.length === 0 || fStatusGroup.includes("perdido")) {
+      statusesToFetch.push("perdido");
+    }
+    // Motivo da perda só existe em perdidos — garante que eles venham mesmo com outro Status.
+    if (fMotivoPerda.length > 0 && !statusesToFetch.includes("perdido")) {
       statusesToFetch.push("perdido");
     }
 
@@ -298,6 +306,7 @@ export default function Negociacoes() {
       }
       if (fEmpreendimento.length > 0) query = query.in("empreendimento_id", fEmpreendimento);
       if (fFonte.length > 0) query = query.in("fonte_id", fFonte);
+      if (fMotivoPerda.length > 0) query = query.in("motivo_perda_id", fMotivoPerda);
       if (fInteresse.length > 0) {
         const interesses = new Set(fInteresse);
         if (interesses.has("presente ou doação")) {
@@ -360,6 +369,7 @@ export default function Negociacoes() {
     fetchDeals();
     supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
+    supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setMotivosPerda((data as { id: string; nome: string }[]) ?? []));
     if (isAdmin) {
       supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
         const all = ((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome }));
@@ -409,6 +419,7 @@ export default function Negociacoes() {
       }
       if (fEmpreendimento.length > 0 && (!d.empreendimento_id || !fEmpreendimento.includes(d.empreendimento_id))) return false;
       if (fFonte.length > 0 && (!d.fonte_id || !fFonte.includes(d.fonte_id))) return false;
+      if (fMotivoPerda.length > 0 && (!d.motivo_perda_id || !fMotivoPerda.includes(d.motivo_perda_id))) return false;
       if (fInteresse.length > 0) {
         // Normaliza registros antigos que tinham "presente" ou "doação" separados
         const normInteresse = (d.interesse === "presente" || d.interesse === "doação")
@@ -446,7 +457,7 @@ export default function Negociacoes() {
       return sortDir === "asc" ? cmp : -cmp;
     });
     return list;
-  }, [deals, fStatusGroup, fEtapa, fTarefa, taskStateByDeal, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco,
+  }, [deals, fStatusGroup, fEtapa, fTarefa, taskStateByDeal, fConsultor, fEmpreendimento, fFonte, fMotivoPerda, fInteresse, fPreco,
       fDateCriacao, fDateContato, fDateVenda, fDatePerda, sortBy, sortDir]);
 
   const clearFilters = () => {
@@ -455,6 +466,7 @@ export default function Negociacoes() {
     setFConsultor([]);
     setFEmpreendimento([]);
     setFFonte([]);
+    setFMotivoPerda([]);
     setFInteresse([]);
     setFPreco([]);
     setFDateCriacao(EMPTY_RANGE);
@@ -483,6 +495,7 @@ export default function Negociacoes() {
   ];
   const empreendimentoOptions = empreendimentos.map((e) => ({ value: e.id, label: e.nome }));
   const fonteOptions = fontes.map((f) => ({ value: f.id, label: f.nome }));
+  const motivoPerdaOptions = motivosPerda.map((m) => ({ value: m.id, label: m.nome }));
 
   const allFilteredSelected = filtered.length > 0 && filtered.every((d) => selected.has(d.id));
   const someFilteredSelected = filtered.some((d) => selected.has(d.id));
@@ -550,6 +563,7 @@ export default function Negociacoes() {
                 {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
+                <MultiSelectFilter label="Motivo da Perda" options={motivoPerdaOptions} selected={fMotivoPerda} onChange={setFMotivoPerda} />
                 <MultiSelectFilter label="Interesse" options={INTERESSE_OPTIONS} selected={fInteresse} onChange={setFInteresse} />
                 <MultiSelectFilter label="Preço" options={PRECO_FAIXAS} selected={fPreco} onChange={setFPreco} />
               </div>
@@ -624,11 +638,8 @@ export default function Negociacoes() {
                         ) : (
                           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                             {colDeals.map((deal) => (
-                              <Card
-                                key={deal.id}
-                                className="cursor-pointer hover:shadow-md transition-shadow border"
-                                onClick={() => navigate(`/negociacoes/${deal.id}`)}
-                              >
+                              <Link key={deal.id} to={`/negociacoes/${deal.id}`} className="block">
+                                <Card className="cursor-pointer hover:shadow-md transition-shadow border">
                                 <CardContent className="p-3 space-y-2">
                                   <p className="font-medium text-sm leading-snug">{deal.cliente_nome}</p>
                                   <div className="flex items-center gap-2 flex-wrap">
@@ -646,7 +657,8 @@ export default function Negociacoes() {
                                     </span>
                                   </div>
                                 </CardContent>
-                              </Card>
+                                </Card>
+                              </Link>
                             ))}
                           </div>
                         )}
@@ -685,12 +697,14 @@ export default function Negociacoes() {
                           ) : (
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               {colDeals.map((deal) => (
-                                <Card key={deal.id} className="cursor-pointer hover:shadow-md transition-shadow border" onClick={() => navigate(`/negociacoes/${deal.id}`)}>
+                                <Link key={deal.id} to={`/negociacoes/${deal.id}`} className="block">
+                                  <Card className="cursor-pointer hover:shadow-md transition-shadow border">
                                   <CardContent className="p-3">
                                     <p className="font-medium text-sm truncate">{deal.cliente_nome}</p>
                                     <p className="text-[10px] text-muted-foreground mt-0.5">{new Date(deal.created_at).toLocaleDateString("pt-BR")}</p>
                                   </CardContent>
-                                </Card>
+                                  </Card>
+                                </Link>
                               ))}
                             </div>
                           )}
@@ -728,9 +742,9 @@ export default function Negociacoes() {
                                   ref={provided.innerRef}
                                   {...provided.draggableProps}
                                   {...provided.dragHandleProps}
-                                  onClick={() => navigate(`/negociacoes/${deal.id}`)}
                                   className={cn("cursor-pointer", snapshot.isDragging && "rotate-1 shadow-lg")}
                                 >
+                                  <Link to={`/negociacoes/${deal.id}`} className="block">
                                   <Card className="hover:shadow-md hover:-translate-y-0.5 transition-all border bg-card">
                                     <CardContent className="p-2 space-y-1.5">
                                       <p className="font-medium text-[13px] leading-tight line-clamp-2 break-words">{deal.cliente_nome}</p>
@@ -750,6 +764,7 @@ export default function Negociacoes() {
                                       )}
                                     </CardContent>
                                   </Card>
+                                  </Link>
                                 </div>
                               )}
                             </Draggable>
@@ -802,7 +817,10 @@ export default function Negociacoes() {
                          </TableCell>
                        )}
                       <TableCell className="font-medium">
-                        <span className="inline-flex items-center gap-1.5">{deal.cliente_nome}{taskTag(deal.id)}</span>
+                        <span className="inline-flex items-center gap-1.5">
+                          <Link to={`/negociacoes/${deal.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{deal.cliente_nome}</Link>
+                          {taskTag(deal.id)}
+                        </span>
                       </TableCell>
                       <TableCell>
                         <Badge

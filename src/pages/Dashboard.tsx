@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
+import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -150,7 +151,7 @@ export default function Dashboard() {
   // ── Applied filters ──────────────────────────────────────────────────────
   const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
   const [customRange,  setCustomRange]  = useState<{ from?: Date; to?: Date }>({});
-  const [filterUser,   setFilterUser]   = useState("todos");
+  const [filterUsers,  setFilterUsers]  = useState<string[]>([]);
   const [filterEmp,    setFilterEmp]    = useState("todos");
 
   // ── Pending (inside popover before saving) ────────────────────────────────
@@ -192,9 +193,9 @@ export default function Dashboard() {
 
     const fromIso = dateFrom.toISOString();
     const toIso   = dateTo.toISOString();
-    const responsavelScope = !isAdmin
+    const responsavelScope: string | string[] | null = !isAdmin
       ? user.id
-      : (filterUser !== "todos" ? filterUser : null);
+      : (filterUsers.length > 0 ? filterUsers : null);
     const empScope = filterEmp !== "todos" ? filterEmp : null;
 
     const PERDIDOS_COLS = "id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote";
@@ -209,7 +210,7 @@ export default function Dashboard() {
               .gte("created_at", fromIso).lte("created_at", toIso)
               .order("created_at", { ascending: false })
               .range(from, to);
-            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
             if (empScope)         q = q.eq("empreendimento_id", empScope);
             return q;
           }),
@@ -219,7 +220,7 @@ export default function Dashboard() {
               .gte("data_vendido", fromIso).lte("data_vendido", toIso)
               .order("data_vendido", { ascending: false })
               .range(from, to);
-            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
             if (empScope)         q = q.eq("empreendimento_id", empScope);
             return q;
           }),
@@ -229,7 +230,7 @@ export default function Dashboard() {
               .gte("data_perdido", fromIso).lte("data_perdido", toIso)
               .order("data_perdido", { ascending: false })
               .range(from, to);
-            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
             if (empScope)         q = q.eq("empreendimento_id", empScope);
             return q;
           }),
@@ -240,7 +241,7 @@ export default function Dashboard() {
               .gte("updated_at", fromIso).lte("updated_at", toIso)
               .order("updated_at", { ascending: false })
               .range(from, to);
-            if (responsavelScope) q = q.eq("responsavel_id", responsavelScope);
+            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
             return q;
           }),
         ]);
@@ -257,7 +258,7 @@ export default function Dashboard() {
         setLoading(false);
       }
     })();
-  }, [user?.id, isAdmin, dateFrom, dateTo, filterUser, filterEmp]);
+  }, [user?.id, isAdmin, dateFrom, dateTo, filterUsers, filterEmp]);
 
   // ── Date button label ─────────────────────────────────────────────────────
   const dateBtnLabel = useMemo(() => {
@@ -284,14 +285,14 @@ export default function Dashboard() {
   // ── Filtered deals ────────────────────────────────────────────────────────
   const filteredDeals = useMemo(() => deals.filter((d) => {
     if (!isAdmin && d.responsavel_id !== user?.id) return false;
-    if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+    if (isAdmin && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
       const dt = new Date(d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
-  }), [deals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
+  }), [deals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
   // ── Filtered completed tasks ──────────────────────────────────────────────
   // Filtro de usuário → responsavel_id da TAREFA (quem criou/completou)
@@ -327,8 +328,8 @@ export default function Dashboard() {
       // dele, mesmo que a tarefa tenha sido executada por outro).
       if (!isAdmin) {
         if (t.responsavel_id !== user?.id && deal?.responsavel_id !== user?.id) return false;
-      } else if (filterUser !== "todos") {
-        if (t.responsavel_id !== filterUser && deal?.responsavel_id !== filterUser) return false;
+      } else if (filterUsers.length > 0) {
+        if (!filterUsers.includes(t.responsavel_id) && !filterUsers.includes(deal?.responsavel_id ?? "")) return false;
       }
       // Filtro de empreendimento pelo deal
       if (empDealsSet !== null && !empDealsSet.has(t.deal_id)) return false;
@@ -339,7 +340,7 @@ export default function Dashboard() {
       }
       return true;
     });
-  }, [tasks, isAdmin, user, filterUser, empDealsSet, allDealsById, dateFrom, dateTo]);
+  }, [tasks, isAdmin, user, filterUsers, empDealsSet, allDealsById, dateFrom, dateTo]);
 
   // ── Chart data ────────────────────────────────────────────────────────────
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
@@ -357,25 +358,25 @@ export default function Dashboard() {
 
   const filteredVendas = useMemo(() => vendasDeals.filter((d) => {
     if (!isAdmin && d.responsavel_id !== user?.id) return false;
-    if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+    if (isAdmin && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
       const dt = new Date((d as any).data_vendido ?? d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
-  }), [vendasDeals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
+  }), [vendasDeals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
   const filteredPerdas = useMemo(() => perdasDeals.filter((d) => {
     if (!isAdmin && d.responsavel_id !== user?.id) return false;
-    if (isAdmin && filterUser !== "todos" && d.responsavel_id !== filterUser) return false;
+    if (isAdmin && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
       const dt = new Date((d as any).data_perdido ?? d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
-  }), [perdasDeals, isAdmin, user, filterUser, filterEmp, dateFrom, dateTo]);
+  }), [perdasDeals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
   const vendasCount  = filteredVendas.length;
   const perdasCount  = filteredPerdas.length;
@@ -556,13 +557,14 @@ export default function Dashboard() {
 
             {/* Consultor (admin only) ------------------------------------- */}
             {isAdmin && (
-              <Select value={filterUser} onValueChange={setFilterUser}>
-                <SelectTrigger className="h-9 text-sm w-[170px]"><SelectValue placeholder="Consultor" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="todos">Todos os consultores</SelectItem>
-                  {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="w-[190px]">
+                <MultiSelectFilter
+                  label="Consultor"
+                  options={users.map((u) => ({ value: u.id, label: u.nome }))}
+                  selected={filterUsers}
+                  onChange={setFilterUsers}
+                />
+              </div>
             )}
           </div>
         </div>
