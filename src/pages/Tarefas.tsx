@@ -152,12 +152,18 @@ export default function Tarefas() {
     // O RLS de crm_tasks já escopa: admin vê todas, usuário comum vê as suas
     // (responsavel_id). O nome do cliente vem EMBUTIDO pela FK numa query só —
     // sem seed de 1000 deals nem resolução de nomes em lotes (era o gargalo).
-    const rawTasksData = await fetchAllPaged<any>((from, to) =>
-      supabase.from("crm_tasks")
+    const rawTasksData = await fetchAllPaged<any>((from, to) => {
+      let q = supabase.from("crm_tasks")
         .select("*, crm_deals(cliente_nome)")
         .order("created_at", { ascending: false })
-        .range(from, to)
-    );
+        .range(from, to);
+      // Filtra no servidor conforme a aba — evita baixar TODAS as tarefas
+      if (filter === "pendentes") q = q.eq("concluida", false).is("deleted_at", null);
+      else if (filter === "concluidas") q = q.eq("concluida", true).is("deleted_at", null);
+      else if (filter === "deletadas") q = q.not("deleted_at", "is", null);
+      else q = q.is("deleted_at", null); // "todas" (somente ativas)
+      return q;
+    });
 
     // Nomes dos responsáveis (poucos usuários) — uma única consulta
     const responsavelIds = [...new Set(rawTasksData.map((t: any) => t.responsavel_id).filter(Boolean))] as string[];
@@ -177,7 +183,7 @@ export default function Tarefas() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchTasks(); }, [isAdmin, user?.id]);
+  useEffect(() => { fetchTasks(); }, [isAdmin, user?.id, filter]);
 
   // Busca de clientes no servidor (debounce) — visibilidade: comum só os seus, admin todos
   useEffect(() => {
