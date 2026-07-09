@@ -1,4 +1,4 @@
-import { LayoutDashboard, Handshake, Building2, Settings, LogOut, Menu, X, ClipboardList } from "lucide-react";
+import { LayoutDashboard, Handshake, Building2, Settings, LogOut, Menu, X, ClipboardList, Droplet } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -21,7 +21,12 @@ export function MobileNav() {
   return (
     <div className="md:hidden">
       <div className="flex items-center gap-3 px-4 py-3 border-b border-border bg-card">
-        <h1 className="font-display text-lg font-bold text-primary flex-shrink-0">CRM</h1>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-ember shadow-ember">
+            <Droplet className="h-4 w-4 text-white" fill="currentColor" />
+          </div>
+          <h1 className="font-display text-lg font-bold whitespace-nowrap">Pingo<span className="text-primary">'lead</span></h1>
+        </div>
         <div className="flex-1">
           <GlobalSearch />
         </div>
