@@ -107,13 +107,12 @@ export default function Dashboard() {
   const { toast } = useToast();
 
   const [deals,  setDeals]  = useState<Deal[]>([]);
-  const [tasks,  setTasks]  = useState<Task[]>([]);
+  const [dashCounts, setDashCounts] = useState<{ perdas: number; atividades: Record<string, number> }>({ perdas: 0, atividades: {} });
   const [drillDown, setDrillDown] = useState<DrillDown | null>(null);
   const [users,  setUsers]  = useState<UserOption[]>([]);
   const [emps,   setEmps]   = useState<Emp[]>([]);
   const [loading, setLoading] = useState(true);
   const [vendasDeals, setVendasDeals] = useState<Deal[]>([]);
-  const [perdasDeals, setPerdasDeals] = useState<Deal[]>([]);
   const fetchSeqRef = useRef(0);
 
   // ── Solicitações de acesso ao CRM (admin) ─────────────────────────────────
@@ -198,12 +197,10 @@ export default function Dashboard() {
       : (filterUsers.length > 0 ? filterUsers : null);
     const empScope = filterEmp !== "todos" ? filterEmp : null;
 
-    const PERDIDOS_COLS = "id, cliente_nome, status, responsavel_id, empreendimento_id, created_at, data_perdido, preco_lote";
-
     (async () => {
       try {
-        const [dealsAtivos, vendas, perdas, tasksConcluidas] = await Promise.all([
-          // Ativos do período (filtro por created_at, igual à lógica anterior)
+        const [dealsAtivos, vendas, counts] = await Promise.all([
+          // Ativos do período (filtro por created_at) — leve (~200)
           fetchAllPaged<Deal>((from, to) => {
             let q = supabase.from("crm_deals").select("*")
               .not("status", "in", "(vendido,perdido)")
@@ -214,6 +211,7 @@ export default function Dashboard() {
             if (empScope)         q = q.eq("empreendimento_id", empScope);
             return q;
           }),
+          // Vendas do período — leve (~130)
           fetchAllPaged<Deal>((from, to) => {
             let q = supabase.from("crm_deals").select("*")
               .eq("status", "vendido")
@@ -224,33 +222,20 @@ export default function Dashboard() {
             if (empScope)         q = q.eq("empreendimento_id", empScope);
             return q;
           }),
-          fetchAllPaged<Deal>((from, to) => {
-            let q = supabase.from("crm_deals").select(PERDIDOS_COLS)
-              .eq("status", "perdido")
-              .gte("data_perdido", fromIso).lte("data_perdido", toIso)
-              .order("data_perdido", { ascending: false })
-              .range(from, to);
-            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
-            if (empScope)         q = q.eq("empreendimento_id", empScope);
-            return q;
-          }),
-          fetchAllPaged<Task>((from, to) => {
-            let q = supabase.from("crm_tasks")
-              .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
-              .eq("concluida", true)
-              .gte("updated_at", fromIso).lte("updated_at", toIso)
-              .order("updated_at", { ascending: false })
-              .range(from, to);
-            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
-            return q;
-          }),
+          // Perdas + tarefas concluídas: só a CONTAGEM no servidor (evita baixar milhares
+          // de linhas só p/ contar). As linhas em si só são buscadas ao abrir o drill-down.
+          (supabase as any).rpc("crm_dashboard_counts", {
+            p_from: fromIso,
+            p_to: toIso,
+            p_users: (isAdmin && filterUsers.length > 0) ? filterUsers : null,
+            p_emp: empScope,
+          }).then((r: any) => (r.data as { perdas: number; atividades: Record<string, number> } | null)),
         ]);
 
         if (seq !== fetchSeqRef.current) return; // resposta obsoleta
         setDeals(dealsAtivos);
         setVendasDeals(vendas);
-        setPerdasDeals(perdas as unknown as Deal[]);
-        setTasks(tasksConcluidas);
+        setDashCounts(counts ?? { perdas: 0, atividades: {} });
         setLoading(false);
       } catch (err) {
         if (seq !== fetchSeqRef.current) return;
@@ -294,53 +279,37 @@ export default function Dashboard() {
     return true;
   }), [deals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
-  // ── Filtered completed tasks ──────────────────────────────────────────────
-  // Filtro de usuário → responsavel_id da TAREFA (quem criou/completou)
-  // Filtro de empreendimento → passa pelo deal (tarefa não tem emp direto)
-  // Filtro de data → updated_at da TAREFA (momento da conclusão)
-  // Mapa de TODOS os deals carregados (ativos + vendidos + perdidos) para que
-  // os filtros de empreendimento/usuário das tarefas funcionem mesmo quando o
-  // deal está fora do funil ativo.
-  const allDealsById = useMemo(() => {
-    const m = new Map<string, Deal>();
-    for (const d of deals)        m.set(d.id, d);
-    for (const d of vendasDeals)  m.set(d.id, d);
-    for (const d of perdasDeals)  m.set(d.id, d);
-    return m;
-  }, [deals, vendasDeals, perdasDeals]);
+  // Perdas e tarefas concluídas: os NÚMEROS vêm de dashCounts (contados no servidor).
+  // As linhas só são buscadas ao abrir o drill-down (lazy) — mantém a lista sem
+  // baixar milhares de linhas no carregamento.
+  const scopeUsers = (): string[] | null =>
+    isAdmin ? (filterUsers.length > 0 ? filterUsers : null) : (user ? [user.id] : null);
 
-  const empDealsSet = useMemo(() =>
-    filterEmp !== "todos"
-      ? new Set(
-          Array.from(allDealsById.values())
-            .filter((d) => d.empreendimento_id === filterEmp)
-            .map((d) => d.id),
-        )
-      : null,
-  [allDealsById, filterEmp]);
+  const abrirDrillPerdas = async () => {
+    if (!dateFrom || !dateTo) return;
+    let q = supabase.from("crm_deals").select("*")
+      .eq("status", "perdido")
+      .gte("data_perdido", dateFrom.toISOString()).lte("data_perdido", dateTo.toISOString())
+      .order("data_perdido", { ascending: false }).limit(500);
+    const s = scopeUsers();
+    if (s) q = q.in("responsavel_id", s);
+    if (filterEmp !== "todos") q = q.eq("empreendimento_id", filterEmp);
+    const { data } = await q;
+    setDrillDown({ kind: "deals", label: "Perdidas", items: (data as Deal[]) ?? [] });
+  };
 
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      if (!t.concluida) return false;
-      const deal = allDealsById.get(t.deal_id);
-      // Filtro de usuário: aceita se a tarefa OU o deal pertencer ao usuário
-      // selecionado (admins filtrando por vendedor querem ver a atividade do time
-      // dele, mesmo que a tarefa tenha sido executada por outro).
-      if (!isAdmin) {
-        if (t.responsavel_id !== user?.id && deal?.responsavel_id !== user?.id) return false;
-      } else if (filterUsers.length > 0) {
-        if (!filterUsers.includes(t.responsavel_id) && !filterUsers.includes(deal?.responsavel_id ?? "")) return false;
-      }
-      // Filtro de empreendimento pelo deal
-      if (empDealsSet !== null && !empDealsSet.has(t.deal_id)) return false;
-      // Filtro de data
-      if (dateFrom && dateTo) {
-        const dt = new Date(t.updated_at);
-        if (dt < dateFrom || dt > dateTo) return false;
-      }
-      return true;
-    });
-  }, [tasks, isAdmin, user, filterUsers, empDealsSet, allDealsById, dateFrom, dateTo]);
+  const abrirDrillTarefas = async (tipo: string) => {
+    if (!dateFrom || !dateTo) return;
+    let q = supabase.from("crm_tasks")
+      .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
+      .eq("concluida", true).eq("tipo", tipo)
+      .gte("updated_at", dateFrom.toISOString()).lte("updated_at", dateTo.toISOString())
+      .order("updated_at", { ascending: false }).limit(500);
+    const s = scopeUsers();
+    if (s) q = q.in("responsavel_id", s);
+    const { data } = await q;
+    setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items: (data as Task[]) ?? [] });
+  };
 
   // ── Chart data ────────────────────────────────────────────────────────────
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
@@ -367,19 +336,8 @@ export default function Dashboard() {
     return true;
   }), [vendasDeals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
-  const filteredPerdas = useMemo(() => perdasDeals.filter((d) => {
-    if (!isAdmin && d.responsavel_id !== user?.id) return false;
-    if (isAdmin && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
-    if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
-    if (dateFrom && dateTo) {
-      const dt = new Date((d as any).data_perdido ?? d.created_at);
-      if (dt < dateFrom || dt > dateTo) return false;
-    }
-    return true;
-  }), [perdasDeals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
-
   const vendasCount  = filteredVendas.length;
-  const perdasCount  = filteredPerdas.length;
+  const perdasCount  = dashCounts.perdas;
 
   const vgv = useMemo(
     () => filteredVendas.reduce((sum, d) => sum + (d.preco_lote ?? 0), 0),
@@ -431,10 +389,14 @@ export default function Dashboard() {
   const activityData = useMemo(
     () => TASK_TIPOS.map((tipo) => ({
       tipo,
-      count: filteredTasks.filter((t) => t.tipo === tipo).length,
+      count: dashCounts.atividades[tipo] ?? 0,
       cfg: TIPO_CONFIG[tipo],
     })),
-    [filteredTasks],
+    [dashCounts],
+  );
+  const atividadesTotal = useMemo(
+    () => Object.values(dashCounts.atividades).reduce((a, b) => a + b, 0),
+    [dashCounts],
   );
 
   if (loading) return <AppLayout><div className="text-center text-muted-foreground py-12">Carregando...</div></AppLayout>;
@@ -630,7 +592,7 @@ export default function Dashboard() {
           {/* Perdidas */}
           <button
             className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
-            onClick={() => setDrillDown({ kind: "deals", label: "Perdidas", items: filteredPerdas })}
+            onClick={abrirDrillPerdas}
           >
             <div className="flex items-center gap-1.5">
               <TrendingDown className="h-3 w-3 text-red-500" />
@@ -685,7 +647,7 @@ export default function Dashboard() {
         <div className="rounded-xl border bg-card">
           <div className="px-5 pt-4 pb-2 flex items-center justify-between">
             <p className="text-sm font-semibold text-foreground">Tarefas Finalizadas</p>
-            <p className="text-xs text-muted-foreground tabular-nums">{filteredTasks.length} total</p>
+            <p className="text-xs text-muted-foreground tabular-nums">{atividadesTotal} total</p>
           </div>
           <div className="px-3 pb-3">
             {activityData.map(({ tipo, count, cfg }) => {
@@ -694,7 +656,7 @@ export default function Dashboard() {
                 <button
                   key={tipo}
                   className="w-full flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-accent/50 transition-colors text-left"
-                  onClick={() => setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items: filteredTasks.filter((t) => t.tipo === tipo) })}
+                  onClick={() => abrirDrillTarefas(tipo)}
                 >
                   <span className={cn("flex items-center justify-center h-6 w-6 rounded-md flex-shrink-0", cfg.color)}>
                     <Icon className="h-3.5 w-3.5" />
