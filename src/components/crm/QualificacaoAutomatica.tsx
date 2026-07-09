@@ -23,11 +23,13 @@ type Props = {
   interesse: string | null;
   rendaFamiliar: string | null;
   valorEntrada: number | null;
+  nomeAnuncio: string | null;
   onSave: () => void;
 };
 
-export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valorEntrada, onSave }: Props) {
+export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valorEntrada, nomeAnuncio, onSave }: Props) {
   const { toast } = useToast();
+  const [localNomeAnuncio, setLocalNomeAnuncio] = useState(nomeAnuncio ?? "");
   const [localInteresse, setLocalInteresse] = useState(interesse ?? "");
   const [localRenda, setLocalRenda] = useState(rendaFamiliar ?? "");
   const [localValor, setLocalValor] = useState(valorEntrada?.toString() ?? "");
@@ -36,6 +38,7 @@ export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valor
   const handleSave = async () => {
     setSaving(true);
     const { error } = await supabase.from("crm_deals").update({
+      nome_anuncio: localNomeAnuncio.trim() || null,
       auto_interesse: localInteresse || null,
       auto_renda_familiar: localRenda || null,
       auto_valor_entrada: localValor ? parseFloat(localValor) : null,
@@ -62,6 +65,10 @@ export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valor
         </Button>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Nome do anúncio</Label>
+          <Input value={localNomeAnuncio} onChange={(e) => setLocalNomeAnuncio(e.target.value)} placeholder="Preenchido pela automação — editável" className="text-sm" />
+        </div>
         <div className="space-y-1.5">
           <Label className="text-xs">Interesse</Label>
           <Select value={localInteresse || "__none__"} onValueChange={(v) => setLocalInteresse(v === "__none__" ? "" : v)}>
