@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw, Pencil } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw, Pencil, Pin } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { useToast } from "@/hooks/use-toast";
@@ -42,6 +42,7 @@ type Task = {
   concluida: boolean;
   responsavel_id: string;
   tipo: string | null;
+  fixado?: boolean;
   created_at: string;
   updated_at: string;
   deleted_at: string | null;
@@ -103,6 +104,43 @@ export default function Tarefas() {
       setEditingTaskId(null);
       fetchTasks();
     }
+  };
+
+  const togglePin = async (task: Task) => {
+    const novo = !task.fixado;
+    const { error } = await supabase.from("crm_tasks").update({ fixado: novo } as any).eq("id", task.id);
+    if (error) { toast({ title: "Erro ao fixar", description: error.message, variant: "destructive" }); return; }
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, fixado: novo } : t)));
+  };
+
+  // Edição completa da tarefa (título, descrição, tipo, data, hora)
+  const [editTask, setEditTask] = useState<Task | null>(null);
+  const [editForm, setEditForm] = useState({ titulo: "", descricao: "", tipo: "", data_vencimento: "", hora_vencimento: "" });
+  const openEditTask = (task: Task) => {
+    setEditTask(task);
+    setEditForm({
+      titulo: task.titulo,
+      descricao: task.descricao ?? "",
+      tipo: task.tipo ?? "",
+      data_vencimento: task.data_vencimento ?? "",
+      hora_vencimento: task.hora_vencimento ?? "",
+    });
+  };
+  const saveTaskEdit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editTask) return;
+    if (!editForm.titulo.trim()) { toast({ title: "Título é obrigatório", variant: "destructive" }); return; }
+    const { error } = await supabase.from("crm_tasks").update({
+      titulo: editForm.titulo.trim(),
+      descricao: editForm.descricao || "",
+      tipo: editForm.tipo || null,
+      data_vencimento: editForm.data_vencimento || null,
+      hora_vencimento: editForm.hora_vencimento || null,
+    } as any).eq("id", editTask.id);
+    if (error) { toast({ title: "Erro ao salvar", description: error.message, variant: "destructive" }); return; }
+    toast({ title: "Tarefa atualizada!" });
+    setEditTask(null);
+    fetchTasks();
   };
 
   // Image viewer
@@ -348,7 +386,7 @@ export default function Tarefas() {
       : t.deleted_at === null; // "todas" — somente ativas
     if (!statusOk) return false;
     return vencNoIntervalo(t.data_vencimento);
-  });
+  }).sort((a, b) => Number(!!b.fixado) - Number(!!a.fixado));
 
   const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
 
@@ -386,7 +424,7 @@ export default function Tarefas() {
         ) : (
           <div className="space-y-2">
             {filtered.map((task) => (
-              <Card key={task.id} className={cn("border transition-colors", task.concluida && "opacity-60")}>
+              <Card key={task.id} className={cn("border transition-colors", task.concluida && "opacity-60", task.fixado && "ring-1 ring-primary/40 border-primary/30")}>
                 <CardContent className="p-4 flex items-start gap-3">
                   <button onClick={() => toggleConcluida(task)} className="mt-0.5 flex-shrink-0">
                     {task.concluida ? (
@@ -458,6 +496,16 @@ export default function Tarefas() {
                     <button onClick={() => openTaskImages(task)} className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
                       <ImageIcon className="h-4 w-4" />
                     </button>
+                  )}
+                  {task.deleted_at === null && (
+                    <>
+                      <button onClick={() => togglePin(task)} title={task.fixado ? "Desafixar" : "Fixar no topo"} className={cn("p-2 rounded-md hover:bg-muted transition-colors flex-shrink-0", task.fixado ? "text-primary" : "text-muted-foreground hover:text-foreground")}>
+                        <Pin className={cn("h-4 w-4", task.fixado && "fill-current")} />
+                      </button>
+                      <button onClick={() => openEditTask(task)} title="Editar tarefa" className="p-2 rounded-md hover:bg-muted text-muted-foreground hover:text-foreground transition-colors flex-shrink-0">
+                        <Pencil className="h-4 w-4" />
+                      </button>
+                    </>
                   )}
                   {isAdmin && (
                     task.deleted_at === null ? (
@@ -572,6 +620,49 @@ export default function Tarefas() {
             <div className="flex justify-end gap-2 pt-2">
               <Button type="button" variant="outline" onClick={() => setShowForm(false)}>Cancelar</Button>
               <Button type="submit" disabled={formLoading || !form.deal_id}>{formLoading ? "Criando..." : "Criar"}</Button>
+            </div>
+          </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Task Dialog */}
+      <Dialog open={!!editTask} onOpenChange={(open) => !open && setEditTask(null)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display">Editar Tarefa</DialogTitle>
+          </DialogHeader>
+          <form onSubmit={saveTaskEdit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Título</Label>
+              <Input value={editForm.titulo} onChange={(e) => setEditForm((f) => ({ ...f, titulo: e.target.value }))} required />
+            </div>
+            <div className="space-y-2">
+              <Label>Descrição</Label>
+              <Textarea value={editForm.descricao} onChange={(e) => setEditForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} />
+            </div>
+            <div className="space-y-2">
+              <Label>Tipo</Label>
+              <Select value={editForm.tipo || "__none__"} onValueChange={(v) => setEditForm((f) => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+                <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Sem tipo</SelectItem>
+                  {TASK_TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>Data de Vencimento</Label>
+                <Input type="date" value={editForm.data_vencimento} onChange={(e) => setEditForm((f) => ({ ...f, data_vencimento: e.target.value }))} />
+              </div>
+              <div className="space-y-2">
+                <Label>Hora (opcional)</Label>
+                <Input type="time" value={editForm.hora_vencimento} onChange={(e) => setEditForm((f) => ({ ...f, hora_vencimento: e.target.value }))} />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button type="button" variant="outline" onClick={() => setEditTask(null)}>Cancelar</Button>
+              <Button type="submit">Salvar</Button>
             </div>
           </form>
         </DialogContent>
