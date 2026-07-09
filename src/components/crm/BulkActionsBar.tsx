@@ -12,8 +12,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
 import { X, UserCog, TrendingDown, ArrowRightLeft, Trash2, FileText, FileSpreadsheet, Building2 } from "lucide-react";
-import jsPDF from "jspdf";
-import autoTable from "jspdf-autotable";
 import { KANBAN_COLUMNS, type Deal } from "@/pages/Negociacoes";
 
 type UserOption = { id: string; nome: string };
@@ -256,7 +254,12 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
     toast({ title: `${count} negociação(ões) exportada(s) em CSV` });
   };
 
-  const exportPDF = () => {
+  const exportPDF = async () => {
+    // Carrega as libs de PDF sob demanda (não pesam no bundle inicial)
+    const [{ default: jsPDF }, { default: autoTable }] = await Promise.all([
+      import("jspdf"),
+      import("jspdf-autotable"),
+    ]);
     const rows = buildRows();
     const doc = new jsPDF({ orientation: "landscape" });
     doc.setFontSize(14);
