@@ -34,6 +34,9 @@ type DealDetail = {
   updated_at: string;
   data_vendido: string | null;
   data_perdido: string | null;
+  motivo_perda_id: string | null;
+  nome_anuncio: string | null;
+  melhor_horario_contato: string | null;
   empreendimento_id: string | null;
   fonte_id: string | null;
   numero_lote: string | null;
@@ -115,6 +118,7 @@ export default function NegociacaoDetalhes() {
   const [showLossDialog, setShowLossDialog] = useState(false);
   const [motivosPerda, setMotivosPerda] = useState<MotivoPerda[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
+  const [motivoPerdaNome, setMotivoPerdaNome] = useState<string | null>(null);
 
   const fetchAll = async () => {
     if (!id) return;
@@ -135,6 +139,12 @@ export default function NegociacaoDetalhes() {
 
     const dealData = dealRes.data as DealDetail | null;
     setDeal(dealData);
+    if (dealData?.motivo_perda_id) {
+      const { data: mp } = await supabase.from("crm_motivos_perda").select("nome").eq("id", dealData.motivo_perda_id).single();
+      setMotivoPerdaNome((mp as { nome: string } | null)?.nome ?? null);
+    } else {
+      setMotivoPerdaNome(null);
+    }
     setPhones((phonesRes.data as DealPhone[]) ?? []);
     const tasksData = (tasksRes.data as Task[]) ?? [];
     setTasks(tasksData);
@@ -210,7 +220,9 @@ export default function NegociacaoDetalhes() {
   const confirmLoss = async () => {
     if (!deal || !id || !selectedMotivo) return;
     await supabase.from("crm_deals").update({ status: "perdido", motivo_perda_id: selectedMotivo } as any).eq("id", id);
-    setDeal((prev) => prev ? { ...prev, status: "perdido" } : prev);
+    const nomeMotivo = motivosPerda.find((m) => m.id === selectedMotivo)?.nome ?? null;
+    setDeal((prev) => prev ? { ...prev, status: "perdido", motivo_perda_id: selectedMotivo, data_perdido: new Date().toISOString() } : prev);
+    setMotivoPerdaNome(nomeMotivo);
     setShowLossDialog(false);
     toast({ title: "Negociação marcada como perdida" });
   };
@@ -223,6 +235,7 @@ export default function NegociacaoDetalhes() {
       motivo_perda_id: null
     } as any).eq("id", id);
     setDeal((prev) => prev ? { ...prev, status: "ficha_assinada", motivo_perda_id: null } : prev);
+    setMotivoPerdaNome(null);
     toast({ title: `Negociação retornada para "Ficha Assinada"` });
   };
 
@@ -483,14 +496,28 @@ export default function NegociacaoDetalhes() {
                 </>
               )}
               {isFinal && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleUndoFinal}
-                  className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
-                >
-                  <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
-                </Button>
+                <>
+                  {deal.status === "perdido" && motivoPerdaNome && (
+                    <div className="flex items-center gap-1.5 text-[13px] text-white/85">
+                      <XCircle className="h-4 w-4 text-red-300 flex-shrink-0" />
+                      <span>
+                        <span className="text-white/50">Motivo da perda:</span> {motivoPerdaNome}
+                        {deal.data_perdido && (
+                          <span className="text-white/50"> · {new Date(deal.data_perdido).toLocaleDateString("pt-BR")}</span>
+                        )}
+                      </span>
+                    </div>
+                  )}
+                  <div className="flex-1" />
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleUndoFinal}
+                    className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
+                  >
+                    <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
+                  </Button>
+                </>
               )}
             </div>
           </div>

@@ -168,13 +168,83 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
     }));
   };
 
-  const exportCSV = () => {
-    const rows = buildRows();
-    const headers = ["Cliente", "E-mail", "Status", "Qualificação", "Empreendimento", "Fonte", "Responsável", "Preço", "Criado em"];
-    const escape = (v: string) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+  // Export completo: busca TODOS os campos do deal + anotações e monta um CSV largo.
+  const exportCSV = async () => {
+    const empMap = new Map(empreendimentos.map((e) => [e.id, e.nome]));
+    const fonteMap = new Map(fontes.map((f) => [f.id, f.nome]));
+    const userMap = new Map(users.map((u) => [u.id, u.nome]));
+    const statusLabel = (s: string) =>
+      KANBAN_COLUMNS.find((c) => c.value === s)?.label ||
+      (s === "vendido" ? "Vendido" : s === "perdido" ? "Perdido" : s);
+
+    const CHUNK = 200;
+    const fullDeals: any[] = [];
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const { data } = await supabase.from("crm_deals").select("*").in("id", ids.slice(i, i + CHUNK));
+      fullDeals.push(...((data as any[]) ?? []));
+    }
+    const { data: motivosData } = await supabase.from("crm_motivos_perda").select("id, nome");
+    const motivoMap = new Map(((motivosData as any[]) ?? []).map((m) => [m.id, m.nome]));
+    const anotacoesByDeal = new Map<string, string[]>();
+    for (let i = 0; i < ids.length; i += CHUNK) {
+      const { data } = await supabase.from("crm_deal_anotacoes")
+        .select("deal_id, texto, created_at").in("deal_id", ids.slice(i, i + CHUNK))
+        .order("created_at", { ascending: true });
+      for (const a of ((data as any[]) ?? [])) {
+        const arr = anotacoesByDeal.get(a.deal_id) ?? [];
+        arr.push(`[${new Date(a.created_at).toLocaleDateString("pt-BR")}] ${a.texto}`);
+        anotacoesByDeal.set(a.deal_id, arr);
+      }
+    }
+
+    const brl = (n: any) => (n || n === 0) ? Number(n).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "";
+    const dtf = (s: any) => s ? new Date(s).toLocaleString("pt-BR") : "";
+    const dOnly = (s: any) => s ? new Date(s).toLocaleDateString("pt-BR") : "";
+
+    const cols: { h: string; get: (x: any) => any }[] = [
+      { h: "Cliente", get: (x) => x.cliente_nome },
+      { h: "E-mail", get: (x) => x.cliente_email },
+      { h: "Status", get: (x) => statusLabel(x.status) },
+      { h: "Qualificação", get: (x) => x.qualificacao },
+      { h: "Empreendimento", get: (x) => x.empreendimento_id ? (empMap.get(x.empreendimento_id) ?? "") : "" },
+      { h: "Lote", get: (x) => x.numero_lote },
+      { h: "Preço do lote", get: (x) => brl(x.preco_lote) },
+      { h: "Forma de pagamento", get: (x) => x.forma_pagamento },
+      { h: "Valor de entrada", get: (x) => brl(x.valor_entrada) },
+      { h: "Fonte", get: (x) => x.fonte_id ? (fonteMap.get(x.fonte_id) ?? "") : "" },
+      { h: "Responsável", get: (x) => userMap.get(x.responsavel_id) ?? "" },
+      { h: "Interesse", get: (x) => x.interesse },
+      { h: "Nome do anúncio", get: (x) => x.nome_anuncio },
+      { h: "Melhor horário p/ contato", get: (x) => x.melhor_horario_contato },
+      { h: "Motivo da perda", get: (x) => x.motivo_perda_id ? (motivoMap.get(x.motivo_perda_id) ?? "") : "" },
+      { h: "Renda familiar", get: (x) => x.renda_familiar },
+      { h: "Data de nascimento", get: (x) => dOnly(x.data_nascimento) },
+      { h: "Escolaridade", get: (x) => x.escolaridade },
+      { h: "Estado civil", get: (x) => x.estado_civil },
+      { h: "Sexo", get: (x) => x.sexo },
+      { h: "Nacionalidade", get: (x) => x.nacionalidade },
+      { h: "Cidade", get: (x) => x.cidade_cliente },
+      { h: "Logradouro", get: (x) => [x.logradouro, x.numero_logradouro].filter(Boolean).join(", ") },
+      { h: "Tipo de residência", get: (x) => x.tipo_residencia },
+      { h: "Filhos", get: (x) => x.filhos },
+      { h: "Interesses pessoais", get: (x) => Array.isArray(x.interesses_pessoais) ? x.interesses_pessoais.join(", ") : "" },
+      { h: "UTM source", get: (x) => x.utm_source },
+      { h: "UTM medium", get: (x) => x.utm_medium },
+      { h: "UTM campaign", get: (x) => x.utm_campaign },
+      { h: "Link do contrato", get: (x) => x.link_contrato },
+      { h: "Satisfação atendimento", get: (x) => x.satisfacao_atendimento ?? "" },
+      { h: "Satisfação produto", get: (x) => x.satisfacao_produto ?? "" },
+      { h: "Criado em", get: (x) => dtf(x.created_at) },
+      { h: "Atualizado em", get: (x) => dtf(x.updated_at) },
+      { h: "Data da venda", get: (x) => dtf(x.data_vendido) },
+      { h: "Data da perda", get: (x) => dtf(x.data_perdido) },
+      { h: "Anotações", get: (x) => (anotacoesByDeal.get(x.id) ?? []).join(" | ") },
+    ];
+
+    const escape = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
     const csv = [
-      headers.join(";"),
-      ...rows.map((r) => [r.cliente, r.email, r.status, r.qualificacao, r.empreendimento, r.fonte, r.responsavel, r.preco, r.criado_em].map(escape).join(";")),
+      cols.map((c) => c.h).join(";"),
+      ...fullDeals.map((x) => cols.map((c) => escape(c.get(x))).join(";")),
     ].join("\n");
     const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);

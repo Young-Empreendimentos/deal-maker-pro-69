@@ -21,6 +21,8 @@ type DealBasic = {
   empreendimento_id: string | null;
   fonte_id: string | null;
   responsavel_id: string | null;
+  nome_anuncio: string | null;
+  melhor_horario_contato: string | null;
 };
 
 type DealPhone = { id: string; telefone: string };
@@ -48,6 +50,8 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   const [empId, setEmpId] = useState(deal.empreendimento_id ?? "");
   const [fonteId, setFonteId] = useState(deal.fonte_id ?? "");
   const [responsavelId, setResponsavelId] = useState(deal.responsavel_id ?? "");
+  const [nomeAnuncio, setNomeAnuncio] = useState(deal.nome_anuncio ?? "");
+  const [melhorHorario, setMelhorHorario] = useState(deal.melhor_horario_contato ?? "");
 
   const [localPhones, setLocalPhones] = useState<DealPhone[]>(phones);
   const [newPhone, setNewPhone] = useState("");
@@ -72,6 +76,8 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     setEmpId(deal.empreendimento_id ?? "");
     setFonteId(deal.fonte_id ?? "");
     setResponsavelId(deal.responsavel_id ?? "");
+    setNomeAnuncio(deal.nome_anuncio ?? "");
+    setMelhorHorario(deal.melhor_horario_contato ?? "");
     setLocalPhones(phones);
     setDirty(false);
   }, [deal, phones]);
@@ -113,6 +119,8 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       qualificacao: qualificacao as any,
       empreendimento_id: empId,
       fonte_id: fonteId || null,
+      nome_anuncio: nomeAnuncio.trim() || null,
+      melhor_horario_contato: melhorHorario.trim() || null,
     } as any).eq("id", deal.id);
 
     if (error) {
@@ -262,6 +270,14 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome do anúncio</Label>
+            <Input value={nomeAnuncio} onChange={(e) => { setNomeAnuncio(e.target.value); setDirty(true); }} placeholder="Preenchido pela automação — editável" />
+          </div>
+          <div className="space-y-1.5">
+            <Label className="text-xs">Melhor horário para contato</Label>
+            <Input value={melhorHorario} onChange={(e) => { setMelhorHorario(e.target.value); setDirty(true); }} placeholder="Ex.: depois das 18h, fins de semana" />
           </div>
         </CardContent>
       </Card>
