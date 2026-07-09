@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, StickyNote, Send, RotateCcw } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, StickyNote, Send, RotateCcw, Pin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -72,7 +72,7 @@ type Task       = { id: string; titulo: string; descricao: string; data_vencimen
 type TaskImage  = { id: string; task_id: string; image_url: string; nome_arquivo: string; uploaded_at: string; task_titulo?: string };
 type DealImage  = { id: string; image_url: string; nome_arquivo: string; uploaded_at: string };
 type MotivoPerda = { id: string; nome: string };
-type Anotacao   = { id: string; texto: string; created_at: string; user_id: string; user_nome?: string };
+type Anotacao   = { id: string; texto: string; created_at: string; user_id: string; user_nome?: string; fixado?: boolean };
 type StatusLogRow = { status_anterior: string | null; status_novo: string; created_at: string };
 
 const ALL_STATUSES = [
@@ -157,7 +157,7 @@ export default function NegociacaoDetalhes() {
       const userIds = [...new Set(anotacoesRaw.map((a) => a.user_id))];
       const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", userIds);
       const profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
-      setAnotacoes(anotacoesRaw.map((a) => ({ ...a, user_nome: profileMap.get(a.user_id) ?? "Usuário" })));
+      setAnotacoes(anotacoesRaw.map((a) => ({ ...a, user_nome: profileMap.get(a.user_id) ?? "Usuário" })).sort((x, y) => Number(!!y.fixado) - Number(!!x.fixado)));
     } else {
       setAnotacoes([]);
     }
@@ -338,6 +338,13 @@ export default function NegociacaoDetalhes() {
   const deleteAnotacao = async (anotacaoId: string) => {
     await supabase.from("crm_deal_anotacoes").delete().eq("id", anotacaoId);
     setAnotacoes((prev) => prev.filter((a) => a.id !== anotacaoId));
+  };
+
+  const togglePinAnotacao = async (a: Anotacao) => {
+    const novo = !a.fixado;
+    const { error } = await supabase.from("crm_deal_anotacoes").update({ fixado: novo } as any).eq("id", a.id);
+    if (error) { toast({ title: "Erro ao fixar", description: error.message, variant: "destructive" }); return; }
+    setAnotacoes((prev) => prev.map((x) => (x.id === a.id ? { ...x, fixado: novo } : x)).sort((x, y) => Number(!!y.fixado) - Number(!!x.fixado)));
   };
 
   const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
@@ -766,7 +773,7 @@ export default function NegociacaoDetalhes() {
             ) : (
               <div className="space-y-3">
                 {anotacoes.map((a) => (
-                  <div key={a.id} className="group flex gap-3 p-3 rounded-lg bg-muted/40 border border-border/50">
+                  <div key={a.id} className={cn("group flex gap-3 p-3 rounded-lg bg-muted/40 border border-border/50", a.fixado && "ring-1 ring-primary/40 border-primary/30 bg-primary/5")}>
                     {/* Avatar inicial */}
                     <div className="flex-shrink-0 h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center text-[11px] font-bold text-primary uppercase">
                       {(a.user_nome ?? "U").charAt(0)}
@@ -782,14 +789,23 @@ export default function NegociacaoDetalhes() {
                       </div>
                       <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{a.texto}</p>
                     </div>
-                    {/* Deletar — próprio usuário ou admin */}
+                    {/* Fixar / Deletar — próprio usuário ou admin */}
                     {(isAdmin || a.user_id === user?.id) && (
-                      <button
-                        onClick={() => deleteAnotacao(a.id)}
-                        className="opacity-0 group-hover:opacity-100 flex-shrink-0 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
-                      >
-                        <Trash2 className="h-3.5 w-3.5" />
-                      </button>
+                      <div className="flex-shrink-0 flex items-start gap-1">
+                        <button
+                          onClick={() => togglePinAnotacao(a)}
+                          title={a.fixado ? "Desafixar" : "Fixar no topo"}
+                          className={cn("p-1 rounded transition-all", a.fixado ? "text-primary" : "opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground hover:bg-muted")}
+                        >
+                          <Pin className={cn("h-3.5 w-3.5", a.fixado && "fill-current")} />
+                        </button>
+                        <button
+                          onClick={() => deleteAnotacao(a.id)}
+                          className="opacity-0 group-hover:opacity-100 p-1 rounded hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-all"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </button>
+                      </div>
                     )}
                   </div>
                 ))}

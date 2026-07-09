@@ -4,6 +4,7 @@ import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { GlobalSearch } from "./GlobalSearch";
+import { ThemeToggle } from "./ThemeToggle";
 
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -30,6 +31,7 @@ export function MobileNav() {
         <div className="flex-1">
           <GlobalSearch />
         </div>
+        <ThemeToggle className="flex-shrink-0" />
         <button onClick={() => setOpen(!open)} className="p-2 flex-shrink-0">
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
         </button>
