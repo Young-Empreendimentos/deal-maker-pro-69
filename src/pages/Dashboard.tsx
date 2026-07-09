@@ -87,6 +87,14 @@ function getPresetRange(preset: DatePreset): [Date, Date] {
 
 function fmtDate(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }); }
 
+// Persistência dos filtros do Dashboard entre navegações (sessão do navegador)
+const DASH_FILTERS_KEY = "pingolead:dashboard:filtros:v1";
+type DashPersist = { datePreset?: DatePreset; customFrom?: string; customTo?: string; filterUsers?: string[]; filterEmp?: string };
+function loadDashFilters(): DashPersist {
+  try { const raw = sessionStorage.getItem(DASH_FILTERS_KEY); return raw ? (JSON.parse(raw) as DashPersist) : {}; }
+  catch { return {}; }
+}
+
 // ── Gatilho de entrada ──────────────────────────────────────────────────────
 // Regra de negócio: a venda "atinge o gatilho" quando a entrada dada na
 // assinatura é >= 10% do preço à vista do lote (preco_lote, vindo de
@@ -151,15 +159,32 @@ export default function Dashboard() {
     fetchSolicitacoes();
   };
 
-  // ── Applied filters ──────────────────────────────────────────────────────
-  const [datePreset,   setDatePreset]   = useState<DatePreset>("ano");
-  const [customRange,  setCustomRange]  = useState<{ from?: Date; to?: Date }>({});
-  const [filterUsers,  setFilterUsers]  = useState<string[]>([]);
-  const [filterEmp,    setFilterEmp]    = useState("todos");
+  // ── Applied filters (restaurados da sessão) ───────────────────────────────
+  const [dashInit] = useState<DashPersist>(loadDashFilters);
+  const [datePreset,   setDatePreset]   = useState<DatePreset>(dashInit.datePreset ?? "ano");
+  const [customRange,  setCustomRange]  = useState<{ from?: Date; to?: Date }>(() => ({
+    from: dashInit.customFrom ? new Date(dashInit.customFrom) : undefined,
+    to:   dashInit.customTo   ? new Date(dashInit.customTo)   : undefined,
+  }));
+  const [filterUsers,  setFilterUsers]  = useState<string[]>(dashInit.filterUsers ?? []);
+  const [filterEmp,    setFilterEmp]    = useState(dashInit.filterEmp ?? "todos");
+
+  // Salva os filtros na sessão para sobreviver à navegação (voltar pra página)
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(DASH_FILTERS_KEY, JSON.stringify({
+        datePreset,
+        customFrom: customRange.from ? customRange.from.toISOString() : undefined,
+        customTo:   customRange.to   ? customRange.to.toISOString()   : undefined,
+        filterUsers,
+        filterEmp,
+      } as DashPersist));
+    } catch { /* ignora quota/serialização */ }
+  }, [datePreset, customRange, filterUsers, filterEmp]);
 
   // ── Pending (inside popover before saving) ────────────────────────────────
   const [dateOpen,       setDateOpen]       = useState(false);
-  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>("ano");
+  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>(dashInit.datePreset ?? "ano");
   const [pendingRange,   setPendingRange]   = useState<{ from?: Date; to?: Date }>({});
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 
