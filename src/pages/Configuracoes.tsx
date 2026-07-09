@@ -493,7 +493,7 @@ export default function Configuracoes() {
                         <TableHead>E-mail</TableHead>
                         <TableHead>Perfil</TableHead>
                         <TableHead>Ativo</TableHead>
-                        <TableHead className="w-[80px]">Ações</TableHead>
+                        <TableHead className="w-[120px]">Ações</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -524,11 +524,11 @@ export default function Configuracoes() {
                                 {isPendente && <span className="text-[11px] font-medium text-amber-600 dark:text-amber-400">pendente</span>}
                               </div>
                             </TableCell>
-                            <TableCell>
+                            <TableCell className="w-[120px] whitespace-nowrap">
                               {isEditing ? (
                                 <div className="flex gap-1">
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => saveEdit(u.id)}><Check className="h-4 w-4 text-success" /></Button>
-                                  <Button variant="ghost" size="icon" className="h-7 w-7" onClick={cancelEdit}><X className="h-4 w-4 text-destructive" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => saveEdit(u.id)}><Check className="h-4 w-4 text-success" /></Button>
+                                  <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={cancelEdit}><X className="h-4 w-4 text-destructive" /></Button>
                                 </div>
                               ) : (
                                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => startEdit(u)}><Pencil className="h-4 w-4" /></Button>

@@ -99,6 +99,12 @@ const LAST_90_DAYS_RANGE = (): DateRange => {
   return { from: fmt(from), to: fmt(to) };
 };
 
+// Intervalo do ano corrente (padrão do filtro "Data de Criação")
+const CURRENT_YEAR_RANGE = (): DateRange => {
+  const y = new Date().getFullYear();
+  return { from: `${y}-01-01`, to: `${y}-12-31` };
+};
+
 // Opções do filtro por Etapa = as colunas do kanban (status "em andamento")
 const ETAPA_OPTIONS = KANBAN_COLUMNS.map((c) => ({ value: c.value as string, label: c.label }));
 
@@ -113,7 +119,7 @@ const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
 
 // Persistência dos filtros/visão entre navegações (sessão do navegador):
 // ao abrir uma negociação e voltar para a lista, os filtros continuam.
-const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v2";
+const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v3";
 type PersistedState = {
   view?: "kanban" | "table" | "funil";
   sortBy?: "created_at" | "cliente_nome" | "qualificacao" | "updated_at";
@@ -167,7 +173,7 @@ export default function Negociacoes() {
   const [fMotivoPerda, setFMotivoPerda] = useState<string[]>(persisted.fMotivoPerda ?? []);
 
   const EMPTY_RANGE: DateRange = { from: "", to: "" };
-  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(persisted.fDateCriacao ?? EMPTY_RANGE);
+  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(persisted.fDateCriacao ?? CURRENT_YEAR_RANGE());
   const [fDateContato,  setFDateContato]  = useState<DateRange>(persisted.fDateContato ?? EMPTY_RANGE);
   const [fDateVenda,    setFDateVenda]    = useState<DateRange>(persisted.fDateVenda ?? EMPTY_RANGE);
   const [fDatePerda,    setFDatePerda]    = useState<DateRange>(persisted.fDatePerda ?? EMPTY_RANGE);
@@ -234,6 +240,12 @@ export default function Negociacoes() {
       return <span title="Sem tarefa (atenção)" className="inline-flex shrink-0"><AlertTriangle className="h-3.5 w-3.5 text-amber-500" /></span>;
     return <span title="Tarefa em dia" className="inline-flex shrink-0"><Clock className="h-3.5 w-3.5 text-green-500" /></span>;
   };
+
+  // Tag "Novo": negócio criado há menos de 2 dias
+  const novoTag = (createdAt: string) =>
+    (Date.now() - new Date(createdAt).getTime()) < 2 * 24 * 60 * 60 * 1000
+      ? <Badge className="text-[9px] px-1.5 py-0 h-4 leading-none border-0 bg-emerald-500 hover:bg-emerald-500 text-white">Novo</Badge>
+      : null;
 
   // Seleção em massa (apenas admin, tabela)
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -647,6 +659,7 @@ export default function Negociacoes() {
                                       {deal.qualificacao}
                                     </Badge>
                                     {taskTag(deal.id)}
+                                    {novoTag(deal.created_at)}
                                     {deal.preco_lote && (
                                       <span className="text-[10px] text-muted-foreground font-medium">
                                         {deal.preco_lote.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 })}
@@ -752,6 +765,7 @@ export default function Negociacoes() {
                                         <div className="flex items-center gap-1 min-w-0">
                                           <Badge className={cn("text-[9px] px-1.5 py-0 h-4", QUAL_COLORS[deal.qualificacao])}>{deal.qualificacao}</Badge>
                                           {taskTag(deal.id)}
+                                          {novoTag(deal.created_at)}
                                         </div>
                                         <span className="text-[9px] text-muted-foreground tabular-nums">
                                           {new Date(deal.created_at).toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" })}
@@ -820,6 +834,7 @@ export default function Negociacoes() {
                         <span className="inline-flex items-center gap-1.5">
                           <Link to={`/negociacoes/${deal.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>{deal.cliente_nome}</Link>
                           {taskTag(deal.id)}
+                          {novoTag(deal.created_at)}
                         </span>
                       </TableCell>
                       <TableCell>

@@ -149,14 +149,14 @@ export default function Dashboard() {
   };
 
   // ── Applied filters ──────────────────────────────────────────────────────
-  const [datePreset,   setDatePreset]   = useState<DatePreset>("mes");
+  const [datePreset,   setDatePreset]   = useState<DatePreset>("ano");
   const [customRange,  setCustomRange]  = useState<{ from?: Date; to?: Date }>({});
   const [filterUsers,  setFilterUsers]  = useState<string[]>([]);
   const [filterEmp,    setFilterEmp]    = useState("todos");
 
   // ── Pending (inside popover before saving) ────────────────────────────────
   const [dateOpen,       setDateOpen]       = useState(false);
-  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>("mes");
+  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>("ano");
   const [pendingRange,   setPendingRange]   = useState<{ from?: Date; to?: Date }>({});
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 

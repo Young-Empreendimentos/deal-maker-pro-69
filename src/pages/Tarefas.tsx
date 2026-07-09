@@ -246,38 +246,70 @@ export default function Tarefas() {
     setTaskImages((data as TaskImage[]) ?? []);
   };
 
+  // Reduz imagens grandes no navegador antes de enviar (fotos de celular chegam a vários MB
+  // e podem travar o upload). Se algo falhar, usa o arquivo original.
+  const prepareImage = async (file: File): Promise<Blob> => {
+    if (!file.type.startsWith("image/") || file.type === "image/gif") return file;
+    try {
+      const bitmap = await createImageBitmap(file);
+      const MAX = 1600;
+      const scale = Math.min(1, MAX / Math.max(bitmap.width, bitmap.height));
+      if (scale >= 1) return file;
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(bitmap.width * scale);
+      canvas.height = Math.round(bitmap.height * scale);
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return file;
+      ctx.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+      const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", 0.82));
+      return blob ?? file;
+    } catch {
+      return file;
+    }
+  };
+
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || !selectedTask || !user) return;
+    const files = Array.from(e.target.files);
+    e.target.value = ""; // libera o input pra reselecionar o mesmo arquivo
     setUploading(true);
+    try {
+      for (const file of files) {
+        const blob = await prepareImage(file);
+        const ext = blob.type === "image/jpeg" ? "jpg" : (file.name.split(".").pop() || "bin");
+        const path = `${user.id}/${selectedTask.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 
-    for (const file of Array.from(e.target.files)) {
-      const ext = file.name.split(".").pop();
-      const path = `${user.id}/${selectedTask.id}/${crypto.randomUUID()}.${ext}`;
+        const { error: uploadError } = await supabase.storage.from("task-images").upload(path, blob, {
+          contentType: blob.type || undefined,
+        });
+        if (uploadError) {
+          toast({ title: "Erro no upload", description: uploadError.message, variant: "destructive" });
+          continue;
+        }
 
-      const { error: uploadError } = await supabase.storage.from("task-images").upload(path, file);
-      if (uploadError) {
-        toast({ title: "Erro no upload", description: uploadError.message, variant: "destructive" });
-        continue;
+        const { data: urlData } = supabase.storage.from("task-images").getPublicUrl(path);
+
+        const { error: insertError } = await supabase.from("crm_task_images").insert({
+          task_id: selectedTask.id,
+          image_url: urlData.publicUrl,
+          nome_arquivo: file.name,
+        } as any);
+        if (insertError) {
+          toast({ title: "Erro ao salvar a imagem", description: insertError.message, variant: "destructive" });
+        }
       }
 
-      const { data: urlData } = supabase.storage.from("task-images").getPublicUrl(path);
-
-      await supabase.from("crm_task_images").insert({
-        task_id: selectedTask.id,
-        image_url: urlData.publicUrl,
-        nome_arquivo: file.name,
-      });
+      const { data } = await supabase
+        .from("crm_task_images")
+        .select("*")
+        .eq("task_id", selectedTask.id)
+        .order("uploaded_at", { ascending: false });
+      setTaskImages((data as TaskImage[]) ?? []);
+    } catch (err: any) {
+      toast({ title: "Erro no upload", description: err?.message ?? "Falha inesperada", variant: "destructive" });
+    } finally {
+      setUploading(false);
     }
-
-    // Refresh images
-    const { data } = await supabase
-      .from("crm_task_images")
-      .select("*")
-      .eq("task_id", selectedTask.id)
-      .order("uploaded_at", { ascending: false });
-    setTaskImages((data as TaskImage[]) ?? []);
-    setUploading(false);
-    e.target.value = "";
   };
 
   const deleteTask = async (taskId: string) => {
