@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
@@ -23,7 +23,7 @@ import {
   startOfWeek, endOfWeek,
   startOfMonth, endOfMonth,
   startOfYear, endOfYear,
-  subWeeks, subMonths,
+  subWeeks, subMonths, subDays,
   format,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -38,7 +38,7 @@ type UserOption = { id: string; nome: string };
 type Emp = { id: string; nome: string; cidade: string };
 type Solicitacao = { id: string; user_id: string; email: string | null; nome: string | null; created_at: string };
 type Task = { id: string; deal_id: string; titulo?: string; responsavel_id: string; tipo: string | null; concluida: boolean; updated_at: string };
-type DatePreset = "hoje" | "semana_passada" | "mes" | "mes_passado" | "4_meses" | "ano" | "custom";
+type DatePreset = "hoje" | "ontem" | "semana_passada" | "mes" | "mes_passado" | "4_meses" | "ano" | "custom";
 type DrillDown =
   | { kind: "deals"; label: string; items: Deal[] }
   | { kind: "tasks"; label: string; items: Task[] }
@@ -52,6 +52,7 @@ const FUNNEL_COLORS = [
 
 const DATE_PRESETS: { value: DatePreset; label: string }[] = [
   { value: "hoje",          label: "Hoje" },
+  { value: "ontem",         label: "Ontem" },
   { value: "semana_passada",label: "Semana passada" },
   { value: "mes",           label: "Este mês" },
   { value: "mes_passado",   label: "Mês passado" },
@@ -65,6 +66,10 @@ function getPresetRange(preset: DatePreset): [Date, Date] {
   const now = new Date();
   switch (preset) {
     case "hoje":          return [startOfDay(now), endOfDay(now)];
+    case "ontem": {
+      const y = subDays(now, 1);
+      return [startOfDay(y), endOfDay(y)];
+    }
     case "semana_passada": {
       const w = subWeeks(now, 1);
       return [startOfWeek(w, { weekStartsOn: 0 }), endOfWeek(w, { weekStartsOn: 0 })];
@@ -103,7 +108,6 @@ function atingiuGatilho(d: Deal): boolean {
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
   const { user, isAdmin } = useAuth();
-  const navigate = useNavigate();
   const { toast } = useToast();
 
   const [deals,  setDeals]  = useState<Deal[]>([]);
@@ -742,13 +746,10 @@ export default function Dashboard() {
                 {drillDown.items.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-10">Nenhuma negociação</p>
                 ) : drillDown.items.map((deal) => (
-                  <button
+                  <Link
                     key={deal.id}
+                    to={`/negociacoes/${deal.id}`}
                     className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
-                    onClick={() => {
-                      setDrillDown(null);
-                      setTimeout(() => navigate(`/negociacoes/${deal.id}`), 50);
-                    }}
                   >
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{deal.cliente_nome}</p>
@@ -760,7 +761,7 @@ export default function Dashboard() {
                       {deal.qualificacao}
                     </Badge>
                     <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                  </button>
+                  </Link>
                 ))}
               </div>
             )}
@@ -778,13 +779,10 @@ export default function Dashboard() {
                   const ok      = atingiuGatilho(deal);
                   const aVista  = (deal as any).forma_pagamento === "à vista";
                   return (
-                    <button
+                    <Link
                       key={deal.id}
+                      to={`/negociacoes/${deal.id}`}
                       className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
-                      onClick={() => {
-                        setDrillDown(null);
-                        setTimeout(() => navigate(`/negociacoes/${deal.id}`), 50);
-                      }}
                     >
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium truncate">{deal.cliente_nome}</p>
@@ -806,7 +804,7 @@ export default function Dashboard() {
                         {ok ? "Atingiu" : "Não atingiu"}
                       </Badge>
                       <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
@@ -821,13 +819,10 @@ export default function Dashboard() {
                   const cfg  = task.tipo ? TIPO_CONFIG[task.tipo] : null;
                   const Icon = cfg?.icon;
                   return (
-                    <button
+                    <Link
                       key={task.id}
+                      to={`/negociacoes/${task.deal_id}`}
                       className="w-full flex items-center gap-3 px-6 py-4 hover:bg-accent/50 text-left transition-colors"
-                      onClick={() => {
-                        setDrillDown(null);
-                        setTimeout(() => navigate(`/negociacoes/${task.deal_id}`), 50);
-                      }}
                     >
                       {Icon && cfg && (
                         <span className={cn("flex items-center justify-center h-7 w-7 rounded-md flex-shrink-0", cfg.color)}>
@@ -839,7 +834,7 @@ export default function Dashboard() {
                         {deal && <p className="text-xs text-muted-foreground truncate mt-0.5">{deal.cliente_nome}</p>}
                       </div>
                       <ChevronRight className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                    </button>
+                    </Link>
                   );
                 })}
               </div>
