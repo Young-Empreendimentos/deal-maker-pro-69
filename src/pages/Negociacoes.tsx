@@ -543,7 +543,7 @@ export default function Negociacoes() {
         {showFilters && (
           <Card className="border bg-card">
             <CardContent className="p-4 space-y-3">
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={handleStatusChange} />
                 <MultiSelectFilter label="Etapa" options={ETAPA_OPTIONS} selected={fEtapa} onChange={setFEtapa} />
                 <MultiSelectFilter label="Tarefas" options={TAREFA_OPTIONS} selected={fTarefa} onChange={setFTarefa} />
