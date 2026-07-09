@@ -88,7 +88,7 @@ function getPresetRange(preset: DatePreset): [Date, Date] {
 function fmtDate(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }); }
 
 // Persistência dos filtros do Dashboard entre navegações (sessão do navegador)
-const DASH_FILTERS_KEY = "pingolead:dashboard:filtros:v1";
+const DASH_FILTERS_KEY = "pingolead:dashboard:filtros:v2";
 type DashPersist = { datePreset?: DatePreset; customFrom?: string; customTo?: string; filterUsers?: string[]; filterEmp?: string };
 function loadDashFilters(): DashPersist {
   try { const raw = sessionStorage.getItem(DASH_FILTERS_KEY); return raw ? (JSON.parse(raw) as DashPersist) : {}; }
@@ -161,7 +161,7 @@ export default function Dashboard() {
 
   // ── Applied filters (restaurados da sessão) ───────────────────────────────
   const [dashInit] = useState<DashPersist>(loadDashFilters);
-  const [datePreset,   setDatePreset]   = useState<DatePreset>(dashInit.datePreset ?? "ano");
+  const [datePreset,   setDatePreset]   = useState<DatePreset>(dashInit.datePreset ?? "mes");
   const [customRange,  setCustomRange]  = useState<{ from?: Date; to?: Date }>(() => ({
     from: dashInit.customFrom ? new Date(dashInit.customFrom) : undefined,
     to:   dashInit.customTo   ? new Date(dashInit.customTo)   : undefined,
@@ -184,7 +184,7 @@ export default function Dashboard() {
 
   // ── Pending (inside popover before saving) ────────────────────────────────
   const [dateOpen,       setDateOpen]       = useState(false);
-  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>(dashInit.datePreset ?? "ano");
+  const [pendingPreset,  setPendingPreset]  = useState<DatePreset>(dashInit.datePreset ?? "mes");
   const [pendingRange,   setPendingRange]   = useState<{ from?: Date; to?: Date }>({});
   const [calTab,         setCalTab]         = useState<"from" | "to">("from");
 

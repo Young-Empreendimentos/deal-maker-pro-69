@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { CalendarIcon, X } from "lucide-react";
@@ -31,6 +31,45 @@ function spDate(offsetDays = 0): string {
   const base = new Date(`${todaySp}T12:00:00Z`);
   base.setUTCDate(base.getUTCDate() + offsetDays);
   return base.toISOString().slice(0, 10);
+}
+
+// Campo de digitar data que completa o ANO ATUAL quando você não digita o ano
+// (ex.: "01/01" vira "01/01/2026"). Aceita dd/mm ou dd/mm/aaaa.
+function DigitaData({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const [txt, setTxt] = useState(fmt(value));
+  useEffect(() => { setTxt(fmt(value)); }, [value]);
+
+  const commit = () => {
+    const clean = txt.trim();
+    if (!clean) { onChange(""); return; }
+    const parts = clean.split(/\D+/).filter(Boolean);
+    const [d, m, y] = parts;
+    if (!d || !m) { setTxt(fmt(value)); return; }
+    const dd = parseInt(d, 10);
+    const mm = parseInt(m, 10);
+    let yyyy = y ? parseInt(y, 10) : new Date().getFullYear();
+    if (y && y.length === 2) yyyy = 2000 + parseInt(y, 10);
+    if (isNaN(dd) || isNaN(mm) || dd < 1 || dd > 31 || mm < 1 || mm > 12 || yyyy < 2000 || yyyy > 2100) {
+      setTxt(fmt(value)); // reverte se inválido
+      return;
+    }
+    const iso = `${yyyy}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+    onChange(iso);
+    setTxt(fmt(iso));
+  };
+
+  return (
+    <input
+      type="text"
+      inputMode="numeric"
+      value={txt}
+      placeholder="dd/mm/aaaa"
+      onChange={(e) => setTxt(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); (e.target as HTMLInputElement).blur(); } }}
+      className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+    />
+  );
 }
 
 export function DateRangeFilter({ label, value, onChange }: Props) {
@@ -93,23 +132,11 @@ export function DateRangeFilter({ label, value, onChange }: Props) {
         <div className="space-y-2">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">De</label>
-            <input
-              type="date"
-              value={value.from}
-              max={value.to || undefined}
-              onChange={(e) => onChange({ ...value, from: e.target.value })}
-              className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <DigitaData value={value.from} onChange={(iso) => onChange({ ...value, from: iso })} />
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground">Até</label>
-            <input
-              type="date"
-              value={value.to}
-              min={value.from || undefined}
-              onChange={(e) => onChange({ ...value, to: e.target.value })}
-              className="w-full h-8 rounded-md border border-input bg-background px-2 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+            <DigitaData value={value.to} onChange={(iso) => onChange({ ...value, to: iso })} />
           </div>
         </div>
         <div className="flex justify-end gap-2 pt-1">

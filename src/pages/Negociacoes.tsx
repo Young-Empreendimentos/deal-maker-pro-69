@@ -99,10 +99,14 @@ const LAST_90_DAYS_RANGE = (): DateRange => {
   return { from: fmt(from), to: fmt(to) };
 };
 
-// Intervalo do ano corrente (padrão do filtro "Data de Criação")
-const CURRENT_YEAR_RANGE = (): DateRange => {
-  const y = new Date().getFullYear();
-  return { from: `${y}-01-01`, to: `${y}-12-31` };
+// Intervalo do mês corrente (padrão do filtro "Data de Criação")
+const CURRENT_MONTH_RANGE = (): DateRange => {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth(); // 0-based
+  const mm = String(m + 1).padStart(2, "0");
+  const lastDay = new Date(y, m + 1, 0).getDate();
+  return { from: `${y}-${mm}-01`, to: `${y}-${mm}-${String(lastDay).padStart(2, "0")}` };
 };
 
 // Opções do filtro por Etapa = as colunas do kanban (status "em andamento")
@@ -119,7 +123,7 @@ const CAROLINE_BORTOLUZZI_ID = "61aaeca9-f853-47af-836d-56e2f8ae6542";
 
 // Persistência dos filtros/visão entre navegações (sessão do navegador):
 // ao abrir uma negociação e voltar para a lista, os filtros continuam.
-const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v3";
+const FILTERS_STORAGE_KEY = "pingolead:negociacoes:filtros:v4";
 type PersistedState = {
   view?: "kanban" | "table" | "funil";
   sortBy?: "created_at" | "cliente_nome" | "qualificacao" | "updated_at";
@@ -173,7 +177,7 @@ export default function Negociacoes() {
   const [fMotivoPerda, setFMotivoPerda] = useState<string[]>(persisted.fMotivoPerda ?? []);
 
   const EMPTY_RANGE: DateRange = { from: "", to: "" };
-  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(persisted.fDateCriacao ?? CURRENT_YEAR_RANGE());
+  const [fDateCriacao,  setFDateCriacao]  = useState<DateRange>(persisted.fDateCriacao ?? CURRENT_MONTH_RANGE());
   const [fDateContato,  setFDateContato]  = useState<DateRange>(persisted.fDateContato ?? EMPTY_RANGE);
   const [fDateVenda,    setFDateVenda]    = useState<DateRange>(persisted.fDateVenda ?? EMPTY_RANGE);
   const [fDatePerda,    setFDatePerda]    = useState<DateRange>(persisted.fDatePerda ?? EMPTY_RANGE);
