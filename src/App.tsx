@@ -5,19 +5,21 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
-import Login from "./pages/Login";
-import Negociacoes from "./pages/Negociacoes";
-import Dashboard from "./pages/Dashboard";
-import Empreendimentos from "./pages/Empreendimentos";
-import Configuracoes from "./pages/Configuracoes";
-import Tarefas from "./pages/Tarefas";
-import NegociacaoDetalhes from "./pages/NegociacaoDetalhes";
-import Relatorios from "./pages/Relatorios";
-import RelatorioDiario from "./pages/RelatorioDiario";
-import PublicoAlvo from "./pages/PublicoAlvo";
-import AuthCallback from "./pages/AuthCallback";
-import NotFound from "./pages/NotFound";
+import { lazy, Suspense } from "react";
 import { AcessoPendente } from "@/components/crm/AcessoPendente";
+
+// Páginas carregadas sob demanda (code-splitting) — reduz o bundle inicial
+const Login = lazy(() => import("./pages/Login"));
+const Negociacoes = lazy(() => import("./pages/Negociacoes"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Configuracoes = lazy(() => import("./pages/Configuracoes"));
+const Tarefas = lazy(() => import("./pages/Tarefas"));
+const NegociacaoDetalhes = lazy(() => import("./pages/NegociacaoDetalhes"));
+const Relatorios = lazy(() => import("./pages/Relatorios"));
+const RelatorioDiario = lazy(() => import("./pages/RelatorioDiario"));
+const PublicoAlvo = lazy(() => import("./pages/PublicoAlvo"));
+const AuthCallback = lazy(() => import("./pages/AuthCallback"));
+const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
@@ -39,6 +41,7 @@ function AppRoutes() {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
 
   return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>}>
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
       <Route path="/" element={<Navigate to="/dashboard" replace />} />
@@ -53,6 +56,7 @@ function AppRoutes() {
       <Route path="/auth/callback" element={<AuthCallback />} />
       <Route path="*" element={<NotFound />} />
     </Routes>
+    </Suspense>
   );
 }
 
