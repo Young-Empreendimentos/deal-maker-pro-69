@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -36,7 +37,8 @@ interface Props {
 
 export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar, autoValorEntrada, onSave }: Props) {
   const { toast } = useToast();
-  const { user: currentUser, nome: currentUserNome } = useAuth();
+  const navigate = useNavigate();
+  const { user: currentUser, nome: currentUserNome, isAdmin } = useAuth();
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
 
@@ -102,13 +104,15 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
 
     const responsavelChanged = responsavelId !== (deal.responsavel_id ?? "");
 
+    // Campos básicos — SEM o responsavel_id. A troca de dono vai por uma função
+    // separada (crm_transferir_responsavel), porque o RLS não deixa trocar o dono
+    // num UPDATE direto: a linha deixaria de ser visível para quem edita.
     const { error } = await supabase.from("crm_deals").update({
       cliente_nome: nome.trim(),
       cliente_email: email.trim() || null,
       qualificacao: qualificacao as any,
       empreendimento_id: empId,
       fonte_id: fonteId || null,
-      responsavel_id: responsavelId,
     } as any).eq("id", deal.id);
 
     if (error) {
@@ -117,21 +121,41 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
       return;
     }
 
-    if (responsavelChanged && currentUser) {
-      const oldNome = userProfiles.find((u) => u.user_id === deal.responsavel_id)?.nome || "Desconhecido";
-      const newNome = userProfiles.find((u) => u.user_id === responsavelId)?.nome || "Desconhecido";
-      const quemFez = currentUserNome || currentUser.email || "Usuário";
-      await supabase.from("crm_tasks").insert({
-        deal_id: deal.id,
-        responsavel_id: currentUser.id,
-        titulo: `Negócio transferido de ${oldNome} para ${newNome}`,
-        descricao: `Transferido por ${quemFez}`,
-        concluida: true,
-      } as any);
+    if (responsavelChanged) {
+      const { error: transferError } = await (supabase as any).rpc("crm_transferir_responsavel", {
+        p_deal_id: deal.id,
+        p_novo_responsavel: responsavelId,
+      });
+      if (transferError) {
+        toast({ title: "Erro ao transferir o dono", description: transferError.message, variant: "destructive" });
+        onSave();
+        setSaving(false);
+        return;
+      }
+
+      if (currentUser) {
+        const oldNome = userProfiles.find((u) => u.user_id === deal.responsavel_id)?.nome || "Desconhecido";
+        const newNome = userProfiles.find((u) => u.user_id === responsavelId)?.nome || "Desconhecido";
+        const quemFez = currentUserNome || currentUser.email || "Usuário";
+        await supabase.from("crm_tasks").insert({
+          deal_id: deal.id,
+          responsavel_id: currentUser.id,
+          titulo: `Negócio transferido de ${oldNome} para ${newNome}`,
+          descricao: `Transferido por ${quemFez}`,
+          concluida: true,
+        } as any);
+      }
     }
 
-    toast({ title: "Dados atualizados!" });
     setDirty(false);
+    toast({ title: responsavelChanged ? "Dono do negócio atualizado!" : "Dados atualizados!" });
+
+    // Consultor (não-admin) que transferiu perde acesso ao lead — volta para a lista.
+    if (responsavelChanged && !isAdmin) {
+      navigate("/negociacoes");
+      return;
+    }
+
     onSave();
     setSaving(false);
   };
