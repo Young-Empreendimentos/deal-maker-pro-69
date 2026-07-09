@@ -15,6 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw, Pencil } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { fetchAllPaged } from "@/lib/supabasePagination";
@@ -72,6 +73,7 @@ export default function Tarefas() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas" | "deletadas">("pendentes");
+  const [fDataVenc, setFDataVenc] = useState<DateRange>({ from: "", to: "" });
 
   // Form state
   const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
@@ -297,11 +299,23 @@ export default function Tarefas() {
     setTaskImages((prev) => prev.filter((i) => i.id !== imageId));
   };
 
+  const vencNoIntervalo = (venc: string | null) => {
+    if (!fDataVenc.from && !fDataVenc.to) return true;
+    if (!venc) return false; // sem data de vencimento não entra quando há filtro de data
+    const dv = venc.slice(0, 10);
+    if (fDataVenc.from && dv < fDataVenc.from) return false;
+    if (fDataVenc.to && dv > fDataVenc.to) return false;
+    return true;
+  };
+
   const filtered = tasks.filter((t) => {
-    if (filter === "deletadas") return t.deleted_at !== null;
-    if (filter === "pendentes") return !t.concluida && t.deleted_at === null;
-    if (filter === "concluidas") return t.concluida && t.deleted_at === null;
-    return t.deleted_at === null; // "todas" — somente ativas
+    const statusOk =
+      filter === "deletadas" ? t.deleted_at !== null
+      : filter === "pendentes" ? (!t.concluida && t.deleted_at === null)
+      : filter === "concluidas" ? (t.concluida && t.deleted_at === null)
+      : t.deleted_at === null; // "todas" — somente ativas
+    if (!statusOk) return false;
+    return vencNoIntervalo(t.data_vencimento);
   });
 
   const parseLocalDate = (s: string) => new Date(s + "T00:00:00");
@@ -315,6 +329,9 @@ export default function Tarefas() {
             <p className="text-sm text-muted-foreground">{filtered.length} tarefas</p>
           </div>
           <div className="flex items-center gap-2">
+            <div className="w-[190px]">
+              <DateRangeFilter label="Vencimento" value={fDataVenc} onChange={setFDataVenc} />
+            </div>
             <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue />
