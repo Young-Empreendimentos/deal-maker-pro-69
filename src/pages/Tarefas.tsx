@@ -149,61 +149,27 @@ export default function Tarefas() {
   const [uploading, setUploading] = useState(false);
 
   const fetchTasks = async () => {
-    // Deals: admins veem todos; usuários comuns só os seus
-    let dealsQuery = supabase.from("crm_deals").select("id, cliente_nome").order("cliente_nome");
-    if (!isAdmin && user) {
-      dealsQuery = dealsQuery.eq("responsavel_id", user.id);
-    }
-    const { data: dealsData } = await dealsQuery;
-
-    // Tarefas: admins veem todas; usuários comuns só as dos seus negócios.
-    // Paginamos manualmente porque o Supabase limita 1000 linhas por request.
-    const dealIdsParaUsuario: string[] | null = !isAdmin && user
-      ? ((dealsData as Deal[]) ?? []).map((d) => d.id)
-      : null;
-    if (dealIdsParaUsuario && dealIdsParaUsuario.length === 0) {
-      setTasks([]);
-      setLoading(false);
-      return;
-    }
-    // Paginação manual (Supabase limita 1000 por request)
-    const rawTasksData = await fetchAllPaged<any>((from, to) => {
-      let q = supabase.from("crm_tasks").select("*")
+    // O RLS de crm_tasks já escopa: admin vê todas, usuário comum vê as suas
+    // (responsavel_id). O nome do cliente vem EMBUTIDO pela FK numa query só —
+    // sem seed de 1000 deals nem resolução de nomes em lotes (era o gargalo).
+    const rawTasksData = await fetchAllPaged<any>((from, to) =>
+      supabase.from("crm_tasks")
+        .select("*, crm_deals(cliente_nome)")
         .order("created_at", { ascending: false })
-        .range(from, to);
-      if (dealIdsParaUsuario) q = q.in("deal_id", dealIdsParaUsuario);
-      return q;
-    });
+        .range(from, to)
+    );
 
-    // Buscar nomes das negociações e responsáveis a partir das tarefas
-    const rawList = rawTasksData;
-    let dealsMap = new Map((dealsData ?? []).map((d: any) => [d.id, d.cliente_nome]));
+    // Nomes dos responsáveis (poucos usuários) — uma única consulta
+    const responsavelIds = [...new Set(rawTasksData.map((t: any) => t.responsavel_id).filter(Boolean))] as string[];
     let profileMap = new Map<string, string>();
-
-    if (rawList.length > 0) {
-      // Buscar nomes de deals que faltam no dealsMap.
-      // Em LOTES: tanto o .in() quanto o tamanho da URL têm limite; com milhares
-      // de ids numa só consulta ela falha e os nomes ficam "—".
-      const missingDealIds = [...new Set(rawList.map((t) => t.deal_id).filter((id: string) => id && !dealsMap.has(id)) as string[])];
-      const CHUNK = 300;
-      for (let i = 0; i < missingDealIds.length; i += CHUNK) {
-        const slice = missingDealIds.slice(i, i + CHUNK);
-        const { data: extraDeals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", slice);
-        ((extraDeals as any[]) ?? []).forEach((d) => dealsMap.set(d.id, d.cliente_nome));
-      }
-
-      // Buscar nomes dos responsáveis
-      const responsavelIds = [...new Set(rawList.map((t) => t.responsavel_id).filter(Boolean))];
-      if (responsavelIds.length > 0) {
-        const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
-        profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
-      }
+    if (responsavelIds.length > 0) {
+      const { data: profiles } = await supabase.from("user_profiles").select("user_id, nome").in("user_id", responsavelIds);
+      profileMap = new Map(((profiles as any[]) ?? []).map((p) => [p.user_id, p.nome]));
     }
 
-    // Enriquecer com nome da negociação e responsável
-    const enriched = rawList.map((t: any) => ({
+    const enriched = rawTasksData.map((t: any) => ({
       ...t,
-      deal_nome: dealsMap.get(t.deal_id) ?? "—",
+      deal_nome: t.crm_deals?.cliente_nome ?? "—",
       responsavel_nome: profileMap.get(t.responsavel_id) ?? "—",
     }));
 
