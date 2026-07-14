@@ -384,12 +384,18 @@ export default function Dashboard() {
     v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
 
   const funnelData = useMemo(
-    () => KANBAN_COLUMNS.map((col, i) => ({
-      name: col.label,
-      value: filteredDeals.filter((d) => d.status === col.value).length,
-      fill: FUNNEL_COLORS[i % FUNNEL_COLORS.length],
-    })).filter((d) => d.value > 0),
-    [filteredDeals],
+    () => {
+      const stages = KANBAN_COLUMNS.map((col, i) => ({
+        name: col.label,
+        value: filteredDeals.filter((d) => d.status === col.value).length,
+        fill: FUNNEL_COLORS[i % FUNNEL_COLORS.length],
+      }));
+      // "Vendido" é estado final: não está em KANBAN_COLUMNS nem em `deals` (que só traz ativos);
+      // a contagem vem de `filteredVendas`.
+      stages.push({ name: "Vendido", value: filteredVendas.length, fill: "hsl(142 71% 45%)" });
+      return stages.filter((d) => d.value > 0);
+    },
+    [filteredDeals, filteredVendas],
   );
 
   const qualData = useMemo(() => {
