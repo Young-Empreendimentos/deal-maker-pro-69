@@ -18,6 +18,13 @@ const RENDAS_AUTO = [
   "Acima de 20 mil reais",
 ] as const;
 
+// A automação (n8n) pode gravar auto_interesse/auto_renda com caixa ou acento diferentes
+// das opções do <Select> (ex.: "até 3 mil reais" x "Até 3 mil reais") — aí o campo aparecia
+// vazio mesmo tendo dado. Casa com a opção canônica ignorando maiúscula/acento.
+const normOpt = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+const matchOption = (v: string | null | undefined, options: readonly string[]) =>
+  !v ? "" : (options.find((o) => normOpt(o) === normOpt(v)) ?? v);
+
 type Props = {
   dealId: string;
   interesse: string | null;
@@ -30,8 +37,8 @@ type Props = {
 export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valorEntrada, nomeAnuncio, onSave }: Props) {
   const { toast } = useToast();
   const [localNomeAnuncio, setLocalNomeAnuncio] = useState(nomeAnuncio ?? "");
-  const [localInteresse, setLocalInteresse] = useState(interesse ?? "");
-  const [localRenda, setLocalRenda] = useState(rendaFamiliar ?? "");
+  const [localInteresse, setLocalInteresse] = useState(matchOption(interesse, INTERESSES_AUTO));
+  const [localRenda, setLocalRenda] = useState(matchOption(rendaFamiliar, RENDAS_AUTO));
   const [localValor, setLocalValor] = useState(valorEntrada?.toString() ?? "");
   const [saving, setSaving] = useState(false);
 
