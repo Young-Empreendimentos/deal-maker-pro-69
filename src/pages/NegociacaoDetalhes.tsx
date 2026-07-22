@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, StickyNote, Send, RotateCcw, Pin } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -115,6 +115,7 @@ export default function NegociacaoDetalhes() {
   const [statusLog, setStatusLog]         = useState<StatusLogRow[]>([]);
 
   const [showDeleteDealDialog, setShowDeleteDealDialog] = useState(false);
+  const [duplicando, setDuplicando] = useState(false);
   const [showLossDialog, setShowLossDialog] = useState(false);
   const [motivosPerda, setMotivosPerda] = useState<MotivoPerda[]>([]);
   const [selectedMotivo, setSelectedMotivo] = useState("");
@@ -305,6 +306,63 @@ export default function NegociacaoDetalhes() {
     navigate("/negociacoes");
   };
 
+  // Duplica a negociação (ex.: venda de outro lote pro mesmo cliente).
+  // Copia cliente + contexto; NÃO copia lote/venda (ficam vazios); status volta pra "lead_recebido".
+  const duplicarNegociacao = async () => {
+    if (!deal || duplicando) return;
+    setDuplicando(true);
+    try {
+      const d = deal as any;
+      const novo: any = {
+        cliente_nome: deal.cliente_nome,
+        cliente_email: deal.cliente_email,
+        empreendimento_id: deal.empreendimento_id,
+        responsavel_id: deal.responsavel_id,
+        consultor_id: d.consultor_id ?? null,
+        fonte_id: deal.fonte_id,
+        qualificacao: deal.qualificacao,
+        status: "lead_recebido",
+        interesse: deal.interesse,
+        auto_interesse: deal.auto_interesse,
+        auto_renda_familiar: deal.auto_renda_familiar,
+        auto_valor_entrada: deal.auto_valor_entrada,
+        renda_familiar: deal.renda_familiar,
+        nome_anuncio: deal.nome_anuncio,
+        melhor_horario_contato: deal.melhor_horario_contato,
+        data_nascimento: deal.data_nascimento,
+        escolaridade: deal.escolaridade,
+        estado_civil: deal.estado_civil,
+        sexo: deal.sexo,
+        nacionalidade: deal.nacionalidade,
+        cidade_cliente: deal.cidade_cliente,
+        logradouro: deal.logradouro,
+        numero_logradouro: deal.numero_logradouro,
+        tipo_residencia: deal.tipo_residencia,
+        filhos: deal.filhos,
+        interesses_pessoais: deal.interesses_pessoais,
+        utm_source: d.utm_source ?? null,
+        utm_medium: d.utm_medium ?? null,
+        utm_campaign: d.utm_campaign ?? null,
+        fonte_original: d.fonte_original ?? null,
+        // NÃO copiados (ficam null): numero_lote, preco_lote, forma_pagamento, valor_entrada,
+        // link_contrato, versao_tabela, data_vendido, data_perdido, motivo_perda_id,
+        // responsavel_venda_user_id, responsavel_venda_corretor_id, satisfacao_atendimento, satisfacao_produto
+      };
+      const { data: ins, error } = await supabase.from("crm_deals").insert(novo as any).select("id").single();
+      if (error) throw error;
+      const novoId = (ins as { id: string }).id;
+      if (phones.length) {
+        await supabase.from("crm_deal_phones").insert(phones.map((p) => ({ deal_id: novoId, telefone: p.telefone })) as any);
+      }
+      toast({ title: "Negociação duplicada", description: "Preencha o lote/venda na cópia." });
+      navigate(`/negociacoes/${novoId}`);
+    } catch (e) {
+      toast({ title: "Erro ao duplicar", description: "Tente novamente.", variant: "destructive" });
+    } finally {
+      setDuplicando(false);
+    }
+  };
+
   const deleteTask = async (taskId: string) => {
     // Soft delete - marca como deletada em vez de deletar do banco
     await supabase.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
@@ -454,6 +512,17 @@ export default function NegociacaoDetalhes() {
                     {deal.status === "vendido" ? "Vendido" : "Perdido"}
                   </Badge>
                 )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-white/80 hover:text-white hover:bg-white/10"
+                  onClick={duplicarNegociacao}
+                  disabled={duplicando}
+                  title="Duplicar negociação (ex.: outro lote pro mesmo cliente)"
+                >
+                  <Copy className="h-4 w-4 mr-1" />
+                  {duplicando ? "Duplicando…" : "Duplicar"}
+                </Button>
                 {isAdmin && (
                   <Button
                     variant="ghost"
