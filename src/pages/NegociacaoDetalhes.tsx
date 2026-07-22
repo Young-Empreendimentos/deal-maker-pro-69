@@ -489,12 +489,11 @@ export default function NegociacaoDetalhes() {
                 <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-white truncate">
                   {deal.cliente_nome}
                 </h1>
-                {deal.melhor_horario_contato && (
-                  <p className="text-sm font-medium text-white/90 mt-1 flex items-center gap-1.5">
-                    <Clock className="h-4 w-4 flex-shrink-0" />
-                    Melhor horário p/ contato: {deal.melhor_horario_contato}
-                  </p>
-                )}
+                <p className="text-sm font-medium text-white/90 mt-1 flex items-center gap-1.5">
+                  <Clock className="h-4 w-4 flex-shrink-0" />
+                  Melhor horário p/ contato:{" "}
+                  {deal.melhor_horario_contato || <span className="font-normal text-white/50">não informado</span>}
+                </p>
                 <p className="text-xs text-white/60 mt-1">
                   Criado em {new Date(deal.created_at).toLocaleDateString("pt-BR")}
                   {isFinal && (deal.data_vendido || deal.data_perdido) && (
