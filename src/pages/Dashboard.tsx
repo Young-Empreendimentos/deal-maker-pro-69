@@ -366,6 +366,9 @@ export default function Dashboard() {
   }), [vendasDeals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
   const vendasCount  = filteredVendas.length;
+  // Interna = sem corretor/imobiliária (conta pro dono do negócio) · Externa = tem responsavel_venda_corretor_id
+  const vendasInternas = useMemo(() => filteredVendas.filter((d) => (d as any).responsavel_venda_corretor_id == null), [filteredVendas]);
+  const vendasExternas = useMemo(() => filteredVendas.filter((d) => (d as any).responsavel_venda_corretor_id != null), [filteredVendas]);
   const perdasCount  = dashCounts.perdas;
 
   const vgv = useMemo(
@@ -677,6 +680,28 @@ export default function Dashboard() {
             </div>
           )}
         </button>
+
+        {/* Vendas internas × externas (só admin) --------------------------- */}
+        {isAdmin && (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
+              onClick={() => setDrillDown({ kind: "deals", label: "Vendas internas (equipe)", items: vendasInternas })}
+            >
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Vendas internas</p>
+              <p className="text-[10px] text-muted-foreground/70">equipe · dono do negócio</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums">{vendasInternas.length}</p>
+            </button>
+            <button
+              className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
+              onClick={() => setDrillDown({ kind: "deals", label: "Vendas externas (imobiliária/corretor)", items: vendasExternas })}
+            >
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Vendas externas</p>
+              <p className="text-[10px] text-muted-foreground/70">imobiliária / corretor</p>
+              <p className="text-3xl font-bold mt-1 tabular-nums">{vendasExternas.length}</p>
+            </button>
+          </div>
+        )}
 
         {/* Atividades Realizadas ------------------------------------------- */}
         <div className="rounded-xl border bg-card">
