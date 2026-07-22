@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { isVisibleUser } from "@/lib/filteredUsers";
+import { useAuth } from "@/contexts/AuthContext";
 import { Download } from "lucide-react";
 import {
   ResponsiveContainer,
@@ -60,6 +61,7 @@ function toCSV(rows: Record<string, unknown>[], cols: { key: string; label: stri
 }
 
 export default function RelatorioDiario() {
+  const { user, isAdmin } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const trintaDias = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
 
@@ -75,13 +77,16 @@ export default function RelatorioDiario() {
   useEffect(() => {
     (async () => {
       setLoading(true);
+      let vq = (supabase as any)
+        .from("crm_relatorio_vendas_diario")
+        .select("*")
+        .gte("data", period.from || "1900-01-01")
+        .lte("data", period.to || "2999-12-31")
+        .order("data", { ascending: false });
+      // Consultor (não-admin) vê só os próprios (a view não tem RLS, então filtramos aqui).
+      if (!isAdmin && user?.id) vq = vq.eq("responsavel_id", user.id);
       const [v, e, p] = await Promise.all([
-        (supabase as any)
-          .from("crm_relatorio_vendas_diario")
-          .select("*")
-          .gte("data", period.from || "1900-01-01")
-          .lte("data", period.to || "2999-12-31")
-          .order("data", { ascending: false }),
+        vq,
         supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
         supabase.from("user_profiles").select("user_id,nome"),
       ]);
@@ -94,7 +99,7 @@ export default function RelatorioDiario() {
       );
       setLoading(false);
     })();
-  }, [period.from, period.to]);
+  }, [period.from, period.to, isAdmin, user?.id]);
 
   const empMap = useMemo(() => Object.fromEntries(emps.map((e) => [e.id, e.nome])), [emps]);
   const userMap = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.nome])), [users]);
@@ -188,12 +193,14 @@ export default function RelatorioDiario() {
               selected={empSel}
               onChange={setEmpSel}
             />
-            <MultiSelectFilter
-              label="Responsáveis"
-              options={users.map((u) => ({ value: u.id, label: u.nome }))}
-              selected={userSel}
-              onChange={setUserSel}
-            />
+            {isAdmin && (
+              <MultiSelectFilter
+                label="Responsáveis"
+                options={users.map((u) => ({ value: u.id, label: u.nome }))}
+                selected={userSel}
+                onChange={setUserSel}
+              />
+            )}
           </CardContent>
         </Card>
 
