@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Clock, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -489,11 +489,6 @@ export default function NegociacaoDetalhes() {
                 <h1 className="font-display text-2xl md:text-3xl font-bold tracking-tight text-white truncate">
                   {deal.cliente_nome}
                 </h1>
-                <p className="text-sm font-medium text-white/90 mt-1 flex items-center gap-1.5">
-                  <Clock className="h-4 w-4 flex-shrink-0" />
-                  Melhor horário p/ contato:{" "}
-                  {deal.melhor_horario_contato || <span className="font-normal text-white/50">não informado</span>}
-                </p>
                 <p className="text-xs text-white/60 mt-1">
                   Criado em {new Date(deal.created_at).toLocaleDateString("pt-BR")}
                   {isFinal && (deal.data_vendido || deal.data_perdido) && (

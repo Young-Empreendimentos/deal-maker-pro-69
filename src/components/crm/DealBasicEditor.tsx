@@ -222,6 +222,10 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
             />
           </div>
           <div className="space-y-1.5">
+            <Label className="text-xs">Melhor horário para contato</Label>
+            <Input value={melhorHorario} onChange={(e) => { setMelhorHorario(e.target.value); setDirty(true); }} placeholder="Ex.: depois das 18h, fins de semana" />
+          </div>
+          <div className="space-y-1.5">
             <Label className="text-xs">E-mail</Label>
             <Input type="email" value={email} onChange={(e) => { setEmail(e.target.value); setDirty(true); }} />
           </div>
@@ -267,10 +271,6 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
                 ))}
               </SelectContent>
             </Select>
-          </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs">Melhor horário para contato</Label>
-            <Input value={melhorHorario} onChange={(e) => { setMelhorHorario(e.target.value); setDirty(true); }} placeholder="Ex.: depois das 18h, fins de semana" />
           </div>
         </CardContent>
       </Card>
