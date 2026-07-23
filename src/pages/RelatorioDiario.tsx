@@ -61,7 +61,7 @@ function toCSV(rows: Record<string, unknown>[], cols: { key: string; label: stri
 }
 
 export default function RelatorioDiario() {
-  const { user, isAdmin } = useAuth();
+  const { user, veTodosLeads } = useAuth();
   const today = new Date().toISOString().slice(0, 10);
   const trintaDias = new Date(Date.now() - 30 * 86400_000).toISOString().slice(0, 10);
 
@@ -83,8 +83,8 @@ export default function RelatorioDiario() {
         .gte("data", period.from || "1900-01-01")
         .lte("data", period.to || "2999-12-31")
         .order("data", { ascending: false });
-      // Consultor (não-admin) vê só os próprios (a view não tem RLS, então filtramos aqui).
-      if (!isAdmin && user?.id) vq = vq.eq("responsavel_id", user.id);
+      // Quem não vê todos (consultor comum) vê só os próprios (a view não tem RLS, então filtramos aqui).
+      if (!veTodosLeads && user?.id) vq = vq.eq("responsavel_id", user.id);
       const [v, e, p] = await Promise.all([
         vq,
         supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
@@ -99,7 +99,7 @@ export default function RelatorioDiario() {
       );
       setLoading(false);
     })();
-  }, [period.from, period.to, isAdmin, user?.id]);
+  }, [period.from, period.to, veTodosLeads, user?.id]);
 
   const empMap = useMemo(() => Object.fromEntries(emps.map((e) => [e.id, e.nome])), [emps]);
   const userMap = useMemo(() => Object.fromEntries(users.map((u) => [u.id, u.nome])), [users]);
@@ -193,7 +193,7 @@ export default function RelatorioDiario() {
               selected={empSel}
               onChange={setEmpSel}
             />
-            {isAdmin && (
+            {veTodosLeads && (
               <MultiSelectFilter
                 label="Responsáveis"
                 options={users.map((u) => ({ value: u.id, label: u.nome }))}

@@ -142,7 +142,7 @@ function loadPersistedState(): PersistedState {
 }
 
 export default function Negociacoes() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, veTodosLeads } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fetchSeq = useRef(0);
@@ -310,10 +310,10 @@ export default function Negociacoes() {
         .in("status", statusesToFetch as any)
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
-      if (!isAdmin && user) {
+      if (!veTodosLeads && user) {
         query = query.eq("responsavel_id", user.id);
       }
-      if (isAdmin && fConsultor.length > 0) {
+      if (veTodosLeads && fConsultor.length > 0) {
         const semDono = fConsultor.includes("__sem_dono__");
         const outras = fConsultor.filter((v) => v !== "__sem_dono__");
         if (semDono && outras.length > 0) query = query.or(`responsavel_id.is.null,responsavel_id.in.(${outras.join(",")})`);
@@ -386,13 +386,13 @@ export default function Negociacoes() {
     supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
     supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setMotivosPerda((data as { id: string; nome: string }[]) ?? []));
-    if (isAdmin) {
+    if (veTodosLeads) {
       supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
         const all = ((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome }));
         setUsers(all.filter((u) => isVisibleUser(u.id)));
       });
     }
-  }, [isAdmin, user?.id, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao.from, fDateCriacao.to, fDateContato.from, fDateContato.to, fDatePerda.from, fDatePerda.to, fDateVenda.from, fDateVenda.to]);
+  }, [veTodosLeads, user?.id, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao.from, fDateCriacao.to, fDateContato.from, fDateContato.to, fDatePerda.from, fDatePerda.to, fDateVenda.from, fDateVenda.to]);
 
   const qualOrder: Record<string, number> = { frio: 0, morno: 1, quente: 2 };
   const kanbanStatuses = new Set(KANBAN_COLUMNS.map((c) => c.value));
@@ -576,7 +576,7 @@ export default function Negociacoes() {
                 <MultiSelectFilter label="Status" options={STATUS_FILTER_OPTIONS} selected={fStatusGroup} onChange={handleStatusChange} />
                 <MultiSelectFilter label="Etapa" options={ETAPA_OPTIONS} selected={fEtapa} onChange={setFEtapa} />
                 <MultiSelectFilter label="Tarefas" options={TAREFA_OPTIONS} selected={fTarefa} onChange={setFTarefa} />
-                {isAdmin && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
+                {veTodosLeads && <MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={handleConsultorChange} />}
                 <MultiSelectFilter label="Empreendimento" options={empreendimentoOptions} selected={fEmpreendimento} onChange={setFEmpreendimento} />
                 <MultiSelectFilter label="Fonte" options={fonteOptions} selected={fFonte} onChange={setFFonte} />
                 <MultiSelectFilter label="Motivo da Perda" options={motivoPerdaOptions} selected={fMotivoPerda} onChange={setFMotivoPerda} />

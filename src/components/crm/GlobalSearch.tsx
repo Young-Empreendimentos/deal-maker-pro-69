@@ -27,7 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function GlobalSearch() {
-  const { user, isAdmin } = useAuth();
+  const { user, veTodosLeads } = useAuth();
   const navigate = useNavigate();
 
   const [query,   setQuery]   = useState("");
@@ -62,7 +62,7 @@ export function GlobalSearch() {
       .or(`cliente_nome.ilike.%${q}%,cliente_email.ilike.%${q}%`)
       .limit(20);
 
-    if (!isAdmin && user) dealsQuery = dealsQuery.eq("responsavel_id", user.id);
+    if (!veTodosLeads && user) dealsQuery = dealsQuery.eq("responsavel_id", user.id);
 
     const { data: byName } = await dealsQuery;
 
@@ -82,7 +82,7 @@ export function GlobalSearch() {
         .select("id, cliente_nome, cliente_email, status, responsavel_id")
         .in("id", dealIds);
 
-      if (!isAdmin && user) phoneDealsQuery = phoneDealsQuery.eq("responsavel_id", user.id);
+      if (!veTodosLeads && user) phoneDealsQuery = phoneDealsQuery.eq("responsavel_id", user.id);
 
       const { data: phoneDeals } = await phoneDealsQuery;
       byPhone = (phoneDeals ?? []).map((d) => ({
@@ -100,7 +100,7 @@ export function GlobalSearch() {
     setResults([...merged.values()].slice(0, 15));
     setOpen(true);
     setLoading(false);
-  }, [isAdmin, user]);
+  }, [veTodosLeads, user]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

@@ -115,7 +115,7 @@ function atingiuGatilho(d: Deal): boolean {
 
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Dashboard() {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, veTodosLeads } = useAuth();
   const { toast } = useToast();
 
   const [deals,  setDeals]  = useState<Deal[]>([]);
@@ -202,7 +202,7 @@ export default function Dashboard() {
     (async () => {
       const empsRes = await supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome");
       setEmps((empsRes.data as Emp[]) ?? []);
-      if (isAdmin) {
+      if (veTodosLeads) {
         const { data: u } = await supabase.from("user_profiles").select("user_id, nome").order("nome");
         setUsers(
           ((u as any[]) ?? [])
@@ -211,7 +211,7 @@ export default function Dashboard() {
         );
       }
     })();
-  }, [isAdmin, user?.id]);
+  }, [veTodosLeads, user?.id]);
 
   // ── Carrega negócios + tarefas escopados pelo filtro (servidor) ───────────
   useEffect(() => {
@@ -221,7 +221,7 @@ export default function Dashboard() {
 
     const fromIso = dateFrom.toISOString();
     const toIso   = dateTo.toISOString();
-    const responsavelScope: string | string[] | null = !isAdmin
+    const responsavelScope: string | string[] | null = !veTodosLeads
       ? user.id
       : (filterUsers.length > 0 ? filterUsers : null);
     const empScope = filterEmp !== "todos" ? filterEmp : null;
@@ -256,7 +256,7 @@ export default function Dashboard() {
           (supabase as any).rpc("crm_dashboard_counts", {
             p_from: fromIso,
             p_to: toIso,
-            p_users: (isAdmin && filterUsers.length > 0) ? filterUsers : null,
+            p_users: (veTodosLeads && filterUsers.length > 0) ? filterUsers : null,
             p_emp: empScope,
           }).then((r: any) => (r.data as { perdas: number; atividades: Record<string, number> } | null)),
         ]);
@@ -272,7 +272,7 @@ export default function Dashboard() {
         setLoading(false);
       }
     })();
-  }, [user?.id, isAdmin, dateFrom, dateTo, filterUsers, filterEmp]);
+  }, [user?.id, veTodosLeads, dateFrom, dateTo, filterUsers, filterEmp]);
 
   // ── Date button label ─────────────────────────────────────────────────────
   const dateBtnLabel = useMemo(() => {
@@ -298,21 +298,21 @@ export default function Dashboard() {
 
   // ── Filtered deals ────────────────────────────────────────────────────────
   const filteredDeals = useMemo(() => deals.filter((d) => {
-    if (!isAdmin && d.responsavel_id !== user?.id) return false;
-    if (isAdmin && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
+    if (!veTodosLeads && d.responsavel_id !== user?.id) return false;
+    if (veTodosLeads && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
       const dt = new Date(d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
-  }), [deals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
+  }), [deals, veTodosLeads, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
   // Perdas e tarefas concluídas: os NÚMEROS vêm de dashCounts (contados no servidor).
   // As linhas só são buscadas ao abrir o drill-down (lazy) — mantém a lista sem
   // baixar milhares de linhas no carregamento.
   const scopeUsers = (): string[] | null =>
-    isAdmin ? (filterUsers.length > 0 ? filterUsers : null) : (user ? [user.id] : null);
+    veTodosLeads ? (filterUsers.length > 0 ? filterUsers : null) : (user ? [user.id] : null);
 
   const abrirDrillPerdas = async () => {
     if (!dateFrom || !dateTo) return;
@@ -355,15 +355,15 @@ export default function Dashboard() {
   );
 
   const filteredVendas = useMemo(() => vendasDeals.filter((d) => {
-    if (!isAdmin && d.responsavel_id !== user?.id) return false;
-    if (isAdmin && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
+    if (!veTodosLeads && d.responsavel_id !== user?.id) return false;
+    if (veTodosLeads && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
     if (dateFrom && dateTo) {
       const dt = new Date((d as any).data_vendido ?? d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
-  }), [vendasDeals, isAdmin, user, filterUsers, filterEmp, dateFrom, dateTo]);
+  }), [vendasDeals, veTodosLeads, user, filterUsers, filterEmp, dateFrom, dateTo]);
 
   const vendasCount  = filteredVendas.length;
   // Interna = sem corretor/imobiliária (conta pro dono do negócio) · Externa = tem responsavel_venda_corretor_id
@@ -412,7 +412,7 @@ export default function Dashboard() {
   }, [filteredDeals]);
 
   const performanceData = useMemo(() => {
-    if (!isAdmin || users.length === 0) return [];
+    if (!veTodosLeads || users.length === 0) return [];
     const map: Record<string, { total: number; quente: number }> = {};
     filteredDeals.forEach((d) => {
       if (!map[d.responsavel_id]) map[d.responsavel_id] = { total: 0, quente: 0 };
@@ -422,7 +422,7 @@ export default function Dashboard() {
     return Object.entries(map).map(([uid, v]) => ({
       name: users.find((x) => x.id === uid)?.nome ?? "—", ...v,
     })).sort((a, b) => b.total - a.total);
-  }, [filteredDeals, users, isAdmin]);
+  }, [filteredDeals, users, veTodosLeads]);
 
   const activityData = useMemo(
     () => TASK_TIPOS.map((tipo) => ({
@@ -555,8 +555,8 @@ export default function Dashboard() {
               </SelectContent>
             </Select>
 
-            {/* Consultor (admin only) ------------------------------------- */}
-            {isAdmin && (
+            {/* Consultor (admin + gestor) --------------------------------- */}
+            {veTodosLeads && (
               <div className="w-[190px]">
                 <MultiSelectFilter
                   label="Consultor"
@@ -767,8 +767,8 @@ export default function Dashboard() {
           </Card>
         </div>
 
-        {/* Performance (admin only) ---------------------------------------- */}
-        {isAdmin && performanceData.length > 0 && (
+        {/* Performance (admin + gestor) ------------------------------------ */}
+        {veTodosLeads && performanceData.length > 0 && (
           <Card className="border bg-card">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Performance por Vendedor</CardTitle></CardHeader>
             <CardContent>
