@@ -209,9 +209,6 @@ export default function Auditoria() {
     [logs, fConsultor],
   );
 
-  const okCls = "text-emerald-600 dark:text-emerald-400";
-  const badCls = "text-red-600 dark:text-red-400";
-
   return (
     <AppLayout>
       <div className="space-y-4">
@@ -234,65 +231,64 @@ export default function Auditoria() {
 
         {aba === "conformidade" ? (
           <>
-            <Card className="border bg-card">
-              <CardContent className="p-0 overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="sticky left-0 bg-card z-10">Consultor</TableHead>
-                      {colunas.map((c) => (
-                        <TableHead key={c.num} className="text-center text-xs whitespace-nowrap">
-                          {fmtDia(new Date(c.ini))}{c.dias < 7 ? ` (${c.dias}d)` : ""}
-                        </TableHead>
-                      ))}
-                      <TableHead className="text-center">SLA</TableHead>
-                      <TableHead className="w-6"></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
-                      <TableRow><TableCell colSpan={colunas.length + 3} className="text-center text-muted-foreground py-8">Carregando…</TableCell></TableRow>
-                    ) : consultores.length === 0 ? (
-                      <TableRow><TableCell colSpan={colunas.length + 3} className="text-center text-muted-foreground py-8">Sem dados neste ciclo.</TableCell></TableRow>
-                    ) : consultores.map((cons) => {
-                      const sla = slaMap[cons.id];
-                      const pct = sla && sla.sla_total ? Math.round((sla.sla_conforme / sla.sla_total) * 100) : null;
-                      return (
-                        <TableRow key={cons.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDrill({ id: cons.id, nome: cons.nome })}>
-                          <TableCell className="font-medium sticky left-0 bg-card z-10">{cons.nome}</TableCell>
-                          {colunas.map((col) => {
-                            const s = cons.semanas[col.num];
-                            if (!s) return <TableCell key={col.num} className="text-center text-muted-foreground">—</TableCell>;
-                            const visOk = s.visitas >= s.meta_visitas;
-                            const outOk = s.outbound >= s.meta_outbound;
-                            return (
-                              <TableCell key={col.num} className="text-center px-2">
-                                <div className="flex flex-col gap-0.5 text-xs leading-tight">
-                                  <span className={cn("font-medium", visOk ? okCls : badCls)} title="Visitas realizadas">V {s.visitas}/{s.meta_visitas}</span>
-                                  <span className={cn("font-medium", outOk ? okCls : badCls)} title="Visitas outbound">O {s.outbound}/{s.meta_outbound}</span>
-                                </div>
-                              </TableCell>
-                            );
-                          })}
-                          <TableCell className="text-center">
-                            {pct === null ? <span className="text-muted-foreground">—</span> : (
-                              <div className="flex flex-col items-center leading-tight">
-                                <span className={cn("font-semibold text-sm", pct >= 90 ? okCls : pct >= 70 ? "text-amber-600 dark:text-amber-400" : badCls)}>{pct}%</span>
-                                <span className="text-[10px] text-muted-foreground">{sla.sla_conforme}✓ {sla.sla_inconforme}✗</span>
-                              </div>
-                            )}
-                          </TableCell>
-                          <TableCell className="text-muted-foreground"><ChevronRight className="h-4 w-4" /></TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-            <p className="text-xs text-muted-foreground">
-              Cada coluna é uma semana (7 dias) do ciclo. <span className="font-medium">V</span> = visitas realizadas (meta {META_VISITAS}), <span className="font-medium">O</span> = visitas outbound concluídas (meta {META_OUTBOUND}); <span className={okCls}>verde</span> = bateu a meta da semana. A última semana pode ser menor e tem meta proporcional. Clique num consultor para ver os detalhes. SLA = % dos leads atendidos em ≤20 min úteis no ciclo.
-            </p>
+            {loading ? (
+              <p className="text-center text-muted-foreground py-10">Carregando…</p>
+            ) : consultores.length === 0 ? (
+              <p className="text-center text-muted-foreground py-10">Sem dados neste ciclo.</p>
+            ) : (
+              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
+                {consultores.map((cons) => {
+                  const semanas = colunas.map((c) => cons.semanas[c.num]).filter(Boolean);
+                  const totVis = semanas.reduce((a, w) => a + w.visitas, 0);
+                  const totOut = semanas.reduce((a, w) => a + w.outbound, 0);
+                  const sla = slaMap[cons.id];
+                  const pct = sla && sla.sla_total ? Math.round((sla.sla_conforme / sla.sla_total) * 100) : null;
+                  const slaCls = pct === null ? "" : pct >= 90
+                    ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+                    : pct >= 70
+                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300"
+                    : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300";
+                  const iniciais = cons.nome.split(/\s+/).filter(Boolean).map((p) => p.replace(/\./g, "")[0]).filter(Boolean).slice(0, 2).join("").toUpperCase();
+                  const trilha = (tipo: "visitas" | "outbound") => (
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-16 shrink-0 text-xs text-muted-foreground">{tipo === "visitas" ? "Visitas" : "Outbound"}</span>
+                      {colunas.map((col) => {
+                        const w = cons.semanas[col.num];
+                        const futura = addDias(new Date(col.ini), col.dias).getTime() > Date.now();
+                        const val = tipo === "visitas" ? (w?.visitas ?? 0) : (w?.outbound ?? 0);
+                        const meta = tipo === "visitas" ? (w?.meta_visitas ?? 0) : (w?.meta_outbound ?? 0);
+                        const cls = futura ? "bg-muted" : val >= meta ? "bg-emerald-500" : "bg-red-500";
+                        return <span key={col.num} className={cn("h-[18px] w-[18px] shrink-0 rounded-[3px]", cls)} title={`${fmtDia(new Date(col.ini))}${futura ? " (em andamento)" : ""}: ${val}/${meta}`} />;
+                      })}
+                      <span className="ml-auto text-sm font-semibold tabular-nums">{tipo === "visitas" ? totVis : totOut}</span>
+                    </div>
+                  );
+                  return (
+                    <div key={cons.id} onClick={() => setDrill({ id: cons.id, nome: cons.nome })} className="cursor-pointer rounded-xl border bg-card p-4 transition-colors hover:border-primary/40">
+                      <div className="mb-3 flex items-center gap-3">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{iniciais}</div>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-medium">{cons.nome}</p>
+                          <p className="text-xs text-muted-foreground">{totVis} visitas · {totOut} outbound</p>
+                        </div>
+                        {pct !== null && <span className={cn("shrink-0 rounded-full px-2.5 py-1 text-xs font-medium", slaCls)}>SLA {pct}%</span>}
+                      </div>
+                      <div className="space-y-1.5">
+                        {trilha("visitas")}
+                        {trilha("outbound")}
+                      </div>
+                      <div className="mt-3 flex items-center justify-end gap-1 text-xs text-primary">abrir detalhes <ChevronRight className="h-3.5 w-3.5" /></div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-emerald-500" /> bateu a meta</span>
+              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-red-500" /> não bateu</span>
+              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-muted" /> semana em andamento</span>
+              <span>· cada quadradinho = 1 semana · metas: {META_VISITAS} visitas e {META_OUTBOUND} outbound por 7 dias</span>
+            </div>
           </>
         ) : (
           <div className="space-y-3">
