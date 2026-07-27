@@ -11,9 +11,8 @@ import { isVisibleUser } from "@/lib/filteredUsers";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, MapPin, Navigation, Timer } from "lucide-react";
 
-// Metas SEMANAIS (avaliadas pela média/semana dentro do ciclo mensal)
-const META_VISITAS = 3;    // mínimo 3 visitas realizadas por semana
-const META_OUTBOUND = 10;  // mais de 10 visitas outbound por semana
+const META_VISITAS = 3;    // por 7 dias
+const META_OUTBOUND = 10;  // por 7 dias
 
 const STATUS_LABELS: Record<string, string> = {
   lead_recebido: "Lead Recebido", contato_feito: "Contato Feito", visita_agendada: "Visita Agendada",
@@ -22,15 +21,11 @@ const STATUS_LABELS: Record<string, string> = {
 };
 const statusLabel = (s: string | null) => (s ? STATUS_LABELS[s] ?? s : "—");
 
-type AuditRow = {
-  responsavel_id: string; nome: string;
-  visitas_realizadas: number; visitas_outbound: number;
-  sla_total: number; sla_conforme: number; sla_inconforme: number; sla_no_prazo: number;
-};
+type SemanaRow = { responsavel_id: string; nome: string; semana_num: number; semana_ini: string; dias: number; visitas: number; outbound: number; meta_visitas: number; meta_outbound: number; };
+type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number; sla_inconforme: number; sla_no_prazo: number; };
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
 type SlaLead = { deal_id: string; cliente_nome: string; chegada: string; primeira_acao: string | null; minutos: number; teve_acao: boolean; conforme: boolean; };
 
-// Ciclo de fechamento: dia 10 -> dia 9 do mês seguinte
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
   let mes = d.getMonth();
@@ -135,10 +130,10 @@ export default function Auditoria() {
   const cicloFim = useMemo(() => addCiclo(cicloIni, 1), [cicloIni]);
   const fromIso = useMemo(() => cicloIni.toISOString(), [cicloIni]);
   const toIso = useMemo(() => cicloFim.toISOString(), [cicloFim]);
-  const semanas = useMemo(() => Math.max(1, (cicloFim.getTime() - cicloIni.getTime()) / (7 * 86400000)), [cicloIni, cicloFim]);
   const noCicloAtual = useMemo(() => cicloIni.getTime() >= cicloInicio(new Date()).getTime(), [cicloIni]);
 
-  const [rows, setRows] = useState<AuditRow[]>([]);
+  const [semanaRows, setSemanaRows] = useState<SemanaRow[]>([]);
+  const [slaMap, setSlaMap] = useState<Record<string, SlaRow>>({});
   const [logs, setLogs] = useState<LogRow[]>([]);
   const [userMap, setUserMap] = useState<Record<string, string>>({});
   const [dealMap, setDealMap] = useState<Record<string, string>>({});
@@ -157,8 +152,14 @@ export default function Auditoria() {
   useEffect(() => {
     if (aba !== "conformidade") return;
     setLoading(true);
-    (supabase as any).rpc("crm_auditoria", { p_from: fromIso, p_to: toIso }).then(({ data }: any) => {
-      setRows((data as AuditRow[]) ?? []);
+    Promise.all([
+      (supabase as any).rpc("crm_auditoria_semanal", { p_from: fromIso, p_to: toIso }),
+      (supabase as any).rpc("crm_auditoria", { p_from: fromIso, p_to: toIso }),
+    ]).then(([sem, sla]: any[]) => {
+      setSemanaRows((sem.data as SemanaRow[]) ?? []);
+      const sm: Record<string, SlaRow> = {};
+      ((sla.data as SlaRow[]) ?? []).forEach((r) => { sm[r.responsavel_id] = r; });
+      setSlaMap(sm);
       setLoading(false);
     });
   }, [aba, fromIso, toIso]);
@@ -183,6 +184,22 @@ export default function Auditoria() {
 
   useEffect(() => { if (aba === "trilha") carregarTrilha(); }, [aba, carregarTrilha]);
 
+  // Agrupa a matriz por consultor + colunas de semana
+  const consultores = useMemo(() => {
+    const m = new Map<string, { id: string; nome: string; semanas: Record<number, SemanaRow> }>();
+    for (const r of semanaRows) {
+      if (!m.has(r.responsavel_id)) m.set(r.responsavel_id, { id: r.responsavel_id, nome: r.nome, semanas: {} });
+      m.get(r.responsavel_id)!.semanas[r.semana_num] = r;
+    }
+    return [...m.values()].sort((a, b) => a.nome.localeCompare(b.nome));
+  }, [semanaRows]);
+
+  const colunas = useMemo(() => {
+    const m = new Map<number, { num: number; ini: string; dias: number }>();
+    for (const r of semanaRows) if (!m.has(r.semana_num)) m.set(r.semana_num, { num: r.semana_num, ini: r.semana_ini, dias: r.dias });
+    return [...m.values()].sort((a, b) => a.num - b.num);
+  }, [semanaRows]);
+
   const consultorOptions = useMemo(
     () => Object.entries(userMap).filter(([id]) => isVisibleUser(id)).map(([id, nome]) => ({ value: id, label: nome })),
     [userMap],
@@ -192,13 +209,16 @@ export default function Auditoria() {
     [logs, fConsultor],
   );
 
+  const okCls = "text-emerald-600 dark:text-emerald-400";
+  const badCls = "text-red-600 dark:text-red-400";
+
   return (
     <AppLayout>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-primary" /> Auditoria comercial</h1>
-            <p className="text-sm text-muted-foreground">Ciclo de fechamento (dia 10 ao dia 9) · metas por semana · visível só para administradores.</p>
+            <p className="text-sm text-muted-foreground">Ciclo dia 10→9 · metas por semana (7 dias): 3 visitas e 10 outbound · só administradores.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={() => setCicloIni((p) => addCiclo(p, -1))} aria-label="Ciclo anterior"><ChevronLeft className="h-4 w-4" /></Button>
@@ -215,45 +235,51 @@ export default function Auditoria() {
         {aba === "conformidade" ? (
           <>
             <Card className="border bg-card">
-              <CardContent className="p-0">
+              <CardContent className="p-0 overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Consultor</TableHead>
-                      <TableHead className="text-center">Visitas realizadas <span className="text-muted-foreground font-normal">(meta {META_VISITAS}/sem)</span></TableHead>
-                      <TableHead className="text-center">Visitas outbound <span className="text-muted-foreground font-normal">(&gt; {META_OUTBOUND}/sem)</span></TableHead>
-                      <TableHead className="text-center">SLA 20 min</TableHead>
-                      <TableHead className="w-8"></TableHead>
+                      <TableHead className="sticky left-0 bg-card z-10">Consultor</TableHead>
+                      {colunas.map((c) => (
+                        <TableHead key={c.num} className="text-center text-xs whitespace-nowrap">
+                          {fmtDia(new Date(c.ini))}{c.dias < 7 ? ` (${c.dias}d)` : ""}
+                        </TableHead>
+                      ))}
+                      <TableHead className="text-center">SLA</TableHead>
+                      <TableHead className="w-6"></TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Carregando…</TableCell></TableRow>
-                    ) : rows.length === 0 ? (
-                      <TableRow><TableCell colSpan={5} className="text-center text-muted-foreground py-8">Sem dados neste ciclo.</TableCell></TableRow>
-                    ) : rows.map((r) => {
-                      const medVis = r.visitas_realizadas / semanas;
-                      const medOut = r.visitas_outbound / semanas;
-                      const visOk = medVis >= META_VISITAS;
-                      const outOk = medOut > META_OUTBOUND;
-                      const pct = r.sla_total ? Math.round((r.sla_conforme / r.sla_total) * 100) : null;
+                      <TableRow><TableCell colSpan={colunas.length + 3} className="text-center text-muted-foreground py-8">Carregando…</TableCell></TableRow>
+                    ) : consultores.length === 0 ? (
+                      <TableRow><TableCell colSpan={colunas.length + 3} className="text-center text-muted-foreground py-8">Sem dados neste ciclo.</TableCell></TableRow>
+                    ) : consultores.map((cons) => {
+                      const sla = slaMap[cons.id];
+                      const pct = sla && sla.sla_total ? Math.round((sla.sla_conforme / sla.sla_total) * 100) : null;
                       return (
-                        <TableRow key={r.responsavel_id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDrill({ id: r.responsavel_id, nome: r.nome })}>
-                          <TableCell className="font-medium">{r.nome}</TableCell>
+                        <TableRow key={cons.id} className="cursor-pointer hover:bg-muted/50" onClick={() => setDrill({ id: cons.id, nome: cons.nome })}>
+                          <TableCell className="font-medium sticky left-0 bg-card z-10">{cons.nome}</TableCell>
+                          {colunas.map((col) => {
+                            const s = cons.semanas[col.num];
+                            if (!s) return <TableCell key={col.num} className="text-center text-muted-foreground">—</TableCell>;
+                            const visOk = s.visitas >= s.meta_visitas;
+                            const outOk = s.outbound >= s.meta_outbound;
+                            return (
+                              <TableCell key={col.num} className="text-center px-2">
+                                <div className="flex flex-col gap-0.5 text-xs leading-tight">
+                                  <span className={cn("font-medium", visOk ? okCls : badCls)} title="Visitas realizadas">V {s.visitas}/{s.meta_visitas}</span>
+                                  <span className={cn("font-medium", outOk ? okCls : badCls)} title="Visitas outbound">O {s.outbound}/{s.meta_outbound}</span>
+                                </div>
+                              </TableCell>
+                            );
+                          })}
                           <TableCell className="text-center">
-                            <div className={cn("font-semibold text-base", visOk ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{r.visitas_realizadas}</div>
-                            <div className="text-xs text-muted-foreground">{medVis.toFixed(1)}/sem</div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            <div className={cn("font-semibold text-base", outOk ? "text-emerald-600 dark:text-emerald-400" : "text-red-600 dark:text-red-400")}>{r.visitas_outbound}</div>
-                            <div className="text-xs text-muted-foreground">{medOut.toFixed(1)}/sem</div>
-                          </TableCell>
-                          <TableCell className="text-center">
-                            {r.sla_total === 0 ? <span className="text-muted-foreground">—</span> : (
-                              <>
-                                <div className={cn("font-semibold text-base", pct! >= 90 ? "text-emerald-600 dark:text-emerald-400" : pct! >= 70 ? "text-amber-600 dark:text-amber-400" : "text-red-600 dark:text-red-400")}>{pct}%</div>
-                                <div className="text-xs text-muted-foreground">{r.sla_conforme} ok · {r.sla_inconforme} fora{r.sla_no_prazo ? ` · ${r.sla_no_prazo} aguard.` : ""}</div>
-                              </>
+                            {pct === null ? <span className="text-muted-foreground">—</span> : (
+                              <div className="flex flex-col items-center leading-tight">
+                                <span className={cn("font-semibold text-sm", pct >= 90 ? okCls : pct >= 70 ? "text-amber-600 dark:text-amber-400" : badCls)}>{pct}%</span>
+                                <span className="text-[10px] text-muted-foreground">{sla.sla_conforme}✓ {sla.sla_inconforme}✗</span>
+                              </div>
                             )}
                           </TableCell>
                           <TableCell className="text-muted-foreground"><ChevronRight className="h-4 w-4" /></TableCell>
@@ -264,7 +290,9 @@ export default function Auditoria() {
                 </Table>
               </CardContent>
             </Card>
-            <p className="text-xs text-muted-foreground">Clique num consultor para ver os detalhes (visitas, outbound e leads do SLA). Metas por semana; média calculada sobre {semanas.toFixed(1)} semanas do ciclo.</p>
+            <p className="text-xs text-muted-foreground">
+              Cada coluna é uma semana (7 dias) do ciclo. <span className="font-medium">V</span> = visitas realizadas (meta {META_VISITAS}), <span className="font-medium">O</span> = visitas outbound concluídas (meta {META_OUTBOUND}); <span className={okCls}>verde</span> = bateu a meta da semana. A última semana pode ser menor e tem meta proporcional. Clique num consultor para ver os detalhes. SLA = % dos leads atendidos em ≤20 min úteis no ciclo.
+            </p>
           </>
         ) : (
           <div className="space-y-3">
