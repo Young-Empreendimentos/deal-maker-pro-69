@@ -11,9 +11,6 @@ import { isVisibleUser } from "@/lib/filteredUsers";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, MapPin, Navigation, Timer } from "lucide-react";
 
-const META_VISITAS = 3;    // por 7 dias
-const META_OUTBOUND = 10;  // por 7 dias
-
 const STATUS_LABELS: Record<string, string> = {
   lead_recebido: "Lead Recebido", contato_feito: "Contato Feito", visita_agendada: "Visita Agendada",
   visita_realizada: "Visita Realizada", ficha_assinada: "Ficha Assinada", proposta_recebida: "Proposta Recebida",
@@ -215,7 +212,7 @@ export default function Auditoria() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-primary" /> Auditoria comercial</h1>
-            <p className="text-sm text-muted-foreground">Ciclo dia 10→9 · metas por semana (7 dias): 3 visitas e 10 outbound · só administradores.</p>
+            <p className="text-sm text-muted-foreground">Ciclo de fechamento (dia 10 ao dia 9) · avaliação semanal · acesso restrito a administradores.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={() => setCicloIni((p) => addCiclo(p, -1))} aria-label="Ciclo anterior"><ChevronLeft className="h-4 w-4" /></Button>
@@ -284,10 +281,10 @@ export default function Auditoria() {
               </div>
             )}
             <div className="flex flex-wrap items-center gap-4 pt-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-emerald-500" /> bateu a meta</span>
-              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-red-500" /> não bateu</span>
-              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-muted" /> semana em andamento</span>
-              <span>· cada quadradinho = 1 semana · metas: {META_VISITAS} visitas e {META_OUTBOUND} outbound por 7 dias</span>
+              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-emerald-500" /> Meta atingida</span>
+              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-red-500" /> Meta não atingida</span>
+              <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-muted" /> Semana em andamento</span>
+              <span>· Cada quadrado corresponde a uma semana do ciclo.</span>
             </div>
           </>
         ) : (
