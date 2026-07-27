@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw, Pencil, Pin } from "lucide-react";
+import { Plus, Calendar, CheckCircle2, Circle, Upload, X, Image as ImageIcon, Trash2, Phone, Mail, MapPin, MessageCircle, Users as UsersIcon, RotateCcw, Pencil, Pin, Navigation } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { useToast } from "@/hooks/use-toast";
@@ -21,13 +21,14 @@ import { cn } from "@/lib/utils";
 import { fetchAllPaged } from "@/lib/supabasePagination";
 import { isTaskOverdue } from "@/lib/taskOverdue";
 
-export const TASK_TIPOS = ["Ligação", "E-mail", "Visita", "Whatsapp", "Reunião"] as const;
+export const TASK_TIPOS = ["Ligação", "E-mail", "Visita", "Visita outbound", "Whatsapp", "Reunião"] as const;
 export type TaskTipo = typeof TASK_TIPOS[number];
 
 export const TIPO_CONFIG: Record<string, { icon: React.ElementType; color: string }> = {
   "Ligação":  { icon: Phone,          color: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300" },
   "E-mail":   { icon: Mail,           color: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300" },
   "Visita":   { icon: MapPin,         color: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" },
+  "Visita outbound": { icon: Navigation, color: "bg-teal-100 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300" },
   "Whatsapp": { icon: MessageCircle,  color: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" },
   "Reunião":  { icon: UsersIcon,      color: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300" },
 };
