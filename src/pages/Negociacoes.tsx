@@ -10,7 +10,6 @@ import { Plus, LayoutGrid, Table as TableIcon, Filter, X, ArrowUpDown, ChevronDo
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
-import { isVisibleUser } from "@/lib/filteredUsers";
 import { isTaskOverdue } from "@/lib/taskOverdue";
 import { fetchAllPaged } from "@/lib/supabasePagination";
 import { DealFormDialog } from "@/components/crm/DealFormDialog";
@@ -390,9 +389,9 @@ export default function Negociacoes() {
     supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
     supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setMotivosPerda((data as { id: string; nome: string }[]) ?? []));
     if (veTodosLeads) {
-      supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
-        const all = ((data as any[]) ?? []).map((u) => ({ id: u.user_id, email: "", nome: u.nome }));
-        setUsers(all.filter((u) => isVisibleUser(u.id)));
+      // Filtro de consultor: só quem tem negócios (ativos, vendidos ou perdidos)
+      (supabase as any).rpc("crm_consultores_com_deals").then(({ data }: any) => {
+        setUsers(((data as any[]) ?? []).map((u: any) => ({ id: u.user_id, email: "", nome: u.nome })));
       });
     }
   }, [veTodosLeads, user?.id, fStatusGroup, fConsultor, fEmpreendimento, fFonte, fInteresse, fPreco, fDateCriacao.from, fDateCriacao.to, fDateContato.from, fDateContato.to, fDatePerda.from, fDatePerda.to, fDateVenda.from, fDateVenda.to]);

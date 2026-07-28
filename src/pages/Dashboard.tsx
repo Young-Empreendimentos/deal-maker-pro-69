@@ -29,7 +29,6 @@ import {
 import { ptBR } from "date-fns/locale";
 import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { isVisibleUser } from "@/lib/filteredUsers";
 import { fetchAllPaged } from "@/lib/supabasePagination";
 import { useToast } from "@/hooks/use-toast";
 
@@ -203,12 +202,9 @@ export default function Dashboard() {
       const empsRes = await supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome");
       setEmps((empsRes.data as Emp[]) ?? []);
       if (veTodosLeads) {
-        const { data: u } = await supabase.from("user_profiles").select("user_id, nome").order("nome");
-        setUsers(
-          ((u as any[]) ?? [])
-            .filter((x) => isVisibleUser(x.user_id))
-            .map((x) => ({ id: x.user_id, nome: x.nome })),
-        );
+        // Filtro de consultor: só quem tem negócios
+        const { data: u } = await (supabase as any).rpc("crm_consultores_com_deals");
+        setUsers(((u as any[]) ?? []).map((x: any) => ({ id: x.user_id, nome: x.nome })));
       }
     })();
   }, [veTodosLeads, user?.id]);

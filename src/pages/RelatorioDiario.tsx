@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
-import { isVisibleUser } from "@/lib/filteredUsers";
 import { useAuth } from "@/contexts/AuthContext";
 import { Download } from "lucide-react";
 import {
@@ -88,13 +87,12 @@ export default function RelatorioDiario() {
       const [v, e, p] = await Promise.all([
         vq,
         supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
-        supabase.from("user_profiles").select("user_id,nome"),
+        (supabase as any).rpc("crm_consultores_com_deals"),
       ]);
       setRows((v.data as Row[]) || []);
       setEmps((e.data as any[])?.map((x) => ({ id: x.id, nome: x.nome })) || []);
       setUsers(
         (p.data as any[])
-          ?.filter((x) => isVisibleUser(x.user_id))
           ?.map((x) => ({ id: x.user_id, nome: x.nome || "—" })) || [],
       );
       setLoading(false);
