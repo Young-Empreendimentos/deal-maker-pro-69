@@ -21,7 +21,7 @@ const statusLabel = (s: string | null) => (s ? STATUS_LABELS[s] ?? s : "—");
 type SemanaRow = { responsavel_id: string; nome: string; semana_num: number; semana_ini: string; dias: number; visitas: number; outbound: number; meta_visitas: number; meta_outbound: number; };
 type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number; sla_inconforme: number; sla_no_prazo: number; };
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
-type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; fat_externo: number; vendas_externas: number; bate_externo: boolean; positivas: number; atingiu_min: boolean; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
+type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; fat_externo: number; vendas_externas: number; bate_externo: boolean; positivas: number; atingiu_min: boolean; faixa_de: number | null; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
 type Imob = { nome: string; faturamento: number; vendas: number };
 
 function cicloInicio(ref: Date) {
@@ -213,11 +213,11 @@ export default function Auditoria() {
                           {com.atingiu_min ? (
                             <div className="flex items-end justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="text-xs text-muted-foreground">Faturamento</p>
+                                <p className="text-xs text-muted-foreground">Faturamento · faixa {com.faixa_de != null ? fmtBRL(com.faixa_de) : "—"}</p>
                                 <p className="text-sm font-medium tabular-nums">{fmtBRL(com.faturamento)}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-xs text-muted-foreground">Comissão {fmtPct(com.pct_final)}%{com.pct_max != null && com.pct_max !== com.pct_base ? ` · até ${fmtPct(com.pct_max)}%` : ""}</p>
+                                <p className="text-xs text-muted-foreground">Comissão {fmtPct(com.pct_final)}%</p>
                                 <p className="text-base font-semibold tabular-nums text-primary">{fmtBRL(com.valor, 2)}</p>
                               </div>
                             </div>
