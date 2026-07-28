@@ -96,7 +96,7 @@ export default function AuditoriaConsultor() {
 
   return (
     <AppLayout>
-      <div className="space-y-4 max-w-3xl">
+      <div className="space-y-4 max-w-6xl">
         <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
           <ArrowLeft className="h-4 w-4" /> voltar para a auditoria
         </button>
@@ -118,7 +118,9 @@ export default function AuditoriaConsultor() {
 
         {loading ? (
           <p className="text-center text-muted-foreground py-10">Carregando…</p>
-        ) : blocos.map((b) => {
+        ) : (
+          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+          {blocos.map((b) => {
           const visSem = visitas.filter((v) => dentro(v.created_at, b));
           const outSem = outbound.filter((o) => o.concluida_em && dentro(o.concluida_em, b));
           const slaSem = sla.filter((l) => dentro(l.chegada, b));
@@ -152,12 +154,12 @@ export default function AuditoriaConsultor() {
                   {slaSem.length > 0 && <>· <span className={okCls}>{conf} no prazo</span> · <span className={badCls}>{fora} fora</span></>}
                 </p>
                 {slaSem.length > 0 && (
-                  <div className="border-l-2 border-border pl-3 space-y-1 text-sm">
+                  <div className="text-sm">
                     {slaSem.map((l) => (
-                      <div key={l.deal_id} className="flex items-center justify-between gap-2">
+                      <div key={l.deal_id} className="flex items-center justify-between gap-2 border-b border-border/40 py-1">
                         <span className="truncate">{l.cliente_nome}</span>
-                        <span className={cn("shrink-0", l.conforme ? okCls : l.teve_acao ? badCls : "text-muted-foreground")}>
-                          {l.teve_acao ? fmtMin(l.minutos) : "sem ação"} · {l.conforme ? "no prazo" : l.teve_acao ? "fora" : "aguardando"}
+                        <span className={cn("shrink-0 whitespace-nowrap", l.conforme ? okCls : l.teve_acao ? badCls : "text-muted-foreground")}>
+                          {l.teve_acao ? fmtMin(l.minutos) : "sem ação"}{l.conforme ? "" : l.teve_acao ? " · fora" : " · aguardando"}
                         </span>
                       </div>
                     ))}
@@ -181,7 +183,9 @@ export default function AuditoriaConsultor() {
               </div>
             </div>
           );
-        })}
+          })}
+          </div>
+        )}
       </div>
     </AppLayout>
   );
