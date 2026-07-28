@@ -21,8 +21,8 @@ const statusLabel = (s: string | null) => (s ? STATUS_LABELS[s] ?? s : "—");
 type SemanaRow = { responsavel_id: string; nome: string; semana_num: number; semana_ini: string; dias: number; visitas: number; outbound: number; meta_visitas: number; meta_outbound: number; };
 type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number; sla_inconforme: number; sla_no_prazo: number; };
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
-type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; positivas: number; atingiu_min: boolean; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
-type Imob = { nome: string; faturamento: number; vendas: number; atingiu: boolean };
+type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; fat_externo: number; vendas_externas: number; bate_externo: boolean; positivas: number; atingiu_min: boolean; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
+type Imob = { nome: string; faturamento: number; vendas: number };
 
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
@@ -230,6 +230,16 @@ export default function Auditoria() {
                               <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">abaixo do mínimo</span>
                             </div>
                           )}
+                          {com.fat_externo > 0 && (
+                            <div className="mt-2 flex items-center justify-between gap-2 border-t border-dashed pt-2 text-xs">
+                              <span className="text-muted-foreground">Via corretores <span className="font-medium tabular-nums text-foreground">{fmtBRL(com.fat_externo)}</span></span>
+                              {com.bate_externo ? (
+                                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">bateu 500k</span>
+                              ) : (
+                                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">meta 500k</span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       )}
                       <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
@@ -251,7 +261,7 @@ export default function Auditoria() {
             {!loading && imobiliarias.length > 0 && (
               <div className="pt-3">
                 <h2 className="mb-0.5 flex items-center gap-2 text-lg font-semibold"><Building2 className="h-5 w-5 text-primary" /> Imobiliárias</h2>
-                <p className="mb-3 text-xs text-muted-foreground">Faturamento no período · precisa atingir {fmtBRL(500000)} (sem outras auditorias)</p>
+                <p className="mb-3 text-xs text-muted-foreground">Faturamento no período · as corretoras recebem por fora (pagamento no Sienge)</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {imobiliarias.map((im) => (
                     <div key={im.nome} className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3.5 py-2.5">
@@ -259,14 +269,7 @@ export default function Auditoria() {
                         <span className="truncate text-sm">{im.nome}</span>
                         <span className="shrink-0 text-xs text-muted-foreground">{im.vendas} {im.vendas === 1 ? "venda" : "vendas"}</span>
                       </span>
-                      <span className="flex shrink-0 items-center gap-2.5">
-                        <span className="text-sm font-medium tabular-nums">{fmtBRL(im.faturamento)}</span>
-                        {im.atingiu ? (
-                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">atingiu</span>
-                        ) : (
-                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{fmtBRL(500000)}</span>
-                        )}
-                      </span>
+                      <span className="shrink-0 text-sm font-medium tabular-nums">{fmtBRL(im.faturamento)}</span>
                     </div>
                   ))}
                 </div>
