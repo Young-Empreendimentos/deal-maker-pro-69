@@ -3,7 +3,7 @@ import { useParams, useSearchParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { cn } from "@/lib/utils";
-import { ArrowLeft, Check, X, MapPin, Navigation, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, Navigation, Clock } from "lucide-react";
 
 type SlaLead = { deal_id: string; cliente_nome: string; chegada: string; primeira_acao: string | null; minutos: number; teve_acao: boolean; conforme: boolean };
 type Visita = { deal_id: string; created_at: string; nome: string };
@@ -119,7 +119,7 @@ export default function AuditoriaConsultor() {
         {loading ? (
           <p className="text-center text-muted-foreground py-10">Carregando…</p>
         ) : (
-          <div className="grid grid-cols-1 items-start gap-4 xl:grid-cols-2">
+          <div className="space-y-4">
           {blocos.map((b) => {
           const visSem = visitas.filter((v) => dentro(v.created_at, b));
           const outSem = outbound.filter((o) => o.concluida_em && dentro(o.concluida_em, b));
@@ -131,30 +131,22 @@ export default function AuditoriaConsultor() {
           const okOut = outSem.length >= metaOut;
           const conf = slaSem.filter((l) => l.conforme).length;
           const fora = slaSem.length - conf;
-
-          const statusBadge = (ok: boolean, label: string, val: number) =>
-            futura ? (
-              <span className="rounded-full bg-muted px-2.5 py-1 text-xs text-muted-foreground">{label} {val} · em andamento</span>
-            ) : (
-              <span className={cn("inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs", ok ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300" : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300")}>
-                {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />} {label} {val}
-              </span>
-            );
+          const metaChip = (ok: boolean, val: number, meta: number) =>
+            futura
+              ? <span className="text-xs text-muted-foreground">{val} · em andamento</span>
+              : <span className={cn("text-xs font-semibold", ok ? okCls : badCls)}>{val}/{meta}</span>;
 
           return (
             <div key={b.num} className="rounded-xl border bg-card p-4 sm:p-5">
-              <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                <span className="font-medium">Semana {b.num} · {fmtDia(b.ini)} a {fmtDia(new Date(b.fim.getTime() - DIA))}{b.dias < 7 ? ` (${b.dias} dias)` : ""}</span>
-                <span className="flex gap-1.5">{statusBadge(okVis, "Visitas", visSem.length)}{statusBadge(okOut, "Outbound", outSem.length)}</span>
-              </div>
+              <div className="mb-3 font-medium">Semana {b.num} · {fmtDia(b.ini)} a {fmtDia(new Date(b.fim.getTime() - DIA))}{b.dias < 7 ? ` (${b.dias} dias)` : ""}</div>
 
-              <div className="mb-3">
-                <p className="mb-1.5 flex items-center gap-1.5 text-sm text-muted-foreground">
+              <div className="mb-4">
+                <p className="mb-1.5 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
                   <Clock className="h-4 w-4" /> Tempo de atendimento — {slaSem.length} {slaSem.length === 1 ? "lead" : "leads"}
                   {slaSem.length > 0 && <>· <span className={okCls}>{conf} no prazo</span> · <span className={badCls}>{fora} fora</span></>}
                 </p>
                 {slaSem.length > 0 && (
-                  <div className="text-sm">
+                  <div className="grid grid-cols-1 gap-x-7 text-sm sm:grid-cols-2 xl:grid-cols-3">
                     {slaSem.map((l) => (
                       <div key={l.deal_id} className="flex items-center justify-between gap-2 border-b border-border/40 py-1">
                         <span className="truncate">{l.cliente_nome}</span>
@@ -167,17 +159,17 @@ export default function AuditoriaConsultor() {
                 )}
               </div>
 
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 text-sm">
+              <div className="grid grid-cols-1 gap-4 border-t pt-4 sm:grid-cols-2 text-sm">
                 <div>
-                  <p className="mb-1.5 flex items-center gap-1.5 text-muted-foreground"><MapPin className="h-4 w-4" /> Visitas realizadas ({visSem.length})</p>
+                  <p className="mb-1.5 flex items-center gap-1.5"><MapPin className="h-4 w-4 text-muted-foreground" /> <span className="text-muted-foreground">Visitas realizadas</span> {metaChip(okVis, visSem.length, metaVis)}</p>
                   {visSem.length === 0 ? <p className="text-muted-foreground">nenhuma nesta semana</p> : (
-                    <div className="space-y-0.5">{visSem.map((v, i) => <div key={i} className="flex justify-between gap-2"><span className="truncate">{v.nome}</span><span className="text-muted-foreground shrink-0">{fmtDataHora(v.created_at)}</span></div>)}</div>
+                    <div className="space-y-0.5">{visSem.map((v, i) => <div key={i} className="flex justify-between gap-2 border-b border-border/40 py-1"><span className="truncate">{v.nome}</span><span className="text-muted-foreground shrink-0">{fmtDataHora(v.created_at)}</span></div>)}</div>
                   )}
                 </div>
                 <div>
-                  <p className="mb-1.5 flex items-center gap-1.5 text-muted-foreground"><Navigation className="h-4 w-4" /> Visitas outbound ({outSem.length})</p>
+                  <p className="mb-1.5 flex items-center gap-1.5"><Navigation className="h-4 w-4 text-muted-foreground" /> <span className="text-muted-foreground">Visitas outbound</span> {metaChip(okOut, outSem.length, metaOut)}</p>
                   {outSem.length === 0 ? <p className="text-muted-foreground">nenhuma nesta semana</p> : (
-                    <div className="space-y-0.5">{outSem.map((o, i) => <div key={i} className="flex justify-between gap-2"><span className="truncate">{o.nome}</span><span className="text-muted-foreground shrink-0">{o.concluida_em ? fmtDataHora(o.concluida_em) : "—"}</span></div>)}</div>
+                    <div className="space-y-0.5">{outSem.map((o, i) => <div key={i} className="flex justify-between gap-2 border-b border-border/40 py-1"><span className="truncate">{o.nome}</span><span className="text-muted-foreground shrink-0">{o.concluida_em ? fmtDataHora(o.concluida_em) : "—"}</span></div>)}</div>
                   )}
                 </div>
               </div>
