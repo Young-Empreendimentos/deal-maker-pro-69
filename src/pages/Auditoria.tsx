@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { isVisibleUser } from "@/lib/filteredUsers";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, Building2 } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
   lead_recebido: "Lead Recebido", contato_feito: "Contato Feito", visita_agendada: "Visita Agendada",
@@ -21,6 +21,8 @@ const statusLabel = (s: string | null) => (s ? STATUS_LABELS[s] ?? s : "—");
 type SemanaRow = { responsavel_id: string; nome: string; semana_num: number; semana_ini: string; dias: number; visitas: number; outbound: number; meta_visitas: number; meta_outbound: number; };
 type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number; sla_inconforme: number; sla_no_prazo: number; };
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
+type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; positivas: number; atingiu_min: boolean; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
+type Imob = { nome: string; faturamento: number; vendas: number; atingiu: boolean };
 
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
@@ -32,6 +34,8 @@ const addCiclo = (ini: Date, n: number) => new Date(ini.getFullYear(), ini.getMo
 const addDias = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const fmtDia = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 const fmtDataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
+const fmtBRL = (v: number, dec = 0) => (v ?? 0).toLocaleString("pt-BR", { style: "currency", currency: "BRL", minimumFractionDigits: dec, maximumFractionDigits: dec });
+const fmtPct = (v: number) => (v ?? 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 // ─────────────────────────────── Página ───────────────────────────────
 export default function Auditoria() {
   const [aba, setAba] = useState<"conformidade" | "trilha">("conformidade");
@@ -40,6 +44,12 @@ export default function Auditoria() {
   const fromIso = useMemo(() => cicloIni.toISOString(), [cicloIni]);
   const toIso = useMemo(() => cicloFim.toISOString(), [cicloFim]);
   const noCicloAtual = useMemo(() => cicloIni.getTime() >= cicloInicio(new Date()).getTime(), [cicloIni]);
+  // Faturamento (vendas) roda 19→18; fechamento no dia 20 do mês seguinte ao início do ciclo.
+  const fatIni = useMemo(() => new Date(cicloIni.getFullYear(), cicloIni.getMonth(), 19, 0, 0, 0, 0), [cicloIni]);
+  const fatFim = useMemo(() => new Date(cicloIni.getFullYear(), cicloIni.getMonth() + 1, 19, 0, 0, 0, 0), [cicloIni]);
+  const fechamento = useMemo(() => new Date(cicloIni.getFullYear(), cicloIni.getMonth() + 1, 20, 0, 0, 0, 0), [cicloIni]);
+  const fatFromIso = useMemo(() => fatIni.toISOString(), [fatIni]);
+  const fatToIso = useMemo(() => fatFim.toISOString(), [fatFim]);
 
   const [semanaRows, setSemanaRows] = useState<SemanaRow[]>([]);
   const [slaMap, setSlaMap] = useState<Record<string, SlaRow>>({});
@@ -48,6 +58,8 @@ export default function Auditoria() {
   const [dealMap, setDealMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [fConsultor, setFConsultor] = useState<string[]>([]);
+  const [comissaoMap, setComissaoMap] = useState<Record<string, ConsComissao>>({});
+  const [imobiliarias, setImobiliarias] = useState<Imob[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -64,14 +76,20 @@ export default function Auditoria() {
     Promise.all([
       (supabase as any).rpc("crm_auditoria_semanal", { p_from: fromIso, p_to: toIso }),
       (supabase as any).rpc("crm_auditoria", { p_from: fromIso, p_to: toIso }),
-    ]).then(([sem, sla]: any[]) => {
+      (supabase as any).rpc("crm_comissao", { p_aud_from: fromIso, p_aud_to: toIso, p_fat_from: fatFromIso, p_fat_to: fatToIso }),
+    ]).then(([sem, sla, com]: any[]) => {
       setSemanaRows((sem.data as SemanaRow[]) ?? []);
       const sm: Record<string, SlaRow> = {};
       ((sla.data as SlaRow[]) ?? []).forEach((r) => { sm[r.responsavel_id] = r; });
       setSlaMap(sm);
+      const cd = (com.data as any) ?? {};
+      const cmap: Record<string, ConsComissao> = {};
+      ((cd.consultores as ConsComissao[]) ?? []).forEach((c) => { cmap[c.responsavel_id] = c; });
+      setComissaoMap(cmap);
+      setImobiliarias((cd.imobiliarias as Imob[]) ?? []);
       setLoading(false);
     });
-  }, [aba, fromIso, toIso]);
+  }, [aba, fromIso, toIso, fatFromIso, fatToIso]);
 
   const carregarTrilha = useCallback(async () => {
     setLoading(true);
@@ -132,6 +150,10 @@ export default function Auditoria() {
           </div>
         </div>
 
+        <p className="-mt-1 text-xs text-muted-foreground">
+          Auditoria (visitas · outbound · SLA) {fmtDia(cicloIni)}–{fmtDia(addDias(cicloFim, -1))} · Faturamento {fmtDia(fatIni)}–{fmtDia(addDias(fatFim, -1))} · Fechamento {fmtDia(fechamento)}
+        </p>
+
         <div className="flex gap-2 border-b">
           <button onClick={() => setAba("conformidade")} className={cn("px-4 py-2 text-sm font-medium border-b-2 -mb-px flex items-center gap-2", aba === "conformidade" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}><ShieldCheck className="h-4 w-4" /> Por consultor</button>
           <button onClick={() => setAba("trilha")} className={cn("px-4 py-2 text-sm font-medium border-b-2 -mb-px flex items-center gap-2", aba === "trilha" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}><GitBranch className="h-4 w-4" /> Trilha de ações</button>
@@ -150,6 +172,7 @@ export default function Auditoria() {
                   const totVis = semanas.reduce((a, w) => a + w.visitas, 0);
                   const totOut = semanas.reduce((a, w) => a + w.outbound, 0);
                   const sla = slaMap[cons.id];
+                  const com = comissaoMap[cons.id];
                   const pct = sla && sla.sla_total ? Math.round((sla.sla_conforme / sla.sla_total) * 100) : null;
                   const slaCls = pct === null ? "" : pct >= 90
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
@@ -185,6 +208,30 @@ export default function Auditoria() {
                         {trilha("visitas")}
                         {trilha("outbound")}
                       </div>
+                      {com && (
+                        <div className="mt-3 border-t pt-2.5">
+                          {com.atingiu_min ? (
+                            <div className="flex items-end justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs text-muted-foreground">Faturamento</p>
+                                <p className="text-sm font-medium tabular-nums">{fmtBRL(com.faturamento)}</p>
+                              </div>
+                              <div className="text-right">
+                                <p className="text-xs text-muted-foreground">Comissão {fmtPct(com.pct_final)}%{com.pct_max != null && com.pct_max !== com.pct_base ? ` · até ${fmtPct(com.pct_max)}%` : ""}</p>
+                                <p className="text-base font-semibold tabular-nums text-primary">{fmtBRL(com.valor, 2)}</p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="min-w-0">
+                                <p className="text-xs text-muted-foreground">Faturamento</p>
+                                <p className="text-sm font-medium tabular-nums">{fmtBRL(com.faturamento)}</p>
+                              </div>
+                              <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">abaixo do mínimo</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                       <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
                         <span>Ver detalhes do consultor</span>
                         <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
@@ -200,6 +247,31 @@ export default function Auditoria() {
               <span className="flex items-center gap-1.5"><span className="h-3.5 w-3.5 rounded-[3px] bg-muted" /> Semana em andamento</span>
               <span>· Cada quadrado corresponde a uma semana do ciclo.</span>
             </div>
+
+            {!loading && imobiliarias.length > 0 && (
+              <div className="pt-3">
+                <h2 className="mb-0.5 flex items-center gap-2 text-lg font-semibold"><Building2 className="h-5 w-5 text-primary" /> Imobiliárias</h2>
+                <p className="mb-3 text-xs text-muted-foreground">Faturamento no período · precisa atingir {fmtBRL(500000)} (sem outras auditorias)</p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {imobiliarias.map((im) => (
+                    <div key={im.nome} className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3.5 py-2.5">
+                      <span className="flex min-w-0 items-center gap-2">
+                        <span className="truncate text-sm">{im.nome}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground">{im.vendas} {im.vendas === 1 ? "venda" : "vendas"}</span>
+                      </span>
+                      <span className="flex shrink-0 items-center gap-2.5">
+                        <span className="text-sm font-medium tabular-nums">{fmtBRL(im.faturamento)}</span>
+                        {im.atingiu ? (
+                          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">atingiu</span>
+                        ) : (
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-xs font-medium text-muted-foreground">{fmtBRL(500000)}</span>
+                        )}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </>
         ) : (
           <div className="space-y-3">

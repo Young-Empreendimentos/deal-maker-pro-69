@@ -66,15 +66,15 @@ export default function AuditoriaConsultor() {
   }, [id, fromIso, toIso]);
 
   const blocos = useMemo(() => {
-    const res: { num: number; ini: Date; fim: Date; dias: number }[] = [];
+    // Mesma regra do banco (crm_ciclo_semanas): N semanas de 7 dias, a última absorve o resto.
+    const from = new Date(fromIso).getTime();
     const to = new Date(toIso).getTime();
-    let ini = new Date(fromIso).getTime();
-    let num = 1;
-    while (ini < to) {
-      const fim = Math.min(ini + 7 * DIA, to);
-      res.push({ num, ini: new Date(ini), fim: new Date(fim), dias: Math.round((fim - ini) / DIA) });
-      ini += 7 * DIA;
-      num++;
+    const nSem = Math.max(1, Math.floor((to - from) / DIA / 7));
+    const res: { num: number; ini: Date; fim: Date; dias: number }[] = [];
+    for (let s = 1; s <= nSem; s++) {
+      const ini = from + (s - 1) * 7 * DIA;
+      const fim = s === nSem ? to : from + s * 7 * DIA;
+      res.push({ num: s, ini: new Date(ini), fim: new Date(fim), dias: Math.round((fim - ini) / DIA) });
     }
     return res;
   }, [fromIso, toIso]);
