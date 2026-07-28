@@ -153,18 +153,21 @@ export default function Tarefas() {
     // O RLS de crm_tasks já escopa: admin vê todas, usuário comum vê as suas
     // (responsavel_id). O nome do cliente vem EMBUTIDO pela FK numa query só —
     // sem seed de 1000 deals nem resolução de nomes em lotes (era o gargalo).
-    const rawTasksData = await fetchAllPaged<any>((from, to) => {
-      let q = supabase.from("crm_tasks")
-        .select("*, crm_deals(cliente_nome)")
-        .order("created_at", { ascending: false })
-        .range(from, to);
-      // Filtra no servidor conforme a aba — evita baixar TODAS as tarefas
-      if (filter === "pendentes") q = q.eq("concluida", false).is("deleted_at", null);
-      else if (filter === "concluidas") q = q.eq("concluida", true).is("deleted_at", null);
+    // Pendentes: baixa todas (são poucas e é o que precisa estar completo). Concluídas/
+    // deletadas/todas: só as 500 mais recentes — há milhares de concluídas e baixar tudo travava.
+    const LIM = 500;
+    const base = () => supabase.from("crm_tasks").select("*, crm_deals(cliente_nome)").order("created_at", { ascending: false });
+    let rawTasksData: any[];
+    if (filter === "pendentes") {
+      rawTasksData = await fetchAllPaged<any>((from, to) => base().eq("concluida", false).is("deleted_at", null).range(from, to));
+    } else {
+      let q = base().limit(LIM);
+      if (filter === "concluidas") q = q.eq("concluida", true).is("deleted_at", null);
       else if (filter === "deletadas") q = q.not("deleted_at", "is", null);
       else q = q.is("deleted_at", null); // "todas" (somente ativas)
-      return q;
-    });
+      const { data } = await q;
+      rawTasksData = (data as any[]) ?? [];
+    }
 
     // Nomes dos responsáveis (poucos usuários) — uma única consulta
     const responsavelIds = [...new Set(rawTasksData.map((t: any) => t.responsavel_id).filter(Boolean))] as string[];
@@ -396,6 +399,9 @@ export default function Tarefas() {
           <div className="text-center text-muted-foreground py-12">Carregando...</div>
         ) : (
           <div className="space-y-2">
+            {filter !== "pendentes" && tasks.length >= 500 && (
+              <p className="pb-1 text-xs text-muted-foreground">Mostrando as 500 mais recentes desta aba.</p>
+            )}
             {filtered.map((task) => (
               <Card key={task.id} className={cn("border transition-colors", task.concluida && "opacity-60", task.fixado && "ring-1 ring-primary/40 border-primary/30")}>
                 <CardContent className="p-4 flex items-start gap-3">
