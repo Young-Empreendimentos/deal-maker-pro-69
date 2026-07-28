@@ -261,7 +261,6 @@ export default function Auditoria() {
             {!loading && imobiliarias.length > 0 && (
               <div className="pt-3">
                 <h2 className="mb-0.5 flex items-center gap-2 text-lg font-semibold"><Building2 className="h-5 w-5 text-primary" /> Imobiliárias</h2>
-                <p className="mb-3 text-xs text-muted-foreground">Faturamento no período · as corretoras recebem por fora (pagamento no Sienge)</p>
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {imobiliarias.map((im) => (
                     <div key={im.nome} className="flex items-center justify-between gap-3 rounded-lg border bg-card px-3.5 py-2.5">
