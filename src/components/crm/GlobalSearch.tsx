@@ -27,7 +27,7 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 export function GlobalSearch() {
-  const { user, veTodosLeads } = useAuth();
+  const { user, veTodosLeads, isRecuperacao } = useAuth();
   const navigate = useNavigate();
 
   const [query,   setQuery]   = useState("");
@@ -62,7 +62,10 @@ export function GlobalSearch() {
       .or(`cliente_nome.ilike.%${q}%,cliente_email.ilike.%${q}%`)
       .limit(20);
 
-    if (!veTodosLeads && user) dealsQuery = dealsQuery.eq("responsavel_id", user.id);
+    if (!veTodosLeads && user) {
+      if (isRecuperacao) dealsQuery = dealsQuery.or(`responsavel_id.eq.${user.id},status.eq.perdido`);
+      else dealsQuery = dealsQuery.eq("responsavel_id", user.id);
+    }
 
     const { data: byName } = await dealsQuery;
 
@@ -82,7 +85,10 @@ export function GlobalSearch() {
         .select("id, cliente_nome, cliente_email, status, responsavel_id")
         .in("id", dealIds);
 
-      if (!veTodosLeads && user) phoneDealsQuery = phoneDealsQuery.eq("responsavel_id", user.id);
+      if (!veTodosLeads && user) {
+        if (isRecuperacao) phoneDealsQuery = phoneDealsQuery.or(`responsavel_id.eq.${user.id},status.eq.perdido`);
+        else phoneDealsQuery = phoneDealsQuery.eq("responsavel_id", user.id);
+      }
 
       const { data: phoneDeals } = await phoneDealsQuery;
       byPhone = (phoneDeals ?? []).map((d) => ({
@@ -100,7 +106,7 @@ export function GlobalSearch() {
     setResults([...merged.values()].slice(0, 15));
     setOpen(true);
     setLoading(false);
-  }, [veTodosLeads, user]);
+  }, [veTodosLeads, user, isRecuperacao]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);

@@ -2,9 +2,11 @@ import { createContext, useContext, useEffect, useState, ReactNode } from "react
 import { Session, User } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-type UserRole = "admin" | "user" | "gestor";
+type UserRole = "admin" | "user" | "gestor" | "recuperacao";
 // gestor = mesmas permissões de consultor (user), porém VÊ os leads de todos (só visibilidade),
 // sem poderes de admin (configurações, exclusões, gestão de usuários).
+// recuperacao = vendedor comum que, ALÉM dos próprios leads, vê e assume os leads PERDIDOS de
+// todos os consultores (não vê os ativos alheios). Ao reativar um perdido, ele passa a ser dele.
 // Situação de acesso ao CRM (o bloqueio real é o RLS no banco; isto é só UX):
 //   authorized = está na crm_user_roles com ativo
 //   pending    = logado (domínio ok) mas sem linha na lista → aguardando liberação
@@ -25,6 +27,8 @@ interface AuthContextType {
   isAdmin: boolean;
   /** Vê os leads de todos os consultores (admin OU gestor). Só visibilidade — não dá poderes de admin. */
   veTodosLeads: boolean;
+  /** Papel de recuperação: vê os próprios leads + os PERDIDOS de todos (assume ao reativar). */
+  isRecuperacao: boolean;
   authStatus: AuthStatus;
   authorized: boolean;
   clearAuthError: () => void;
@@ -130,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signIn, signInWithGoogle, signOut,
       isAdmin: role === "admin",
       veTodosLeads: role === "admin" || role === "gestor",
+      isRecuperacao: role === "recuperacao",
       authStatus,
       authorized: authStatus === "authorized",
       clearAuthError,

@@ -25,6 +25,16 @@ type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; ativo: boolean };
 
+// Papéis do CRM. gestor = vê todos os leads (sem poderes de admin);
+// recuperacao = vendedor que também vê/assume os leads perdidos de todos.
+const ROLE_LABELS: Record<string, string> = { admin: "Admin", user: "Vendedor", gestor: "Gestor", recuperacao: "Recuperação" };
+const ROLE_OPTIONS = [
+  { value: "user", label: "Vendedor" },
+  { value: "recuperacao", label: "Recuperação" },
+  { value: "gestor", label: "Gestor" },
+  { value: "admin", label: "Admin" },
+];
+
 function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) => Promise<boolean> }) {
   const [nome, setNome] = useState("");
   const [cidade, setCidade] = useState("");
@@ -219,8 +229,7 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
             <Select value={role} onValueChange={setRole}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="user">Vendedor</SelectItem>
+                {ROLE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -511,11 +520,11 @@ export default function Configuracoes() {
                             <TableCell>
                               {isEditing ? (
                                 <Select value={editRole} onValueChange={setEditRole}>
-                                  <SelectTrigger className="h-8 w-[120px] text-sm"><SelectValue /></SelectTrigger>
-                                  <SelectContent><SelectItem value="admin">Admin</SelectItem><SelectItem value="user">Vendedor</SelectItem></SelectContent>
+                                  <SelectTrigger className="h-8 w-[140px] text-sm"><SelectValue /></SelectTrigger>
+                                  <SelectContent>{ROLE_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}</SelectContent>
                                 </Select>
                               ) : (
-                                <Badge variant={u.role === "admin" ? "default" : "secondary"} className="capitalize">{u.role === "admin" ? "Admin" : "Vendedor"}</Badge>
+                                <Badge variant={u.role === "admin" ? "default" : "secondary"} className="capitalize">{ROLE_LABELS[u.role] ?? "Vendedor"}</Badge>
                               )}
                             </TableCell>
                             <TableCell>

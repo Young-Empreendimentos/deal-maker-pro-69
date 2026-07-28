@@ -94,7 +94,7 @@ function formatDuracao(ms: number): string {
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, isRecuperacao } = useAuth();
   const { toast } = useToast();
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
@@ -179,8 +179,12 @@ export default function NegociacaoDetalhes() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id || !deal) return;
-    await supabase.from("crm_deals").update({ status: newStatus } as any).eq("id", id);
-    setDeal((prev) => prev ? { ...prev, status: newStatus } : prev);
+    // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
+    const assumir = isRecuperacao && !!user && deal.status === "perdido" && newStatus !== "perdido";
+    const payload: any = { status: newStatus };
+    if (assumir) payload.responsavel_id = user!.id;
+    await supabase.from("crm_deals").update(payload).eq("id", id);
+    setDeal((prev) => prev ? { ...prev, status: newStatus, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
   };
 
   const handleMarkSold = async () => {
@@ -230,12 +234,13 @@ export default function NegociacaoDetalhes() {
 
   const handleUndoFinal = async () => {
     if (!deal || !id) return;
+    // recuperacao assume o lead ao tirar do perdido (passa a ser o responsável).
+    const assumir = isRecuperacao && !!user && deal.status === "perdido";
     // Retorna para "ficha_assinada" e limpa motivo_perda se existir
-    await supabase.from("crm_deals").update({
-      status: "ficha_assinada",
-      motivo_perda_id: null
-    } as any).eq("id", id);
-    setDeal((prev) => prev ? { ...prev, status: "ficha_assinada", motivo_perda_id: null } : prev);
+    const payload: any = { status: "ficha_assinada", motivo_perda_id: null };
+    if (assumir) payload.responsavel_id = user!.id;
+    await supabase.from("crm_deals").update(payload).eq("id", id);
+    setDeal((prev) => prev ? { ...prev, status: "ficha_assinada", motivo_perda_id: null, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
     setMotivoPerdaNome(null);
     toast({ title: `Negociação retornada para "Ficha Assinada"` });
   };

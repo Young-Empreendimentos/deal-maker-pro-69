@@ -142,7 +142,7 @@ function loadPersistedState(): PersistedState {
 }
 
 export default function Negociacoes() {
-  const { user, isAdmin, veTodosLeads } = useAuth();
+  const { user, isAdmin, veTodosLeads, isRecuperacao } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fetchSeq = useRef(0);
@@ -311,7 +311,10 @@ export default function Negociacoes() {
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
       if (!veTodosLeads && user) {
-        query = query.eq("responsavel_id", user.id);
+        // recuperacao: vê os próprios leads + os PERDIDOS de todos (o RLS libera; aqui replicamos o escopo).
+        // Nos status ativos continua só os próprios; a condição status=perdido traz os perdidos de qualquer dono.
+        if (isRecuperacao) query = query.or(`responsavel_id.eq.${user.id},status.eq.perdido`);
+        else query = query.eq("responsavel_id", user.id);
       }
       if (veTodosLeads && fConsultor.length > 0) {
         const semDono = fConsultor.includes("__sem_dono__");
@@ -500,8 +503,12 @@ export default function Negociacoes() {
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
     const newStatus = destination.droppableId;
-    setDeals((prev) => prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index } : d)));
-    const { error } = await supabase.from("crm_deals").update({ status: newStatus, ordem_kanban: destination.index } as any).eq("id", draggableId);
+    // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
+    const assumir = isRecuperacao && !!user && source.droppableId === "perdido" && newStatus !== "perdido";
+    setDeals((prev) => prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index, ...(assumir ? { responsavel_id: user!.id } : {}) } : d)));
+    const payload: any = { status: newStatus, ordem_kanban: destination.index };
+    if (assumir) payload.responsavel_id = user!.id;
+    const { error } = await supabase.from("crm_deals").update(payload).eq("id", draggableId);
     if (error) { toast({ title: "Erro ao mover", description: error.message, variant: "destructive" }); fetchDeals(); }
   };
 
