@@ -212,7 +212,6 @@ export default function Auditoria() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2"><ShieldCheck className="h-6 w-6 text-primary" /> Auditoria comercial</h1>
-            <p className="text-sm text-muted-foreground">Ciclo de fechamento (dia 10 ao dia 9) · avaliação semanal · acesso restrito a administradores.</p>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={() => setCicloIni((p) => addCiclo(p, -1))} aria-label="Ciclo anterior"><ChevronLeft className="h-4 w-4" /></Button>
@@ -261,7 +260,7 @@ export default function Auditoria() {
                     </div>
                   );
                   return (
-                    <div key={cons.id} onClick={() => setDrill({ id: cons.id, nome: cons.nome })} className="cursor-pointer rounded-xl border bg-card p-4 transition-colors hover:border-primary/40">
+                    <div key={cons.id} onClick={() => setDrill({ id: cons.id, nome: cons.nome })} className="group cursor-pointer rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 hover:shadow-sm">
                       <div className="mb-3 flex items-center gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{iniciais}</div>
                         <div className="min-w-0 flex-1">
@@ -274,7 +273,10 @@ export default function Auditoria() {
                         {trilha("visitas")}
                         {trilha("outbound")}
                       </div>
-                      <div className="mt-3 flex items-center justify-end gap-1 text-xs text-primary">abrir detalhes <ChevronRight className="h-3.5 w-3.5" /></div>
+                      <div className="mt-3 flex items-center justify-between border-t pt-2.5 text-xs font-medium text-muted-foreground transition-colors group-hover:text-primary">
+                        <span>Ver detalhes do consultor</span>
+                        <ChevronRight className="h-4 w-4 transition-transform group-hover:translate-x-0.5" />
+                      </div>
                     </div>
                   );
                 })}
