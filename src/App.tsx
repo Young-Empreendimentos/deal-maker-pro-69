@@ -18,6 +18,7 @@ const NegociacaoDetalhes = lazy(() => import("./pages/NegociacaoDetalhes"));
 const Relatorios = lazy(() => import("./pages/Relatorios"));
 const RelatorioDiario = lazy(() => import("./pages/RelatorioDiario"));
 const Auditoria = lazy(() => import("./pages/Auditoria"));
+const AuditoriaConsultor = lazy(() => import("./pages/AuditoriaConsultor"));
 const PublicoAlvo = lazy(() => import("./pages/PublicoAlvo"));
 const AuthCallback = lazy(() => import("./pages/AuthCallback"));
 const NotFound = lazy(() => import("./pages/NotFound"));
@@ -53,6 +54,7 @@ function AppRoutes() {
       <Route path="/relatorios" element={<ProtectedRoute adminOnly><Relatorios /></ProtectedRoute>} />
       <Route path="/relatorio-diario" element={<ProtectedRoute><RelatorioDiario /></ProtectedRoute>} />
       <Route path="/auditoria" element={<ProtectedRoute adminOnly><Auditoria /></ProtectedRoute>} />
+      <Route path="/auditoria/:id" element={<ProtectedRoute adminOnly><AuditoriaConsultor /></ProtectedRoute>} />
       <Route path="/publico-alvo" element={<ProtectedRoute adminOnly><PublicoAlvo /></ProtectedRoute>} />
       <Route path="/configuracoes" element={<ProtectedRoute adminOnly><Configuracoes /></ProtectedRoute>} />
       <Route path="/auth/callback" element={<AuthCallback />} />

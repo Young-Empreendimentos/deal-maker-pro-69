@@ -1,15 +1,15 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { isVisibleUser } from "@/lib/filteredUsers";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, MapPin, Navigation, Timer } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
   lead_recebido: "Lead Recebido", contato_feito: "Contato Feito", visita_agendada: "Visita Agendada",
@@ -21,7 +21,6 @@ const statusLabel = (s: string | null) => (s ? STATUS_LABELS[s] ?? s : "—");
 type SemanaRow = { responsavel_id: string; nome: string; semana_num: number; semana_ini: string; dias: number; visitas: number; outbound: number; meta_visitas: number; meta_outbound: number; };
 type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number; sla_inconforme: number; sla_no_prazo: number; };
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
-type SlaLead = { deal_id: string; cliente_nome: string; chegada: string; primeira_acao: string | null; minutos: number; teve_acao: boolean; conforme: boolean; };
 
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
@@ -33,93 +32,6 @@ const addCiclo = (ini: Date, n: number) => new Date(ini.getFullYear(), ini.getMo
 const addDias = (d: Date, n: number) => { const x = new Date(d); x.setDate(x.getDate() + n); return x; };
 const fmtDia = (d: Date) => d.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit" });
 const fmtDataHora = (iso: string) => new Date(iso).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
-const fmtMin = (m: number) => (m >= 60 ? `${Math.floor(m / 60)}h${m % 60 ? " " + (m % 60) + "min" : ""}` : `${m}min`);
-
-// ─────────────────────────── Drill-down por consultor ───────────────────────────
-function DrillConsultor({ resp, nome, fromIso, toIso, onClose }: { resp: string; nome: string; fromIso: string; toIso: string; onClose: () => void; }) {
-  const [visitas, setVisitas] = useState<{ deal_id: string; created_at: string; nome: string }[]>([]);
-  const [outbound, setOutbound] = useState<{ deal_id: string; concluida_em: string; nome: string }[]>([]);
-  const [sla, setSla] = useState<SlaLead[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      setLoading(true);
-      const [vis, out, slaRes] = await Promise.all([
-        supabase.from("crm_deal_status_log").select("deal_id, created_at")
-          .eq("status_novo", "visita_realizada").eq("responsavel_id", resp)
-          .gte("created_at", fromIso).lt("created_at", toIso).order("created_at", { ascending: false }),
-        supabase.from("crm_tasks").select("deal_id, concluida_em")
-          .eq("tipo", "Visita outbound").eq("concluida", true).eq("responsavel_id", resp)
-          .gte("concluida_em", fromIso).lt("concluida_em", toIso).order("concluida_em", { ascending: false }),
-        (supabase as any).rpc("crm_auditoria_leads", { p_from: fromIso, p_to: toIso, p_responsavel: resp }),
-      ]);
-      const visRows = (vis.data as any[]) ?? [];
-      const outRows = (out.data as any[]) ?? [];
-      const ids = [...new Set([...visRows.map((r) => r.deal_id), ...outRows.map((r) => r.deal_id)])];
-      const nmap: Record<string, string> = {};
-      if (ids.length) {
-        const { data: deals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", ids);
-        (deals as any[] ?? []).forEach((d) => { nmap[d.id] = d.cliente_nome || "—"; });
-      }
-      setVisitas(visRows.map((r) => ({ ...r, nome: nmap[r.deal_id] ?? "—" })));
-      setOutbound(outRows.map((r) => ({ ...r, nome: nmap[r.deal_id] ?? "—" })));
-      setSla((slaRes.data as SlaLead[]) ?? []);
-      setLoading(false);
-    })();
-  }, [resp, fromIso, toIso]);
-
-  const Section = ({ icon: Icon, titulo, count, children }: any) => (
-    <section>
-      <h3 className="text-sm font-semibold flex items-center gap-2 mb-2"><Icon className="h-4 w-4 text-primary" /> {titulo} <span className="text-muted-foreground font-normal">({count})</span></h3>
-      {children}
-    </section>
-  );
-
-  return (
-    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
-      <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
-        <DialogHeader><DialogTitle>{nome} — detalhes do ciclo</DialogTitle></DialogHeader>
-        {loading ? (
-          <p className="text-muted-foreground py-6 text-center">Carregando…</p>
-        ) : (
-          <div className="space-y-6">
-            <Section icon={MapPin} titulo="Visitas realizadas" count={visitas.length}>
-              {visitas.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma no ciclo.</p> : (
-                <ul className="space-y-1">{visitas.map((v, i) => (
-                  <li key={i} className="flex justify-between text-sm border-b border-border/50 py-1"><span>{v.nome}</span><span className="text-muted-foreground">{fmtDataHora(v.created_at)}</span></li>
-                ))}</ul>
-              )}
-            </Section>
-            <Section icon={Navigation} titulo="Visitas outbound (concluídas)" count={outbound.length}>
-              {outbound.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma no ciclo.</p> : (
-                <ul className="space-y-1">{outbound.map((o, i) => (
-                  <li key={i} className="flex justify-between text-sm border-b border-border/50 py-1"><span>{o.nome}</span><span className="text-muted-foreground">{o.concluida_em ? fmtDataHora(o.concluida_em) : "—"}</span></li>
-                ))}</ul>
-              )}
-            </Section>
-            <Section icon={Timer} titulo="SLA de 20 min — leads recebidos" count={sla.length}>
-              {sla.length === 0 ? <p className="text-sm text-muted-foreground">Nenhum lead recebido no ciclo.</p> : (
-                <ul className="space-y-1">{sla.map((l) => (
-                  <li key={l.deal_id} className="flex items-center justify-between text-sm border-b border-border/50 py-1">
-                    <span className="truncate mr-2">{l.cliente_nome}</span>
-                    <span className="flex items-center gap-2 shrink-0">
-                      <span className="text-muted-foreground">{l.teve_acao ? fmtMin(l.minutos) : "sem ação"}</span>
-                      {l.conforme ? <Badge className="bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">no prazo</Badge>
-                        : l.teve_acao ? <Badge variant="destructive">fora</Badge>
-                        : <Badge variant="outline">aguardando</Badge>}
-                    </span>
-                  </li>
-                ))}</ul>
-              )}
-            </Section>
-          </div>
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
 // ─────────────────────────────── Página ───────────────────────────────
 export default function Auditoria() {
   const [aba, setAba] = useState<"conformidade" | "trilha">("conformidade");
@@ -136,7 +48,7 @@ export default function Auditoria() {
   const [dealMap, setDealMap] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(true);
   const [fConsultor, setFConsultor] = useState<string[]>([]);
-  const [drill, setDrill] = useState<{ id: string; nome: string } | null>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     supabase.from("user_profiles").select("user_id, nome").then(({ data }) => {
@@ -260,7 +172,7 @@ export default function Auditoria() {
                     </div>
                   );
                   return (
-                    <div key={cons.id} onClick={() => setDrill({ id: cons.id, nome: cons.nome })} className="group cursor-pointer rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 hover:shadow-sm">
+                    <div key={cons.id} onClick={() => navigate(`/auditoria/${cons.id}?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`)} className="group cursor-pointer rounded-xl border bg-card p-4 transition-colors hover:border-primary/40 hover:shadow-sm">
                       <div className="mb-3 flex items-center gap-3">
                         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">{iniciais}</div>
                         <div className="min-w-0 flex-1">
@@ -317,8 +229,6 @@ export default function Auditoria() {
           </div>
         )}
       </div>
-
-      {drill && <DrillConsultor resp={drill.id} nome={drill.nome} fromIso={fromIso} toIso={toIso} onClose={() => setDrill(null)} />}
     </AppLayout>
   );
 }
