@@ -144,7 +144,7 @@ export default function Auditoria() {
             ) : consultores.length === 0 ? (
               <p className="text-center text-muted-foreground py-10">Sem dados neste ciclo.</p>
             ) : (
-              <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))" }}>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
                 {consultores.map((cons) => {
                   const semanas = colunas.map((c) => cons.semanas[c.num]).filter(Boolean);
                   const totVis = semanas.reduce((a, w) => a + w.visitas, 0);
@@ -205,8 +205,8 @@ export default function Auditoria() {
           <div className="space-y-3">
             <div className="w-full sm:w-72"><MultiSelectFilter label="Consultor" options={consultorOptions} selected={fConsultor} onChange={setFConsultor} /></div>
             <Card className="border bg-card">
-              <CardContent className="p-0">
-                <Table>
+              <CardContent className="p-0 overflow-x-auto">
+                <Table className="min-w-[560px]">
                   <TableHeader><TableRow><TableHead>Quando</TableHead><TableHead>Consultor</TableHead><TableHead>Cliente</TableHead><TableHead>Movimentação</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {loading ? (

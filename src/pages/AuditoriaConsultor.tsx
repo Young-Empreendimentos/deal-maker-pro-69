@@ -101,13 +101,15 @@ export default function AuditoriaConsultor() {
           <ArrowLeft className="h-4 w-4" /> voltar para a auditoria
         </button>
 
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">{iniciais}</div>
-          <div className="flex-1 min-w-0">
-            <h1 className="text-xl font-bold truncate">{nome}</h1>
-            <p className="text-sm text-muted-foreground">Ciclo {fmtDia(new Date(fromIso))} – {fmtDia(new Date(new Date(toIso).getTime() - DIA))}</p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <div className="flex min-w-0 flex-1 items-center gap-3">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary font-semibold">{iniciais}</div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold truncate">{nome}</h1>
+              <p className="text-sm text-muted-foreground">Ciclo {fmtDia(new Date(fromIso))} – {fmtDia(new Date(new Date(toIso).getTime() - DIA))}</p>
+            </div>
           </div>
-          <div className="flex gap-2.5">
+          <div className="grid grid-cols-3 gap-2.5 sm:flex">
             <div className="rounded-md bg-muted/60 px-3 py-1.5 text-center"><p className="text-xs text-muted-foreground">Visitas</p><p className="text-lg font-semibold leading-tight">{totVis}</p></div>
             <div className="rounded-md bg-muted/60 px-3 py-1.5 text-center"><p className="text-xs text-muted-foreground">Outbound</p><p className="text-lg font-semibold leading-tight">{totOut}</p></div>
             <div className="rounded-md bg-muted/60 px-3 py-1.5 text-center"><p className="text-xs text-muted-foreground">SLA</p><p className={cn("text-lg font-semibold leading-tight", pctSla === null ? "" : pctSla >= 90 ? okCls : pctSla >= 70 ? "text-amber-600 dark:text-amber-400" : badCls)}>{pctSla === null ? "—" : `${pctSla}%`}</p></div>
