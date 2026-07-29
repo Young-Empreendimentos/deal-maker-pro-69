@@ -23,7 +23,7 @@ type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number;
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
 type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; fat_externo: number; vendas_externas: number; bate_externo: boolean; positivas: number; atingiu_min: boolean; faixa_de: number | null; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
 type Imob = { nome: string; faturamento: number; vendas: number };
-type Aviso = { cliente: string; empreendimento: string | null; lote: string | null; vendedor: string | null };
+type Aviso = { deal_id: string; cliente: string; empreendimento: string | null; lote: string | null; valor: number | null; corretor: string | null; dono: string | null };
 
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
@@ -284,10 +284,18 @@ export default function Auditoria() {
                 <h2 className="mb-0.5 flex items-center gap-2 text-lg font-semibold text-amber-700 dark:text-amber-400"><AlertTriangle className="h-5 w-5" /> Vendas sem contrato no Sienge</h2>
                 <p className="mb-3 text-xs text-muted-foreground">Marcadas como vendidas no Pingo, mas ainda sem contrato emitido no Sienge — conferir se falta lançar ou se foi marcação indevida.</p>
                 <div className="space-y-1.5">
-                  {avisos.map((a, i) => (
-                    <div key={i} className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 dark:border-amber-800/60 dark:bg-amber-950/30">
-                      <span className="min-w-0 truncate text-sm">{a.cliente}</span>
-                      <span className="shrink-0 text-xs text-muted-foreground">{a.empreendimento ?? "—"}{a.lote ? ` · lote ${a.lote}` : ""} · {a.vendedor ?? "—"}</span>
+                  {avisos.map((a) => (
+                    <div key={a.deal_id} className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 dark:border-amber-800/60 dark:bg-amber-950/30">
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-medium">{a.cliente}</div>
+                        <div className="truncate text-xs text-muted-foreground">
+                          {a.empreendimento ?? "—"}{a.lote ? ` · lote ${a.lote}` : ""} · {a.corretor ?? "—"}{a.dono && a.dono !== a.corretor ? ` · dono ${a.dono}` : ""}
+                        </div>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        {a.valor != null && <span className="text-sm tabular-nums">{fmtBRL(a.valor)}</span>}
+                        <Button variant="outline" size="sm" className="h-7 border-amber-300 text-amber-700 hover:bg-amber-100 dark:border-amber-700 dark:text-amber-400" onClick={() => navigate(`/negociacoes/${a.deal_id}`)}>Abrir</Button>
+                      </div>
                     </div>
                   ))}
                 </div>

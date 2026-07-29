@@ -236,17 +236,13 @@ export default function Dashboard() {
             if (empScope)         q = q.eq("empreendimento_id", empScope);
             return q;
           }),
-          // Vendas do período — leve (~130)
-          fetchAllPaged<Deal>((from, to) => {
-            let q = supabase.from("crm_deals").select("*")
-              .eq("status", "vendido")
-              .gte("data_vendido", fromIso).lte("data_vendido", toIso)
-              .order("data_vendido", { ascending: false })
-              .range(from, to);
-            if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
-            if (empScope)         q = q.eq("empreendimento_id", empScope);
-            return q;
-          }),
+          // Vendas do período — pela 1ª data de venda VÁLIDA (a RPC aplica a regra:
+          // descarta marcação desfeita em <=30min e datas invalidadas por adm).
+          (supabase as any).rpc("crm_vendas_periodo", {
+            p_from: fromIso, p_to: toIso,
+            p_users: responsavelScope ? (Array.isArray(responsavelScope) ? responsavelScope : [responsavelScope]) : null,
+            p_emp: empScope,
+          }).then((r: any) => (r.data as Deal[]) ?? []),
           // Perdas + tarefas concluídas: só a CONTAGEM no servidor (evita baixar milhares
           // de linhas só p/ contar). As linhas em si só são buscadas ao abrir o drill-down.
           (supabase as any).rpc("crm_dashboard_counts", {
@@ -350,16 +346,14 @@ export default function Dashboard() {
     [filteredDeals],
   );
 
+  // A data (1ª venda válida) já é aplicada no servidor pela RPC crm_vendas_periodo;
+  // aqui só re-escopo por consultor/empreendimento pra acompanhar os filtros.
   const filteredVendas = useMemo(() => vendasDeals.filter((d) => {
     if (!veTodosLeads && d.responsavel_id !== user?.id) return false;
     if (veTodosLeads && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
     if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
-    if (dateFrom && dateTo) {
-      const dt = new Date((d as any).data_vendido ?? d.created_at);
-      if (dt < dateFrom || dt > dateTo) return false;
-    }
     return true;
-  }), [vendasDeals, veTodosLeads, user, filterUsers, filterEmp, dateFrom, dateTo]);
+  }), [vendasDeals, veTodosLeads, user, filterUsers, filterEmp]);
 
   const vendasCount  = filteredVendas.length;
   // Interna = sem corretor/imobiliária (conta pro dono do negócio) · Externa = tem responsavel_venda_corretor_id

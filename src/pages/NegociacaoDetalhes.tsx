@@ -236,7 +236,25 @@ export default function NegociacaoDetalhes() {
 
   const handleUndoFinal = async () => {
     if (!deal || !id) return;
-    // recuperacao assume o lead ao tirar do perdido (passa a ser o responsável).
+
+    // Venda: "tirar o resquício" — invalida a data de 1ª venda e volta o card pra
+    // negociação em aberto, SEM disparar os webhooks (Make/n8n). Assim a venda sai do
+    // fechamento (auditoria, vendas, dashboard e relatórios). Só admin (a RPC valida).
+    if (deal.status === "vendido") {
+      if (!window.confirm("Tirar o resquício desta venda? A negociação volta para \"Proposta Recebida\" e deixa de contar no fechamento.")) return;
+      const { data, error } = await (supabase as any).rpc("crm_tirar_resquicio_venda", { p_deal_id: id });
+      const res: any = data;
+      if (error || !res?.ok) {
+        toast({ title: "Não foi possível tirar o resquício", description: error?.message ?? res?.erro ?? "Tente novamente.", variant: "destructive" });
+        return;
+      }
+      const novo: string = res.status_resultante ?? "proposta_recebida";
+      setDeal((prev) => prev ? { ...prev, status: novo, data_vendido: novo === "vendido" ? prev.data_vendido : null } : prev);
+      toast({ title: novo === "vendido" ? "Resquício removido — havia outra data de venda válida" : "Venda desfeita — voltou para Proposta Recebida" });
+      return;
+    }
+
+    // Perda: recuperacao assume o lead ao tirar do perdido (passa a ser o responsável).
     const assumir = isRecuperacao && !!user && deal.status === "perdido";
     // Retorna para "ficha_assinada" e limpa motivo_perda se existir
     const payload: any = { status: "ficha_assinada", motivo_perda_id: null };
@@ -592,14 +610,16 @@ export default function NegociacaoDetalhes() {
                     </div>
                   )}
                   <div className="flex-1" />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleUndoFinal}
-                    className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
-                  </Button>
+                  {(deal.status === "perdido" || isAdmin) && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleUndoFinal}
+                      className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
+                    >
+                      <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
+                    </Button>
+                  )}
                 </>
               )}
             </div>
