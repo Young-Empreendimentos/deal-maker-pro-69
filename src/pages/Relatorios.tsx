@@ -147,23 +147,12 @@ export default function Relatorios() {
       };
 
       const fetchDealsFiltered = async (): Promise<Deal[]> => {
-        const [vendidasComData, semData, outras] = await Promise.all([
-          fetchPage(() =>
-            supabase
-              .from("crm_deals")
-              .select(COLS)
-              .eq("status", "vendido")
-              .gte("data_vendido", fromDate)
-              .lte("data_vendido", toDate)
-              .order("data_vendido", { ascending: false }),
-          ),
-          fetchPage(() =>
-            supabase
-              .from("crm_deals")
-              .select(COLS)
-              .eq("status", "vendido")
-              .is("data_vendido", null),
-          ),
+        // Vendas vêm da RPC crm_relatorio_vendas: já aplica a regra da 1ª venda válida
+        // (o campo data_vendido retorna a 1ª data de venda do log — descartando marcação
+        // desfeita em <=30min e datas invalidadas por adm) e traz também as vendas SEM data
+        // de fechamento. As demais (não-vendidas) continuam por created_at, pro funil/conversão.
+        const [vendasRes, outras] = await Promise.all([
+          (supabase as any).rpc("crm_relatorio_vendas", { p_from: fromDate, p_to: toDate }),
           fetchPage(() =>
             supabase
               .from("crm_deals")
@@ -174,9 +163,10 @@ export default function Relatorios() {
               .order("created_at", { ascending: false }),
           ),
         ]);
+        const vendas = ((vendasRes as any)?.data as Deal[]) ?? [];
         // Dedup por id (segurança)
         const map = new Map<string, Deal>();
-        for (const arr of [vendidasComData, semData, outras]) {
+        for (const arr of [vendas, outras]) {
           for (const d of arr) map.set(d.id, d);
         }
         return Array.from(map.values());
