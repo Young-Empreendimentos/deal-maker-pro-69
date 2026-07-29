@@ -179,6 +179,8 @@ export default function NegociacaoDetalhes() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id || !deal) return;
+    // Confirma antes de marcar como vendido (evita marcação por engano).
+    if (newStatus === "vendido" && deal.status !== "vendido" && !window.confirm("Tem certeza que deseja marcar como VENDIDO?")) return;
     // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
     const assumir = isRecuperacao && !!user && deal.status === "perdido" && newStatus !== "perdido";
     const payload: any = { status: newStatus };

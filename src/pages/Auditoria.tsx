@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { isVisibleUser } from "@/lib/filteredUsers";
 import { cn } from "@/lib/utils";
-import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, Building2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, Building2, AlertTriangle } from "lucide-react";
 
 const STATUS_LABELS: Record<string, string> = {
   lead_recebido: "Lead Recebido", contato_feito: "Contato Feito", visita_agendada: "Visita Agendada",
@@ -23,6 +23,7 @@ type SlaRow = { responsavel_id: string; sla_total: number; sla_conforme: number;
 type LogRow = { id: string; deal_id: string; status_anterior: string | null; status_novo: string | null; responsavel_id: string | null; created_at: string; };
 type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; fat_externo: number; vendas_externas: number; bate_externo: boolean; positivas: number; atingiu_min: boolean; faixa_de: number | null; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
 type Imob = { nome: string; faturamento: number; vendas: number };
+type Aviso = { cliente: string; empreendimento: string | null; lote: string | null; vendedor: string | null };
 
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
@@ -60,6 +61,7 @@ export default function Auditoria() {
   const [fConsultor, setFConsultor] = useState<string[]>([]);
   const [comissaoMap, setComissaoMap] = useState<Record<string, ConsComissao>>({});
   const [imobiliarias, setImobiliarias] = useState<Imob[]>([]);
+  const [avisos, setAvisos] = useState<Aviso[]>([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -77,7 +79,8 @@ export default function Auditoria() {
       (supabase as any).rpc("crm_auditoria_semanal", { p_from: fromIso, p_to: toIso }),
       (supabase as any).rpc("crm_auditoria", { p_from: fromIso, p_to: toIso }),
       (supabase as any).rpc("crm_comissao", { p_aud_from: fromIso, p_aud_to: toIso, p_fat_from: fatFromIso, p_fat_to: fatToIso }),
-    ]).then(([sem, sla, com]: any[]) => {
+      (supabase as any).rpc("crm_vendas_sem_contrato", { p_from: fatFromIso, p_to: fatToIso }),
+    ]).then(([sem, sla, com, av]: any[]) => {
       setSemanaRows((sem.data as SemanaRow[]) ?? []);
       const sm: Record<string, SlaRow> = {};
       ((sla.data as SlaRow[]) ?? []).forEach((r) => { sm[r.responsavel_id] = r; });
@@ -87,6 +90,7 @@ export default function Auditoria() {
       ((cd.consultores as ConsComissao[]) ?? []).forEach((c) => { cmap[c.responsavel_id] = c; });
       setComissaoMap(cmap);
       setImobiliarias((cd.imobiliarias as Imob[]) ?? []);
+      setAvisos((av.data as Aviso[]) ?? []);
       setLoading(false);
     });
   }, [aba, fromIso, toIso, fatFromIso, fatToIso]);
@@ -269,6 +273,21 @@ export default function Auditoria() {
                         <span className="shrink-0 text-xs text-muted-foreground">{im.vendas} {im.vendas === 1 ? "venda" : "vendas"}</span>
                       </span>
                       <span className="shrink-0 text-sm font-medium tabular-nums">{fmtBRL(im.faturamento)}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {!loading && avisos.length > 0 && (
+              <div className="pt-3">
+                <h2 className="mb-0.5 flex items-center gap-2 text-lg font-semibold text-amber-700 dark:text-amber-400"><AlertTriangle className="h-5 w-5" /> Vendas sem contrato no Sienge</h2>
+                <p className="mb-3 text-xs text-muted-foreground">Marcadas como vendidas no Pingo, mas ainda sem contrato emitido no Sienge — conferir se falta lançar ou se foi marcação indevida.</p>
+                <div className="space-y-1.5">
+                  {avisos.map((a, i) => (
+                    <div key={i} className="flex items-center justify-between gap-3 rounded-lg border border-amber-300 bg-amber-50 px-3.5 py-2.5 dark:border-amber-800/60 dark:bg-amber-950/30">
+                      <span className="min-w-0 truncate text-sm">{a.cliente}</span>
+                      <span className="shrink-0 text-xs text-muted-foreground">{a.empreendimento ?? "—"}{a.lote ? ` · lote ${a.lote}` : ""} · {a.vendedor ?? "—"}</span>
                     </div>
                   ))}
                 </div>

@@ -502,6 +502,8 @@ export default function Negociacoes() {
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
     const newStatus = destination.droppableId;
+    // Confirma antes de marcar como vendido (evita marcação por engano).
+    if (newStatus === "vendido" && source.droppableId !== "vendido" && !window.confirm("Tem certeza que deseja marcar como VENDIDO?")) { fetchDeals(); return; }
     // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
     const assumir = isRecuperacao && !!user && source.droppableId === "perdido" && newStatus !== "perdido";
     setDeals((prev) => prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index, ...(assumir ? { responsavel_id: user!.id } : {}) } : d)));
