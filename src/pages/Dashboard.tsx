@@ -365,6 +365,8 @@ export default function Dashboard() {
     () => filteredVendas.reduce((sum, d) => sum + (d.preco_lote ?? 0), 0),
     [filteredVendas],
   );
+  const vgvInternas = useMemo(() => vendasInternas.reduce((s, d) => s + (d.preco_lote ?? 0), 0), [vendasInternas]);
+  const vgvExternas = useMemo(() => vendasExternas.reduce((s, d) => s + (d.preco_lote ?? 0), 0), [vendasExternas]);
 
   // Gatilho: quantas das vendas do período tiveram entrada >= 10% do valor à vista
   const gatilhoCount = useMemo(
@@ -681,6 +683,7 @@ export default function Dashboard() {
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Vendas internas</p>
               <p className="text-[10px] text-muted-foreground/70">equipe · dono do negócio</p>
               <p className="text-3xl font-bold mt-1 tabular-nums">{vendasInternas.length}</p>
+              <p className="text-xs text-muted-foreground mt-1">VGV <span className="font-semibold tabular-nums text-green-600 dark:text-green-400">{fmtBRL(vgvInternas)}</span></p>
             </button>
             <button
               className="group text-left rounded-xl border bg-card px-4 py-4 hover:bg-accent/40 transition-colors"
@@ -689,6 +692,7 @@ export default function Dashboard() {
               <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Vendas externas</p>
               <p className="text-[10px] text-muted-foreground/70">imobiliária / corretor</p>
               <p className="text-3xl font-bold mt-1 tabular-nums">{vendasExternas.length}</p>
+              <p className="text-xs text-muted-foreground mt-1">VGV <span className="font-semibold tabular-nums text-green-600 dark:text-green-400">{fmtBRL(vgvExternas)}</span></p>
             </button>
           </div>
         )}
