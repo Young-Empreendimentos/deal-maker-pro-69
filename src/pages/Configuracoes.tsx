@@ -258,6 +258,81 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
   );
 }
 
+type NotifDest = { id: string; email: string; nome: string | null; modo: string; ativo: boolean };
+
+function NotifVendasConfig() {
+  const { toast } = useToast();
+  const [lista, setLista] = useState<NotifDest[]>([]);
+  const [email, setEmail] = useState("");
+  const [nome, setNome] = useState("");
+  const [modo, setModo] = useState("na_hora");
+
+  const refresh = async () => {
+    const { data } = await supabase.from("crm_venda_notif_dest").select("*").order("modo").order("email");
+    setLista((data as NotifDest[]) ?? []);
+  };
+  useEffect(() => { void refresh(); }, []);
+
+  const add = async () => {
+    const e = email.trim().toLowerCase();
+    if (!e) return;
+    const { error } = await supabase.from("crm_venda_notif_dest").insert({ email: e, nome: nome.trim() || null, modo });
+    if (error) { toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" }); return; }
+    setEmail(""); setNome(""); await refresh();
+  };
+  const setDestModo = async (id: string, novoModo: string) => { await supabase.from("crm_venda_notif_dest").update({ modo: novoModo }).eq("id", id); await refresh(); };
+  const toggle = async (id: string, ativo: boolean) => { await supabase.from("crm_venda_notif_dest").update({ ativo: !ativo }).eq("id", id); await refresh(); };
+  const remove = async (id: string) => { await supabase.from("crm_venda_notif_dest").delete().eq("id", id); await refresh(); };
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="text-lg">Notificações de vendas</CardTitle>
+        <p className="text-xs text-muted-foreground">
+          Quem recebe as vendas por e-mail. <b>Na hora</b> = um e-mail a cada venda; <b>Resumo diário</b> = um e-mail às 18h com todas as vendas do dia.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="flex gap-2 items-center flex-wrap">
+          <Input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@youngempreendimentos.com.br" className="flex-1 min-w-[220px]" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); void add(); } }} />
+          <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome (opcional)" className="w-[160px]" />
+          <Select value={modo} onValueChange={setModo}>
+            <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="na_hora">Na hora</SelectItem>
+              <SelectItem value="diario">Resumo diário</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button size="sm" type="button" disabled={!email.trim()} onClick={() => void add()}><Plus className="h-4 w-4" /></Button>
+        </div>
+        <Table>
+          <TableHeader><TableRow><TableHead>E-mail</TableHead><TableHead>Nome</TableHead><TableHead className="w-[170px]">Recebe</TableHead><TableHead className="w-[60px]">Ativo</TableHead><TableHead className="w-[40px]"></TableHead></TableRow></TableHeader>
+          <TableBody>
+            {lista.map((d) => (
+              <TableRow key={d.id} className={!d.ativo ? "opacity-50" : ""}>
+                <TableCell className="text-sm">{d.email}</TableCell>
+                <TableCell className="text-sm text-muted-foreground">{d.nome || "—"}</TableCell>
+                <TableCell>
+                  <Select value={d.modo} onValueChange={(v) => setDestModo(d.id, v)}>
+                    <SelectTrigger className="h-8 w-[150px] text-sm"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="na_hora">Na hora</SelectItem>
+                      <SelectItem value="diario">Resumo diário</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </TableCell>
+                <TableCell><Switch checked={d.ativo} onCheckedChange={() => toggle(d.id, d.ativo)} /></TableCell>
+                <TableCell><Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => remove(d.id)}><X className="h-3.5 w-3.5 text-destructive" /></Button></TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+        {lista.length === 0 && <p className="text-sm text-muted-foreground text-center py-4">Nenhum destinatário cadastrado</p>}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function Configuracoes() {
   const { toast } = useToast();
   const { isAdmin } = useAuth();
@@ -333,6 +408,7 @@ export default function Configuracoes() {
             <TabsTrigger value="motivos">Motivos de Perda</TabsTrigger>
             {isAdmin && <TabsTrigger value="imobiliarias">Imobiliárias</TabsTrigger>}
             {isAdmin && <TabsTrigger value="usuarios">Usuários</TabsTrigger>}
+            {isAdmin && <TabsTrigger value="notif-vendas">Notif. vendas</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="empreendimentos" className="mt-4">
@@ -551,6 +627,12 @@ export default function Configuracoes() {
                 </CardContent>
               </Card>
               <AddUserDialog open={showAddUser} onOpenChange={setShowAddUser} onCreated={fetchUsers} />
+            </TabsContent>
+          )}
+
+          {isAdmin && (
+            <TabsContent value="notif-vendas" className="mt-4">
+              <NotifVendasConfig />
             </TabsContent>
           )}
         </Tabs>
