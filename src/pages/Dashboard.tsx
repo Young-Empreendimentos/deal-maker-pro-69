@@ -4,6 +4,7 @@ import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
+import { MetasMes } from "@/components/crm/MetasMes";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -696,6 +697,9 @@ export default function Dashboard() {
             </button>
           </div>
         )}
+
+        {/* Metas do mês (só admin) ----------------------------------------- */}
+        {isAdmin && <MetasMes isAdmin={isAdmin} emps={emps} users={users} />}
 
         {/* Atividades Realizadas ------------------------------------------- */}
         <div className="rounded-xl border bg-card">
