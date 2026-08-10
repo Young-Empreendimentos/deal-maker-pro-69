@@ -119,7 +119,7 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
                 <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden hidden sm:block" title={meta > 0 ? `${pct}%` : "sem meta"}>
                   <div className={cn("h-full rounded-full transition-all", bateu ? "bg-green-500" : "bg-primary")} style={{ width: `${pct}%` }} />
                 </div>
-                {isAdmin ? (
+                {isAdmin && (
                   <Input
                     type="number"
                     min={0}
@@ -129,8 +129,6 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
                     placeholder="0"
                     onChange={(e) => setDraft((d) => ({ ...d, [it.id]: e.target.value }))}
                   />
-                ) : (
-                  <span className="w-16 text-right text-sm tabular-nums text-muted-foreground">{metaMap[it.id] ?? "—"}</span>
                 )}
               </div>
             );

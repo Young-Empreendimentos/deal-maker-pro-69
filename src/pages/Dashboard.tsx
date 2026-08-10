@@ -202,11 +202,9 @@ export default function Dashboard() {
     (async () => {
       const empsRes = await crmDb.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome");
       setEmps((empsRes.data as Emp[]) ?? []);
-      if (veTodosLeads) {
-        // Filtro de consultor: só quem tem negócios
-        const { data: u } = await (supabase as any).rpc("crm_consultores_com_deals");
-        setUsers(((u as any[]) ?? []).map((x: any) => ({ id: x.user_id, nome: x.nome })));
-      }
+      // Consultores: usado no filtro (admin/gestor) e no quadro de Metas (visível a todos).
+      const { data: u } = await (supabase as any).rpc("crm_consultores_com_deals");
+      setUsers(((u as any[]) ?? []).map((x: any) => ({ id: x.user_id, nome: x.nome })));
     })();
   }, [veTodosLeads, user?.id]);
 
@@ -698,8 +696,8 @@ export default function Dashboard() {
           </div>
         )}
 
-        {/* Metas do mês (só admin) ----------------------------------------- */}
-        {isAdmin && <MetasMes isAdmin={isAdmin} emps={emps} users={users} />}
+        {/* Metas do mês (todos veem; só admin edita) ----------------------- */}
+        <MetasMes isAdmin={isAdmin} emps={emps} users={users} />
 
         {/* Atividades Realizadas ------------------------------------------- */}
         <div className="rounded-xl border bg-card">
