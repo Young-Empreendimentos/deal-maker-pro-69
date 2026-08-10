@@ -99,14 +99,9 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
-          <div className="flex gap-1">
-            <Button variant={aba === "empreendimento" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("empreendimento")}>Empreendimentos</Button>
-            <Button variant={aba === "consultor" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("consultor")}>Consultores</Button>
-          </div>
-          <p className="text-[11px] text-muted-foreground">
-            <span className="font-semibold text-foreground">Vendas</span> sobem sozinhas · <span className="font-semibold text-foreground">Meta</span> você define
-          </p>
+        <div className="flex gap-1 mb-2">
+          <Button variant={aba === "empreendimento" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("empreendimento")}>Empreendimentos</Button>
+          <Button variant={aba === "consultor" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("consultor")}>Consultores</Button>
         </div>
 
         {/* Cabeçalho das colunas */}
