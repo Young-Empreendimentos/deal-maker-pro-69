@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { supabase, crmDb } from "@/integrations/supabase/client";
+import { crmDb, comercialDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -128,7 +128,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     })();
     // Migrado para comercial_corretores: a tabela imobiliarias foi descontinuada
     // no Pingolead. O id segue gravado em responsavel_venda_corretor_id.
-    supabase
+    comercialDb
       .from("comercial_corretores")
       .select("id, nome, nome_exibicao")
       .eq("ativo", true)
@@ -145,7 +145,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       while (true) {
         const from = page * pageSize;
         const to = from + pageSize - 1;
-        const { data } = await supabase.from("comercial_tabela_precos")
+        const { data } = await comercialDb.from("comercial_tabela_precos")
           .select("empreendimento, num_lote, data_preco, preco_av")
           .not("empreendimento", "is", null)
           .not("num_lote", "is", null)

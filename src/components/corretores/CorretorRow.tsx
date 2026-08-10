@@ -7,7 +7,7 @@
  */
 
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { comercialDb } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { TableRow, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export function CorretorRow({ corretor, onToggle, onOpenCadastro, onRename }: Pr
       return;
     }
     try {
-      const { error } = await supabase
+      const { error } = await comercialDb
         .from("comercial_corretores")
         .update({ nome_exibicao: novoNome, nome: novoNome })
         .eq("id", corretor.id);
@@ -127,7 +127,7 @@ export function useCorretores() {
 
   async function fetchCorretores() {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await comercialDb
       .from("comercial_corretores")
       .select(
         "id, nome, nome_exibicao, tipo, razao_social, cpf, cnpj, creci, " +
@@ -149,7 +149,7 @@ export function useCorretores() {
   useState(() => { void fetchCorretores(); });
 
   async function toggleAtivo(id: string, ativo: boolean) {
-    const { error } = await (supabase.from("comercial_corretores") as any).update({ ativo: !ativo }).eq("id", id);
+    const { error } = await (comercialDb.from("comercial_corretores") as any).update({ ativo: !ativo }).eq("id", id);
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else await fetchCorretores();
   }
@@ -157,7 +157,7 @@ export function useCorretores() {
   async function addCorretor(input: { nome: string; tipo: string; documento?: string }) {
     const doc = (input.documento ?? "").replace(/\D/g, "");
     const isCnpj = input.tipo === "PJ" || doc.length > 11;
-    const { error } = await (supabase.from("comercial_corretores") as any).insert({
+    const { error } = await (comercialDb.from("comercial_corretores") as any).insert({
       nome: input.nome, nome_exibicao: input.nome, tipo: input.tipo, ativo: true,
       cpf: isCnpj ? null : (input.documento ?? null),
       cnpj: isCnpj ? (input.documento ?? null) : null,

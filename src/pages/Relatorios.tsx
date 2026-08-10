@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase, crmDb } from "@/integrations/supabase/client";
+import { supabase, crmDb, comercialDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -176,7 +176,7 @@ export default function Relatorios() {
         fetchDealsFiltered(),
         crmDb.from("crm_empreendimentos").select("id, nome"),
         supabase.from("user_profiles").select("user_id, nome"),
-        supabase.from("comercial_corretores").select("id, nome_exibicao"),
+        comercialDb.from("comercial_corretores").select("id, nome_exibicao"),
         crmDb.from("crm_fontes_lead").select("id, nome"),
       ]);
       setDeals(d);

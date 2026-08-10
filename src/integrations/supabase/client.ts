@@ -22,3 +22,7 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 // storage continuam no client public (`supabase`). O schema `crm` não está no types.ts
 // gerado, por isso o cast — em runtime funciona; a tipagem vem das views em public.
 export const crmDb = supabase.schema("crm" as any);
+
+// Idem para as tabelas comercial_ (movidas para o schema `comercial`; views de compat no public).
+// Use `comercialDb` nas operações de tabela/view comercial_.
+export const comercialDb = supabase.schema("comercial" as any);
