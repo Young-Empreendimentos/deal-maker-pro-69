@@ -9,7 +9,7 @@ const FN_URL = "https://vvtympzatclvjaqucebr.supabase.co/functions/v1/auditoria-
 
 export default function EnviarAuditoriaIndividual() {
   const [sp] = useSearchParams();
-  const [status, setStatus] = useState<"enviando" | "ok" | "erro">("enviando");
+  const [status, setStatus] = useState<"enviando" | "ok" | "ja" | "erro">("enviando");
   const [detalhe, setDetalhe] = useState("");
   const ran = useRef(false);
 
@@ -23,8 +23,17 @@ export default function EnviarAuditoriaIndividual() {
     fetch(url)
       .then(async (r) => {
         const j = await r.json().catch(() => ({} as any));
-        if (r.ok && j.ok) { setStatus("ok"); setDetalhe(`${j.enviados} auditoria(s) enviada(s).`); }
-        else { setStatus("erro"); setDetalhe(j.error || `HTTP ${r.status}`); }
+        if (r.ok && j.ok && j.ja_enviado) {
+          setStatus("ja");
+          const dt = j.enviado_em
+            ? new Date(j.enviado_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", timeZone: "America/Sao_Paulo" })
+            : "";
+          setDetalhe(`As auditorias deste ciclo já foram enviadas${dt ? ` em ${dt}` : ""}${j.enviados ? ` · ${j.enviados} consultor(es)` : ""}.`);
+        } else if (r.ok && j.ok) {
+          setStatus("ok"); setDetalhe(`${j.enviados} auditoria(s) enviada(s).`);
+        } else {
+          setStatus("erro"); setDetalhe(j.error || `HTTP ${r.status}`);
+        }
       })
       .catch((e) => { setStatus("erro"); setDetalhe(String(e)); });
   }, [sp]);
@@ -43,6 +52,13 @@ export default function EnviarAuditoriaIndividual() {
             <h1 className="text-2xl font-bold text-emerald-600">✓ Enviado</h1>
             <p className="mt-2">{detalhe}</p>
             <p className="mt-2 text-sm text-muted-foreground">Cada consultor recebeu apenas a própria auditoria.</p>
+          </>
+        )}
+        {status === "ja" && (
+          <>
+            <h1 className="text-2xl font-bold text-amber-600">Já enviada</h1>
+            <p className="mt-2 text-sm text-muted-foreground">{detalhe}</p>
+            <p className="mt-2 text-sm text-muted-foreground">Ninguém recebeu e-mail duplicado. Se precisar reenviar de propósito, me avise.</p>
           </>
         )}
         {status === "erro" && (
