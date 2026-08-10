@@ -99,37 +99,60 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex gap-1 mb-3">
-          <Button variant={aba === "empreendimento" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("empreendimento")}>Empreendimentos</Button>
-          <Button variant={aba === "consultor" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("consultor")}>Consultores</Button>
+        <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+          <div className="flex gap-1">
+            <Button variant={aba === "empreendimento" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("empreendimento")}>Empreendimentos</Button>
+            <Button variant={aba === "consultor" ? "default" : "outline"} size="sm" className="h-7" onClick={() => setAba("consultor")}>Consultores</Button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            <span className="font-semibold text-foreground">Vendas</span> sobem sozinhas · <span className="font-semibold text-foreground">Meta</span> você define
+          </p>
         </div>
 
-        <div className="space-y-1">
+        {/* Cabeçalho das colunas */}
+        <div className="flex items-center gap-2 pb-1.5 border-b text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+          <span className="flex-1">{aba === "empreendimento" ? "Empreendimento" : "Consultor"}</span>
+          <span className="w-14 text-center">Vendas</span>
+          <span className="w-16 text-center">Meta</span>
+          <span className="w-24 text-center hidden sm:block">Progresso</span>
+        </div>
+
+        <div className="divide-y">
           {lista.map((it) => {
             const realizado = realizadoMap[it.id] ?? 0;
             const meta = parseInt(draft[it.id] || "0", 10) || 0;
             const pct = meta > 0 ? Math.min(100, Math.round((100 * realizado) / meta)) : 0;
             const bateu = meta > 0 && realizado >= meta;
             return (
-              <div key={it.id} className="flex items-center gap-3 py-1">
+              <div key={it.id} className="flex items-center gap-2 py-1.5">
                 <span className="flex-1 text-sm truncate" title={it.nome}>{it.nome}</span>
-                <span className={cn("text-sm tabular-nums w-14 text-right", bateu ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground")}>
-                  {realizado}{meta > 0 ? ` / ${meta}` : ""}
-                </span>
-                <div className="w-20 h-1.5 rounded-full bg-muted overflow-hidden hidden sm:block" title={meta > 0 ? `${pct}%` : "sem meta"}>
-                  <div className={cn("h-full rounded-full transition-all", bateu ? "bg-green-500" : "bg-primary")} style={{ width: `${pct}%` }} />
+                {/* Vendas realizadas (automático) */}
+                <span className="w-14 text-center text-sm tabular-nums font-semibold">{realizado}</span>
+                {/* Meta (manual) */}
+                <div className="w-16 flex justify-center">
+                  {isAdmin ? (
+                    <Input
+                      type="number"
+                      min={0}
+                      inputMode="numeric"
+                      className="h-8 w-16 text-center tabular-nums px-1"
+                      value={draft[it.id] ?? ""}
+                      placeholder="—"
+                      onChange={(e) => setDraft((d) => ({ ...d, [it.id]: e.target.value }))}
+                    />
+                  ) : (
+                    <span className="text-sm tabular-nums text-muted-foreground">{meta > 0 ? meta : "—"}</span>
+                  )}
                 </div>
-                {isAdmin && (
-                  <Input
-                    type="number"
-                    min={0}
-                    inputMode="numeric"
-                    className="h-8 w-16 text-right tabular-nums"
-                    value={draft[it.id] ?? ""}
-                    placeholder="0"
-                    onChange={(e) => setDraft((d) => ({ ...d, [it.id]: e.target.value }))}
-                  />
-                )}
+                {/* Progresso */}
+                <div className="w-24 items-center gap-1.5 hidden sm:flex">
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
+                    <div className={cn("h-full rounded-full transition-all", bateu ? "bg-green-500" : "bg-primary")} style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className={cn("w-11 text-right text-xs tabular-nums shrink-0", bateu ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground")}>
+                    {meta > 0 ? `${pct}%` : "—"}
+                  </span>
+                </div>
               </div>
             );
           })}
