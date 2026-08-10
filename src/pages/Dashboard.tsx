@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useRef } from "react";
 import { Link } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
@@ -129,7 +129,7 @@ export default function Dashboard() {
   // ── Solicitações de acesso ao CRM (admin) ─────────────────────────────────
   const [solicitacoes, setSolicitacoes] = useState<Solicitacao[]>([]);
   const fetchSolicitacoes = async () => {
-    const { data } = await (supabase as any)
+    const { data } = await (crmDb as any)
       .from("crm_solicitacoes_acesso")
       .select("id, user_id, email, nome, created_at")
       .eq("status", "pendente")
@@ -140,18 +140,18 @@ export default function Dashboard() {
 
   const aprovarSolicitacao = async (s: Solicitacao) => {
     // Reativa preservando o papel se ja existe; senao cria como 'user'
-    const { data: existente } = await supabase
+    const { data: existente } = await crmDb
       .from("crm_user_roles").select("user_id").eq("user_id", s.user_id).maybeSingle();
     const res = existente
-      ? await supabase.from("crm_user_roles").update({ ativo: true }).eq("user_id", s.user_id)
-      : await supabase.from("crm_user_roles").insert({ user_id: s.user_id, role: "user" as any, ativo: true });
+      ? await crmDb.from("crm_user_roles").update({ ativo: true }).eq("user_id", s.user_id)
+      : await crmDb.from("crm_user_roles").insert({ user_id: s.user_id, role: "user" as any, ativo: true });
     if (res.error) { toast({ title: "Erro ao aprovar", description: res.error.message, variant: "destructive" }); return; }
-    await (supabase as any).from("crm_solicitacoes_acesso").delete().eq("id", s.id);
+    await (crmDb as any).from("crm_solicitacoes_acesso").delete().eq("id", s.id);
     toast({ title: "Acesso liberado!" });
     fetchSolicitacoes();
   };
   const rejeitarSolicitacao = async (s: Solicitacao) => {
-    const { error } = await (supabase as any)
+    const { error } = await (crmDb as any)
       .from("crm_solicitacoes_acesso").update({ status: "rejeitada" }).eq("id", s.id);
     if (error) { toast({ title: "Erro ao rejeitar", description: error.message, variant: "destructive" }); return; }
     toast({ title: "Solicitação rejeitada" });
@@ -199,7 +199,7 @@ export default function Dashboard() {
   useEffect(() => {
     if (!user?.id) return;
     (async () => {
-      const empsRes = await supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome");
+      const empsRes = await crmDb.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome");
       setEmps((empsRes.data as Emp[]) ?? []);
       if (veTodosLeads) {
         // Filtro de consultor: só quem tem negócios
@@ -227,7 +227,7 @@ export default function Dashboard() {
         const [dealsAtivos, vendas, counts] = await Promise.all([
           // Ativos do período (filtro por created_at) — leve (~200)
           fetchAllPaged<Deal>((from, to) => {
-            let q = supabase.from("crm_deals").select("*")
+            let q = crmDb.from("crm_deals").select("*")
               .not("status", "in", "(vendido,perdido)")
               .gte("created_at", fromIso).lte("created_at", toIso)
               .order("created_at", { ascending: false })
@@ -308,7 +308,7 @@ export default function Dashboard() {
 
   const abrirDrillPerdas = async () => {
     if (!dateFrom || !dateTo) return;
-    let q = supabase.from("crm_deals").select("*")
+    let q = crmDb.from("crm_deals").select("*")
       .eq("status", "perdido")
       .gte("data_perdido", dateFrom.toISOString()).lte("data_perdido", dateTo.toISOString())
       .order("data_perdido", { ascending: false }).limit(500);
@@ -321,7 +321,7 @@ export default function Dashboard() {
 
   const abrirDrillTarefas = async (tipo: string) => {
     if (!dateFrom || !dateTo) return;
-    let q = supabase.from("crm_tasks")
+    let q = crmDb.from("crm_tasks")
       .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
       .eq("concluida", true).eq("tipo", tipo)
       .gte("updated_at", dateFrom.toISOString()).lte("updated_at", dateTo.toISOString())

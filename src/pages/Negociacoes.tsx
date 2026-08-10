@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate, Link } from "react-router-dom";
 import { AppLayout } from "@/components/crm/AppLayout";
@@ -213,7 +213,7 @@ export default function Negociacoes() {
   const [pendingTasks, setPendingTasks] = useState<PendingTask[]>([]);
   useEffect(() => {
     fetchAllPaged<PendingTask>((from, to) =>
-      supabase.from("crm_tasks").select("deal_id, data_vencimento, hora_vencimento, concluida")
+      crmDb.from("crm_tasks").select("deal_id, data_vencimento, hora_vencimento, concluida")
         .eq("concluida", false).is("deleted_at", null).range(from, to)
     ).then(setPendingTasks).catch(() => setPendingTasks([]));
   }, []);
@@ -305,7 +305,7 @@ export default function Negociacoes() {
     let hasMore = true;
 
     while (hasMore) {
-      let query = supabase.from("crm_deals").select(DEAL_LIST_COLUMNS)
+      let query = crmDb.from("crm_deals").select(DEAL_LIST_COLUMNS)
         .in("status", statusesToFetch as any)
         .order("created_at", { ascending: false })
         .range(from, from + pageSize - 1);
@@ -385,9 +385,9 @@ export default function Negociacoes() {
 
   useEffect(() => {
     fetchDeals();
-    supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
-    supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
-    supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setMotivosPerda((data as { id: string; nome: string }[]) ?? []));
+    crmDb.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).then(({ data }) => setEmpreendimentos((data as Empreendimento[]) ?? []));
+    crmDb.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes((data as FonteLead[]) ?? []));
+    crmDb.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setMotivosPerda((data as { id: string; nome: string }[]) ?? []));
     if (veTodosLeads) {
       // Filtro de consultor: só quem tem negócios (ativos, vendidos ou perdidos)
       (supabase as any).rpc("crm_consultores_com_deals").then(({ data }: any) => {
@@ -509,7 +509,7 @@ export default function Negociacoes() {
     setDeals((prev) => prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index, ...(assumir ? { responsavel_id: user!.id } : {}) } : d)));
     const payload: any = { status: newStatus, ordem_kanban: destination.index };
     if (assumir) payload.responsavel_id = user!.id;
-    const { error } = await supabase.from("crm_deals").update(payload).eq("id", draggableId);
+    const { error } = await crmDb.from("crm_deals").update(payload).eq("id", draggableId);
     if (error) { toast({ title: "Erro ao mover", description: error.message, variant: "destructive" }); fetchDeals(); }
   };
 

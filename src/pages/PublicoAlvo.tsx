@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -470,7 +470,7 @@ export default function PublicoAlvo() {
             "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente,data_nascimento",
             (q) => q.gte("created_at", CORTE_DEALS)
           ),
-          supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
+          crmDb.from("crm_empreendimentos").select("id,nome").order("nome"),
         ]);
         setHist(h);
         setDeals(d);

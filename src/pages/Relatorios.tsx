@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -154,7 +154,7 @@ export default function Relatorios() {
         const [vendasRes, outras] = await Promise.all([
           (supabase as any).rpc("crm_relatorio_vendas", { p_from: fromDate, p_to: toDate }),
           fetchPage(() =>
-            supabase
+            crmDb
               .from("crm_deals")
               .select(COLS)
               .neq("status", "vendido")
@@ -174,10 +174,10 @@ export default function Relatorios() {
 
       const [d, { data: e }, { data: u }, { data: c }, { data: f }] = await Promise.all([
         fetchDealsFiltered(),
-        supabase.from("crm_empreendimentos").select("id, nome"),
+        crmDb.from("crm_empreendimentos").select("id, nome"),
         supabase.from("user_profiles").select("user_id, nome"),
         supabase.from("comercial_corretores").select("id, nome_exibicao"),
-        supabase.from("crm_fontes_lead").select("id, nome"),
+        crmDb.from("crm_fontes_lead").select("id, nome"),
       ]);
       setDeals(d);
       setEmpMap(Object.fromEntries((e ?? []).map((x: any) => [x.id, x.nome])));

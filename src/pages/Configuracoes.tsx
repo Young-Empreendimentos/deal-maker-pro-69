@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,7 +163,7 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
     if (!open || role !== "user") { setConsultoresLivres([]); return; }
     let cancelled = false;
     (async () => {
-      const { data, error } = await supabase
+      const { data, error } = await crmDb
         .from("crm_consultores")
         .select("id, nome, user_id" as unknown as "id, nome")
         .is("user_id" as unknown as "ativo", null)
@@ -189,7 +189,7 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
       }
       const newUserId = (data as { user_id?: string } | null)?.user_id;
       if (role === "user" && consultorId && newUserId) {
-        const { error: linkError } = await supabase
+        const { error: linkError } = await crmDb
           .from("crm_consultores")
           .update({ user_id: newUserId } as unknown as { ativo: boolean })
           .eq("id", consultorId);
@@ -268,7 +268,7 @@ function NotifVendasConfig() {
   const [modo, setModo] = useState("na_hora");
 
   const refresh = async () => {
-    const { data } = await supabase.from("crm_venda_notif_dest").select("*").order("modo").order("email");
+    const { data } = await crmDb.from("crm_venda_notif_dest").select("*").order("modo").order("email");
     setLista((data as NotifDest[]) ?? []);
   };
   useEffect(() => { void refresh(); }, []);
@@ -276,13 +276,13 @@ function NotifVendasConfig() {
   const add = async () => {
     const e = email.trim().toLowerCase();
     if (!e) return;
-    const { error } = await supabase.from("crm_venda_notif_dest").insert({ email: e, nome: nome.trim() || null, modo });
+    const { error } = await crmDb.from("crm_venda_notif_dest").insert({ email: e, nome: nome.trim() || null, modo });
     if (error) { toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" }); return; }
     setEmail(""); setNome(""); await refresh();
   };
-  const setDestModo = async (id: string, novoModo: string) => { await supabase.from("crm_venda_notif_dest").update({ modo: novoModo }).eq("id", id); await refresh(); };
-  const toggle = async (id: string, ativo: boolean) => { await supabase.from("crm_venda_notif_dest").update({ ativo: !ativo }).eq("id", id); await refresh(); };
-  const remove = async (id: string) => { await supabase.from("crm_venda_notif_dest").delete().eq("id", id); await refresh(); };
+  const setDestModo = async (id: string, novoModo: string) => { await crmDb.from("crm_venda_notif_dest").update({ modo: novoModo }).eq("id", id); await refresh(); };
+  const toggle = async (id: string, ativo: boolean) => { await crmDb.from("crm_venda_notif_dest").update({ ativo: !ativo }).eq("id", id); await refresh(); };
+  const remove = async (id: string) => { await crmDb.from("crm_venda_notif_dest").delete().eq("id", id); await refresh(); };
 
   return (
     <Card>
@@ -353,13 +353,13 @@ export default function Configuracoes() {
   const [editNome, setEditNome] = useState("");
   const [editRole, setEditRole] = useState("");
 
-  const fetchFontes = async () => { const { data } = await supabase.from("crm_fontes_lead").select("*").order("nome"); setFontes((data as FonteLead[]) ?? []); };
-  const fetchMotivos = async () => { const { data } = await supabase.from("crm_motivos_perda").select("*").order("nome"); setMotivos((data as MotivoPerda[]) ?? []); };
-  const fetchEmpreendimentos = async () => { const { data } = await supabase.from("crm_empreendimentos").select("*").order("nome"); setEmpreendimentos((data as Empreendimento[]) ?? []); };
+  const fetchFontes = async () => { const { data } = await crmDb.from("crm_fontes_lead").select("*").order("nome"); setFontes((data as FonteLead[]) ?? []); };
+  const fetchMotivos = async () => { const { data } = await crmDb.from("crm_motivos_perda").select("*").order("nome"); setMotivos((data as MotivoPerda[]) ?? []); };
+  const fetchEmpreendimentos = async () => { const { data } = await crmDb.from("crm_empreendimentos").select("*").order("nome"); setEmpreendimentos((data as Empreendimento[]) ?? []); };
   const fetchUsers = async () => {
     const { data } = await supabase.rpc("crm_get_all_users_with_roles");
     setUsers((data as UserInfo[]) ?? []);
-    const { data: profs } = await supabase.from("crm_user_roles").select("user_id, ativo");
+    const { data: profs } = await crmDb.from("crm_user_roles").select("user_id, ativo");
     const map = new Map<string, UserProfile>();
     ((profs as UserProfile[]) ?? []).forEach((p) => map.set(p.user_id, p));
     setProfiles(map);
@@ -375,7 +375,7 @@ export default function Configuracoes() {
   }, [isAdmin]);
 
   const toggleUserAtivo = async (userId: string, currentAtivo: boolean) => {
-    const { error } = await supabase.from("crm_user_roles").upsert({ user_id: userId, ativo: !currentAtivo }, { onConflict: "user_id" });
+    const { error } = await crmDb.from("crm_user_roles").upsert({ user_id: userId, ativo: !currentAtivo }, { onConflict: "user_id" });
     if (error) toast({ title: "Erro", description: error.message, variant: "destructive" });
     else fetchUsers();
   };
@@ -388,7 +388,7 @@ export default function Configuracoes() {
     if (profError) { toast({ title: "Erro ao atualizar nome", description: profError.message, variant: "destructive" }); return; }
     const currentUser = users.find((u) => u.id === userId);
     if (currentUser && currentUser.role !== editRole) {
-      const { error: roleError } = await supabase.from("crm_user_roles").upsert({ user_id: userId, role: editRole as any }, { onConflict: "user_id" });
+      const { error: roleError } = await crmDb.from("crm_user_roles").upsert({ user_id: userId, role: editRole as any }, { onConflict: "user_id" });
       if (roleError) { toast({ title: "Erro ao atualizar perfil", description: roleError.message, variant: "destructive" }); return; }
     }
     toast({ title: "Usuário atualizado!" });
@@ -416,7 +416,7 @@ export default function Configuracoes() {
               <CardHeader><CardTitle className="text-lg">Empreendimentos</CardTitle></CardHeader>
               <CardContent className="space-y-4">
                 <EmpreendimentoForm onAdd={async (nome, cidade) => {
-                  const { error } = await supabase.from("crm_empreendimentos").insert({ nome, cidade });
+                  const { error } = await crmDb.from("crm_empreendimentos").insert({ nome, cidade });
                   if (error) { toast({ title: "Erro ao adicionar", description: error.message, variant: "destructive" }); return false; }
                   toast({ title: "Empreendimento adicionado!" }); await fetchEmpreendimentos(); return true;
                 }} />
@@ -425,8 +425,8 @@ export default function Configuracoes() {
                   <TableBody>
                     {empreendimentos.map((emp) => (
                       <EmpreendimentoRow key={emp.id} emp={emp}
-                        onToggle={async () => { await supabase.from("crm_empreendimentos").update({ ativo: !emp.ativo }).eq("id", emp.id); fetchEmpreendimentos(); }}
-                        onSave={async (nome, cidade) => { await supabase.from("crm_empreendimentos").update({ nome, cidade }).eq("id", emp.id); fetchEmpreendimentos(); }}
+                        onToggle={async () => { await crmDb.from("crm_empreendimentos").update({ ativo: !emp.ativo }).eq("id", emp.id); fetchEmpreendimentos(); }}
+                        onSave={async (nome, cidade) => { await crmDb.from("crm_empreendimentos").update({ nome, cidade }).eq("id", emp.id); fetchEmpreendimentos(); }}
                       />
                     ))}
                   </TableBody>
@@ -438,17 +438,17 @@ export default function Configuracoes() {
 
           <TabsContent value="fontes" className="mt-4">
             <EditableList title="Fontes de Lead" items={fontes}
-              onAdd={async (nome) => { const { error } = await supabase.from("crm_fontes_lead").insert({ nome }); if (error) toast({ title: "Erro", description: error.message, variant: "destructive" }); else fetchFontes(); }}
-              onToggle={async (id, ativo) => { await supabase.from("crm_fontes_lead").update({ ativo: !ativo }).eq("id", id); fetchFontes(); }}
-              onRename={async (id, nome) => { if (!nome.trim()) return; await supabase.from("crm_fontes_lead").update({ nome: nome.trim() }).eq("id", id); fetchFontes(); }}
+              onAdd={async (nome) => { const { error } = await crmDb.from("crm_fontes_lead").insert({ nome }); if (error) toast({ title: "Erro", description: error.message, variant: "destructive" }); else fetchFontes(); }}
+              onToggle={async (id, ativo) => { await crmDb.from("crm_fontes_lead").update({ ativo: !ativo }).eq("id", id); fetchFontes(); }}
+              onRename={async (id, nome) => { if (!nome.trim()) return; await crmDb.from("crm_fontes_lead").update({ nome: nome.trim() }).eq("id", id); fetchFontes(); }}
             />
           </TabsContent>
 
           <TabsContent value="motivos" className="mt-4">
             <EditableList title="Motivos de Perda" items={motivos}
-              onAdd={async (nome) => { const { error } = await supabase.from("crm_motivos_perda").insert({ nome }); if (error) toast({ title: "Erro", description: error.message, variant: "destructive" }); else fetchMotivos(); }}
-              onToggle={async (id, ativo) => { await supabase.from("crm_motivos_perda").update({ ativo: !ativo }).eq("id", id); fetchMotivos(); }}
-              onRename={async (id, nome) => { if (!nome.trim()) return; await supabase.from("crm_motivos_perda").update({ nome: nome.trim() }).eq("id", id); fetchMotivos(); }}
+              onAdd={async (nome) => { const { error } = await crmDb.from("crm_motivos_perda").insert({ nome }); if (error) toast({ title: "Erro", description: error.message, variant: "destructive" }); else fetchMotivos(); }}
+              onToggle={async (id, ativo) => { await crmDb.from("crm_motivos_perda").update({ ativo: !ativo }).eq("id", id); fetchMotivos(); }}
+              onRename={async (id, nome) => { if (!nome.trim()) return; await crmDb.from("crm_motivos_perda").update({ nome: nome.trim() }).eq("id", id); fetchMotivos(); }}
             />
           </TabsContent>
 

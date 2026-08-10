@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { fetchAllPaged } from "@/lib/supabasePagination";
 import { isTaskOverdue } from "@/lib/taskOverdue";
@@ -125,23 +125,23 @@ export default function NegociacaoDetalhes() {
     if (!id) return;
 
     const [dealRes, phonesRes, tasksRes, dealImgsRes, anotacoesRes, statusLogRes] = await Promise.all([
-      supabase.from("crm_deals").select("*").eq("id", id).single(),
-      supabase.from("crm_deal_phones").select("*").eq("deal_id", id),
+      crmDb.from("crm_deals").select("*").eq("id", id).single(),
+      crmDb.from("crm_deal_phones").select("*").eq("deal_id", id),
       // Tarefas: paginação manual (Supabase limita 1000 por request)
       fetchAllPaged<Task>((from, to) =>
-        supabase.from("crm_tasks").select("*").eq("deal_id", id)
+        crmDb.from("crm_tasks").select("*").eq("deal_id", id)
           .order("created_at", { ascending: false })
           .range(from, to)
       ).then((data) => ({ data, error: null })),
-      supabase.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
-      supabase.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
-      supabase.from("crm_deal_status_log").select("status_anterior, status_novo, created_at").eq("deal_id", id).order("created_at", { ascending: true }),
+      crmDb.from("crm_deal_images").select("*").eq("deal_id", id).order("uploaded_at", { ascending: false }),
+      crmDb.from("crm_deal_anotacoes").select("*").eq("deal_id", id).order("created_at", { ascending: false }),
+      crmDb.from("crm_deal_status_log").select("status_anterior, status_novo, created_at").eq("deal_id", id).order("created_at", { ascending: true }),
     ]);
 
     const dealData = dealRes.data as DealDetail | null;
     setDeal(dealData);
     if (dealData?.motivo_perda_id) {
-      const { data: mp } = await supabase.from("crm_motivos_perda").select("nome").eq("id", dealData.motivo_perda_id).single();
+      const { data: mp } = await crmDb.from("crm_motivos_perda").select("nome").eq("id", dealData.motivo_perda_id).single();
       setMotivoPerdaNome((mp as { nome: string } | null)?.nome ?? null);
     } else {
       setMotivoPerdaNome(null);
@@ -165,7 +165,7 @@ export default function NegociacaoDetalhes() {
 
     if (tasksData.length > 0) {
       const taskIds = tasksData.map((t) => t.id);
-      const { data: imgs } = await supabase.from("crm_task_images").select("*").in("task_id", taskIds).order("uploaded_at", { ascending: false });
+      const { data: imgs } = await crmDb.from("crm_task_images").select("*").in("task_id", taskIds).order("uploaded_at", { ascending: false });
       const tasksMap = new Map(tasksData.map((t) => [t.id, t.titulo]));
       setTaskImages(((imgs as TaskImage[]) ?? []).map((img) => ({ ...img, task_titulo: tasksMap.get(img.task_id) ?? "" })));
     } else {
@@ -185,14 +185,14 @@ export default function NegociacaoDetalhes() {
     const assumir = isRecuperacao && !!user && deal.status === "perdido" && newStatus !== "perdido";
     const payload: any = { status: newStatus };
     if (assumir) payload.responsavel_id = user!.id;
-    await supabase.from("crm_deals").update(payload).eq("id", id);
+    await crmDb.from("crm_deals").update(payload).eq("id", id);
     setDeal((prev) => prev ? { ...prev, status: newStatus, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
   };
 
   const handleMarkSold = async () => {
     if (!deal || !id) return;
     // Re-busca o deal mais recente para garantir que os dados salvos estão sendo verificados
-    const { data: freshData } = await supabase.from("crm_deals").select("*").eq("id", id).single();
+    const { data: freshData } = await crmDb.from("crm_deals").select("*").eq("id", id).single();
     const checkDeal = (freshData as DealDetail) ?? deal;
     const { complete, missing } = isProposalComplete(checkDeal);
     if (!complete) {
@@ -218,7 +218,7 @@ export default function NegociacaoDetalhes() {
   };
 
   const openLossDialog = async () => {
-    const { data } = await supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome");
+    const { data } = await crmDb.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome");
     setMotivosPerda((data as MotivoPerda[]) ?? []);
     setSelectedMotivo("");
     setShowLossDialog(true);
@@ -226,7 +226,7 @@ export default function NegociacaoDetalhes() {
 
   const confirmLoss = async () => {
     if (!deal || !id || !selectedMotivo) return;
-    await supabase.from("crm_deals").update({ status: "perdido", motivo_perda_id: selectedMotivo } as any).eq("id", id);
+    await crmDb.from("crm_deals").update({ status: "perdido", motivo_perda_id: selectedMotivo } as any).eq("id", id);
     const nomeMotivo = motivosPerda.find((m) => m.id === selectedMotivo)?.nome ?? null;
     setDeal((prev) => prev ? { ...prev, status: "perdido", motivo_perda_id: selectedMotivo, data_perdido: new Date().toISOString() } : prev);
     setMotivoPerdaNome(nomeMotivo);
@@ -244,7 +244,7 @@ export default function NegociacaoDetalhes() {
     // Retorna para "ficha_assinada" e limpa motivo_perda se existir
     const payload: any = { status: "ficha_assinada", motivo_perda_id: null };
     if (assumir) payload.responsavel_id = user!.id;
-    await supabase.from("crm_deals").update(payload).eq("id", id);
+    await crmDb.from("crm_deals").update(payload).eq("id", id);
     setDeal((prev) => prev ? { ...prev, status: "ficha_assinada", motivo_perda_id: null, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
     setMotivoPerdaNome(null);
     toast({ title: `Negociação retornada para "Ficha Assinada"` });
@@ -268,7 +268,7 @@ export default function NegociacaoDetalhes() {
   };
 
   const toggleTask = async (task: Task) => {
-    await supabase.from("crm_tasks").update({ concluida: !task.concluida }).eq("id", task.id);
+    await crmDb.from("crm_tasks").update({ concluida: !task.concluida }).eq("id", task.id);
     setTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, concluida: !t.concluida } : t));
   };
 
@@ -291,7 +291,7 @@ export default function NegociacaoDetalhes() {
       horaVencimento = taskForm.hora_vencimento.trim();
     }
 
-    const { error } = await supabase.from("crm_tasks").insert({
+    const { error } = await crmDb.from("crm_tasks").insert({
       titulo: taskForm.titulo,
       descricao: taskForm.descricao || "",
       deal_id: id,
@@ -320,7 +320,7 @@ export default function NegociacaoDetalhes() {
       const { error } = await supabase.storage.from("task-images").upload(path, file);
       if (error) { toast({ title: "Erro", description: error.message, variant: "destructive" }); continue; }
       const { data: urlData } = supabase.storage.from("task-images").getPublicUrl(path);
-      await supabase.from("crm_task_images").insert({ task_id: taskId, image_url: urlData.publicUrl, nome_arquivo: file.name });
+      await crmDb.from("crm_task_images").insert({ task_id: taskId, image_url: urlData.publicUrl, nome_arquivo: file.name });
     }
     fetchAll();
     e.target.value = "";
@@ -328,7 +328,7 @@ export default function NegociacaoDetalhes() {
 
   const deleteDeal = async () => {
     if (!id) return;
-    await supabase.from("crm_deals").delete().eq("id", id);
+    await crmDb.from("crm_deals").delete().eq("id", id);
     toast({ title: "Negociação excluída" });
     navigate("/negociacoes");
   };
@@ -375,11 +375,11 @@ export default function NegociacaoDetalhes() {
         // link_contrato, versao_tabela, data_vendido, data_perdido, motivo_perda_id,
         // responsavel_venda_user_id, responsavel_venda_corretor_id, satisfacao_atendimento, satisfacao_produto
       };
-      const { data: ins, error } = await supabase.from("crm_deals").insert(novo as any).select("id").single();
+      const { data: ins, error } = await crmDb.from("crm_deals").insert(novo as any).select("id").single();
       if (error) throw error;
       const novoId = (ins as { id: string }).id;
       if (phones.length) {
-        await supabase.from("crm_deal_phones").insert(phones.map((p) => ({ deal_id: novoId, telefone: p.telefone })) as any);
+        await crmDb.from("crm_deal_phones").insert(phones.map((p) => ({ deal_id: novoId, telefone: p.telefone })) as any);
       }
       toast({ title: "Negociação duplicada", description: "Preencha o lote/venda na cópia." });
       navigate(`/negociacoes/${novoId}`);
@@ -392,13 +392,13 @@ export default function NegociacaoDetalhes() {
 
   const deleteTask = async (taskId: string) => {
     // Soft delete - marca como deletada em vez de deletar do banco
-    await supabase.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
+    await crmDb.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
     fetchAll();
   };
 
   const restoreTask = async (taskId: string) => {
     // Restaurar tarefa deletada
-    await supabase.from("crm_tasks").update({ deleted_at: null }).eq("id", taskId);
+    await crmDb.from("crm_tasks").update({ deleted_at: null }).eq("id", taskId);
     fetchAll();
   };
 
@@ -406,7 +406,7 @@ export default function NegociacaoDetalhes() {
     e.preventDefault();
     if (!user || !id || !anotacaoTexto.trim()) return;
     setAnotacaoLoading(true);
-    const { error } = await supabase.from("crm_deal_anotacoes").insert({
+    const { error } = await crmDb.from("crm_deal_anotacoes").insert({
       deal_id: id,
       user_id: user.id,
       texto: anotacaoTexto.trim(),
@@ -421,13 +421,13 @@ export default function NegociacaoDetalhes() {
   };
 
   const deleteAnotacao = async (anotacaoId: string) => {
-    await supabase.from("crm_deal_anotacoes").delete().eq("id", anotacaoId);
+    await crmDb.from("crm_deal_anotacoes").delete().eq("id", anotacaoId);
     setAnotacoes((prev) => prev.filter((a) => a.id !== anotacaoId));
   };
 
   const togglePinAnotacao = async (a: Anotacao) => {
     const novo = !a.fixado;
-    const { error } = await supabase.from("crm_deal_anotacoes").update({ fixado: novo } as any).eq("id", a.id);
+    const { error } = await crmDb.from("crm_deal_anotacoes").update({ fixado: novo } as any).eq("id", a.id);
     if (error) { toast({ title: "Erro ao fixar", description: error.message, variant: "destructive" }); return; }
     setAnotacoes((prev) => prev.map((x) => (x.id === a.id ? { ...x, fixado: novo } : x)).sort((x, y) => Number(!!y.fixado) - Number(!!x.fixado)));
   };

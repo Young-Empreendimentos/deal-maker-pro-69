@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useSearchParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, MapPin, Navigation, Clock } from "lucide-react";
@@ -45,8 +45,8 @@ export default function AuditoriaConsultor() {
       setLoading(true);
       const [prof, vis, out, slaRes] = await Promise.all([
         supabase.from("user_profiles").select("nome").eq("user_id", id).maybeSingle(),
-        supabase.from("crm_deal_status_log").select("deal_id, created_at").eq("status_novo", "visita_realizada").eq("responsavel_id", id).gte("created_at", fromIso).lt("created_at", toIso).order("created_at"),
-        supabase.from("crm_tasks").select("deal_id, concluida_em").eq("tipo", "Visita outbound").eq("concluida", true).eq("responsavel_id", id).gte("concluida_em", fromIso).lt("concluida_em", toIso).order("concluida_em"),
+        crmDb.from("crm_deal_status_log").select("deal_id, created_at").eq("status_novo", "visita_realizada").eq("responsavel_id", id).gte("created_at", fromIso).lt("created_at", toIso).order("created_at"),
+        crmDb.from("crm_tasks").select("deal_id, concluida_em").eq("tipo", "Visita outbound").eq("concluida", true).eq("responsavel_id", id).gte("concluida_em", fromIso).lt("concluida_em", toIso).order("concluida_em"),
         (supabase as any).rpc("crm_auditoria_leads", { p_from: fromIso, p_to: toIso, p_responsavel: id }),
       ]);
       setNome((prof.data as any)?.nome || "—");
@@ -55,7 +55,7 @@ export default function AuditoriaConsultor() {
       const ids = [...new Set([...visRows.map((r) => r.deal_id), ...outRows.map((r) => r.deal_id)])];
       const nmap: Record<string, string> = {};
       if (ids.length) {
-        const { data: deals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", ids);
+        const { data: deals } = await crmDb.from("crm_deals").select("id, cliente_nome").in("id", ids);
         (deals as any[] ?? []).forEach((d) => { nmap[d.id] = d.cliente_nome || "—"; });
       }
       setVisitas(visRows.map((r) => ({ ...r, nome: nmap[r.deal_id] ?? "—" })));

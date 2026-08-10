@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { crmDb } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,7 +44,7 @@ export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valor
 
   const handleSave = async () => {
     setSaving(true);
-    const { error } = await supabase.from("crm_deals").update({
+    const { error } = await crmDb.from("crm_deals").update({
       nome_anuncio: localNomeAnuncio.trim() || null,
       auto_interesse: localInteresse || null,
       auto_renda_familiar: localRenda || null,

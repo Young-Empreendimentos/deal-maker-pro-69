@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -49,7 +49,7 @@ export function DealGallery({ dealId, taskImages, dealImages, onRefresh }: Props
         continue;
       }
       const { data: urlData } = supabase.storage.from("task-images").getPublicUrl(path);
-      const { error: insertErr } = await supabase.from("crm_deal_images").insert({
+      const { error: insertErr } = await crmDb.from("crm_deal_images").insert({
         deal_id: dealId,
         image_url: urlData.publicUrl,
         nome_arquivo: file.name,
@@ -66,7 +66,7 @@ export function DealGallery({ dealId, taskImages, dealImages, onRefresh }: Props
   };
 
   const removeDealImage = async (imgId: string) => {
-    await supabase.from("crm_deal_images").delete().eq("id", imgId);
+    await crmDb.from("crm_deal_images").delete().eq("id", imgId);
     onRefresh();
   };
 

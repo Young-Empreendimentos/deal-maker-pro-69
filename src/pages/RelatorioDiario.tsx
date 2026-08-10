@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -76,7 +76,7 @@ export default function RelatorioDiario() {
   useEffect(() => {
     (async () => {
       setLoading(true);
-      let vq = (supabase as any)
+      let vq = (crmDb as any)
         .from("crm_relatorio_vendas_diario")
         .select("*")
         .gte("data", period.from || "1900-01-01")
@@ -86,7 +86,7 @@ export default function RelatorioDiario() {
       if (!veTodosLeads && user?.id) vq = vq.eq("responsavel_id", user.id);
       const [v, e, p] = await Promise.all([
         vq,
-        supabase.from("crm_empreendimentos").select("id,nome").order("nome"),
+        crmDb.from("crm_empreendimentos").select("id,nome").order("nome"),
         (supabase as any).rpc("crm_consultores_com_deals"),
       ]);
       setRows((v.data as Row[]) || []);

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Button } from "@/components/ui/button";
@@ -94,7 +94,7 @@ export default function Tarefas() {
 
   const saveDate = async () => {
     if (!editingTaskId) return;
-    const { error } = await supabase.from("crm_tasks").update({
+    const { error } = await crmDb.from("crm_tasks").update({
       data_vencimento: editDate || null,
       hora_vencimento: editHora || null,
     }).eq("id", editingTaskId);
@@ -109,7 +109,7 @@ export default function Tarefas() {
 
   const togglePin = async (task: Task) => {
     const novo = !task.fixado;
-    const { error } = await supabase.from("crm_tasks").update({ fixado: novo } as any).eq("id", task.id);
+    const { error } = await crmDb.from("crm_tasks").update({ fixado: novo } as any).eq("id", task.id);
     if (error) { toast({ title: "Erro ao fixar", description: error.message, variant: "destructive" }); return; }
     setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, fixado: novo } : t)));
   };
@@ -131,7 +131,7 @@ export default function Tarefas() {
     e.preventDefault();
     if (!editTask) return;
     if (!editForm.titulo.trim()) { toast({ title: "Título é obrigatório", variant: "destructive" }); return; }
-    const { error } = await supabase.from("crm_tasks").update({
+    const { error } = await crmDb.from("crm_tasks").update({
       titulo: editForm.titulo.trim(),
       descricao: editForm.descricao || "",
       tipo: editForm.tipo || null,
@@ -156,7 +156,7 @@ export default function Tarefas() {
     // Pendentes: baixa todas (são poucas e é o que precisa estar completo). Concluídas/
     // deletadas/todas: só as 500 mais recentes — há milhares de concluídas e baixar tudo travava.
     const LIM = 500;
-    const base = () => supabase.from("crm_tasks").select("*, crm_deals(cliente_nome)").order("created_at", { ascending: false });
+    const base = () => crmDb.from("crm_tasks").select("*, crm_deals(cliente_nome)").order("created_at", { ascending: false });
     let rawTasksData: any[];
     if (filter === "pendentes") {
       rawTasksData = await fetchAllPaged<any>((from, to) => base().eq("concluida", false).is("deleted_at", null).range(from, to));
@@ -195,7 +195,7 @@ export default function Tarefas() {
     if (term.length < 2) { setDealResults([]); setDealSearchLoading(false); return; }
     setDealSearchLoading(true);
     const handle = setTimeout(async () => {
-      let q = supabase.from("crm_deals").select("id, cliente_nome")
+      let q = crmDb.from("crm_deals").select("id, cliente_nome")
         .ilike("cliente_nome", `%${term}%`).order("cliente_nome").limit(20);
       if (!isAdmin && user) q = q.eq("responsavel_id", user.id);
       const { data } = await q;
@@ -223,7 +223,7 @@ export default function Tarefas() {
       horaVencimento = form.hora_vencimento.trim();
     }
 
-    const { error } = await supabase.from("crm_tasks").insert({
+    const { error } = await crmDb.from("crm_tasks").insert({
       titulo: form.titulo,
       descricao: form.descricao || "",
       deal_id: form.deal_id,
@@ -246,13 +246,13 @@ export default function Tarefas() {
   };
 
   const toggleConcluida = async (task: Task) => {
-    await supabase.from("crm_tasks").update({ concluida: !task.concluida }).eq("id", task.id);
+    await crmDb.from("crm_tasks").update({ concluida: !task.concluida }).eq("id", task.id);
     fetchTasks();
   };
 
   const openTaskImages = async (task: Task) => {
     setSelectedTask(task);
-    const { data } = await supabase
+    const { data } = await crmDb
       .from("crm_task_images")
       .select("*")
       .eq("task_id", task.id)
@@ -303,7 +303,7 @@ export default function Tarefas() {
 
         const { data: urlData } = supabase.storage.from("task-images").getPublicUrl(path);
 
-        const { error: insertError } = await supabase.from("crm_task_images").insert({
+        const { error: insertError } = await crmDb.from("crm_task_images").insert({
           task_id: selectedTask.id,
           image_url: urlData.publicUrl,
           nome_arquivo: file.name,
@@ -313,7 +313,7 @@ export default function Tarefas() {
         }
       }
 
-      const { data } = await supabase
+      const { data } = await crmDb
         .from("crm_task_images")
         .select("*")
         .eq("task_id", selectedTask.id)
@@ -328,20 +328,20 @@ export default function Tarefas() {
 
   const deleteTask = async (taskId: string) => {
     // Soft delete - marca como deletada em vez de deletar do banco
-    await supabase.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
+    await crmDb.from("crm_tasks").update({ deleted_at: new Date().toISOString() }).eq("id", taskId);
     toast({ title: "Tarefa excluída" });
     fetchTasks();
   };
 
   const restoreTask = async (taskId: string) => {
     // Restaurar tarefa deletada
-    await supabase.from("crm_tasks").update({ deleted_at: null }).eq("id", taskId);
+    await crmDb.from("crm_tasks").update({ deleted_at: null }).eq("id", taskId);
     toast({ title: "Tarefa restaurada" });
     fetchTasks();
   };
 
   const deleteImage = async (imageId: string) => {
-    await supabase.from("crm_task_images").delete().eq("id", imageId);
+    await crmDb.from("crm_task_images").delete().eq("id", imageId);
     setTaskImages((prev) => prev.filter((i) => i.id !== imageId));
   };
 

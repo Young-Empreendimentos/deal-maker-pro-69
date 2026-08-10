@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 
 type UserRole = "admin" | "user" | "gestor" | "recuperacao";
 // gestor = mesmas permissões de consultor (user), porém VÊ os leads de todos (só visibilidade),
@@ -52,7 +52,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const fetchUserMeta = async (userId: string) => {
     const [roleRes, profileRes] = await Promise.all([
-      supabase.from("crm_user_roles").select("role, ativo").eq("user_id", userId).maybeSingle(),
+      crmDb.from("crm_user_roles").select("role, ativo").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
     ]);
     setNome(profileRes.data?.nome ?? "");

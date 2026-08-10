@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -48,21 +48,21 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
 
   const loadMotivos = async () => {
     if (motivos.length) return;
-    const { data } = await supabase.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome");
+    const { data } = await crmDb.from("crm_motivos_perda").select("id, nome").eq("ativo", true).order("nome");
     setMotivos((data as Motivo[]) ?? []);
   };
 
   const doTransfer = async () => {
     if (!novoResp) return;
     setLoading(true);
-    const { error } = await supabase.from("crm_deals").update({ responsavel_id: novoResp } as any).in("id", ids);
+    const { error } = await crmDb.from("crm_deals").update({ responsavel_id: novoResp } as any).in("id", ids);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
       const newNome = users.find((u) => u.id === novoResp)?.nome || "Desconhecido";
       const quemFez = currentUserNome || currentUser?.email || "Admin";
       // Log de transferência como tarefa concluída em cada deal
-      await supabase.from("crm_tasks").insert(
+      await crmDb.from("crm_tasks").insert(
         selectedDeals.map((d) => ({
           deal_id: d.id,
           responsavel_id: currentUser?.id,
@@ -83,7 +83,7 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
   const doTransferEmp = async () => {
     if (!novoEmp) return;
     setLoading(true);
-    const { error } = await supabase.from("crm_deals").update({ empreendimento_id: novoEmp } as any).in("id", ids);
+    const { error } = await crmDb.from("crm_deals").update({ empreendimento_id: novoEmp } as any).in("id", ids);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
@@ -100,7 +100,7 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
   const doChangeStatus = async () => {
     if (!novoStatus) return;
     setLoading(true);
-    const { error } = await supabase.from("crm_deals").update({ status: novoStatus } as any).in("id", ids);
+    const { error } = await crmDb.from("crm_deals").update({ status: novoStatus } as any).in("id", ids);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
@@ -116,7 +116,7 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
   const doMarkPerda = async () => {
     if (!motivoId) return;
     setLoading(true);
-    const { error } = await supabase.from("crm_deals").update({
+    const { error } = await crmDb.from("crm_deals").update({
       status: "perdido",
       motivo_perda_id: motivoId,
     } as any).in("id", ids);
@@ -134,7 +134,7 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
 
   const doDelete = async () => {
     setLoading(true);
-    const { error } = await supabase.from("crm_deals").delete().in("id", ids);
+    const { error } = await crmDb.from("crm_deals").delete().in("id", ids);
     if (error) {
       toast({ title: "Erro ao excluir", description: error.message, variant: "destructive" });
     } else {
@@ -178,14 +178,14 @@ export function BulkActionsBar({ selectedDeals, users, empreendimentos, fontes, 
     const CHUNK = 200;
     const fullDeals: any[] = [];
     for (let i = 0; i < ids.length; i += CHUNK) {
-      const { data } = await supabase.from("crm_deals").select("*").in("id", ids.slice(i, i + CHUNK));
+      const { data } = await crmDb.from("crm_deals").select("*").in("id", ids.slice(i, i + CHUNK));
       fullDeals.push(...((data as any[]) ?? []));
     }
-    const { data: motivosData } = await supabase.from("crm_motivos_perda").select("id, nome");
+    const { data: motivosData } = await crmDb.from("crm_motivos_perda").select("id, nome");
     const motivoMap = new Map(((motivosData as any[]) ?? []).map((m) => [m.id, m.nome]));
     const anotacoesByDeal = new Map<string, string[]>();
     for (let i = 0; i < ids.length; i += CHUNK) {
-      const { data } = await supabase.from("crm_deal_anotacoes")
+      const { data } = await crmDb.from("crm_deal_anotacoes")
         .select("deal_id, texto, created_at").in("deal_id", ids.slice(i, i + CHUNK))
         .order("created_at", { ascending: true });
       for (const a of ((data as any[]) ?? [])) {

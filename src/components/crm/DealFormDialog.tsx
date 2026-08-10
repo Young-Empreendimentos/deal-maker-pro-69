@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,8 +32,8 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
 
   useEffect(() => {
     if (open) {
-      supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes(data ?? []));
-      supabase.from("crm_empreendimentos").select("id, nome").eq("ativo", true).then(({ data }) => setEmpreendimentos(data ?? []));
+      crmDb.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes(data ?? []));
+      crmDb.from("crm_empreendimentos").select("id, nome").eq("ativo", true).then(({ data }) => setEmpreendimentos(data ?? []));
     }
   }, [open]);
 
@@ -46,7 +46,7 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
     }
     setLoading(true);
 
-    const { error } = await supabase.from("crm_deals").insert({
+    const { error } = await crmDb.from("crm_deals").insert({
       cliente_nome: form.cliente_nome,
       cliente_email: form.cliente_email || null,
       qualificacao: form.qualificacao as any,
@@ -60,9 +60,9 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
     } else {
       // Add phone if provided
       if (form.telefone) {
-        const { data: dealData } = await supabase.from("crm_deals").select("id").eq("cliente_nome", form.cliente_nome).eq("responsavel_id", user.id).order("created_at", { ascending: false }).limit(1).single();
+        const { data: dealData } = await crmDb.from("crm_deals").select("id").eq("cliente_nome", form.cliente_nome).eq("responsavel_id", user.id).order("created_at", { ascending: false }).limit(1).single();
         if (dealData) {
-          await supabase.from("crm_deal_phones").insert({ deal_id: dealData.id, telefone: form.telefone });
+          await crmDb.from("crm_deal_phones").insert({ deal_id: dealData.id, telefone: form.telefone });
         }
       }
       toast({ title: "Negociação criada com sucesso!" });

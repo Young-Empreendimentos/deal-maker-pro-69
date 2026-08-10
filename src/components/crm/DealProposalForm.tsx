@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -101,7 +101,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     // Usuários internos = consultores cadastrados no CRM (crm_consultores).
     // O campo responsavel_venda_user_id é FK para crm_consultores.id.
     (async () => {
-      const { data: ativos, error: errAtivos } = await supabase
+      const { data: ativos, error: errAtivos } = await crmDb
         .from("crm_consultores")
         .select("id, nome, ativo")
         .eq("ativo", true)
@@ -114,7 +114,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       // Garantir que o responsável já salvo apareça na lista, mesmo se estiver inativo
       const savedId = initialData.responsavel_venda_user_id;
       if (savedId && !list.some((u) => u.id === savedId)) {
-        const { data: saved } = await supabase
+        const { data: saved } = await crmDb
           .from("crm_consultores")
           .select("id, nome")
           .eq("id", savedId)
@@ -163,7 +163,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       setTabelaPrecos(all);
     })();
     // Carrega mapa id->nome dos empreendimentos do CRM
-    supabase.from("crm_empreendimentos").select("id, nome").then(({ data }) => {
+    crmDb.from("crm_empreendimentos").select("id, nome").then(({ data }) => {
       const map: Record<string, string> = {};
       ((data as { id: string; nome: string }[]) ?? []).forEach((e) => { map[e.id] = e.nome; });
       setEmpNomeById(map);
@@ -292,7 +292,7 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
       if (found) responsavelNome = found.nome;
     }
 
-    const { data: updated, error } = await supabase.from("crm_deals").update({
+    const { data: updated, error } = await crmDb.from("crm_deals").update({
       numero_lote: form.numero_lote || null,
       preco_lote: form.preco_lote || null,
       forma_pagamento: form.forma_pagamento || null,

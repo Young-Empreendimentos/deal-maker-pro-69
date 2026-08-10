@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -60,8 +60,8 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   const [userProfiles, setUserProfiles] = useState<UserProfile[]>([]);
 
   useEffect(() => {
-    supabase.from("crm_fontes_lead").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setFontes(data ?? []));
-    supabase.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome").then(({ data }) => setEmpreendimentos(data ?? []));
+    crmDb.from("crm_fontes_lead").select("id, nome").eq("ativo", true).order("nome").then(({ data }) => setFontes(data ?? []));
+    crmDb.from("crm_empreendimentos").select("id, nome, cidade").eq("ativo", true).order("nome").then(({ data }) => setEmpreendimentos(data ?? []));
     supabase.from("user_profiles").select("user_id, nome").order("nome").then(({ data }) => {
       const all = (data as UserProfile[]) ?? [];
       setUserProfiles(all.filter((u) => isVisibleUser(u.user_id)));
@@ -111,7 +111,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
     // Campos básicos — SEM o responsavel_id. A troca de dono vai por uma função
     // separada (crm_transferir_responsavel), porque o RLS não deixa trocar o dono
     // num UPDATE direto: a linha deixaria de ser visível para quem edita.
-    const { error } = await supabase.from("crm_deals").update({
+    const { error } = await crmDb.from("crm_deals").update({
       cliente_nome: nome.trim(),
       cliente_email: email.trim() || null,
       qualificacao: qualificacao as any,
@@ -142,7 +142,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
         const oldNome = userProfiles.find((u) => u.user_id === deal.responsavel_id)?.nome || "Desconhecido";
         const newNome = userProfiles.find((u) => u.user_id === responsavelId)?.nome || "Desconhecido";
         const quemFez = currentUserNome || currentUser.email || "Usuário";
-        await supabase.from("crm_tasks").insert({
+        await crmDb.from("crm_tasks").insert({
           deal_id: deal.id,
           responsavel_id: currentUser.id,
           titulo: `Negócio transferido de ${oldNome} para ${newNome}`,
@@ -167,7 +167,7 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
 
   const addPhone = async () => {
     if (!newPhone.trim()) return;
-    const { error } = await supabase.from("crm_deal_phones").insert({ deal_id: deal.id, telefone: newPhone.trim() });
+    const { error } = await crmDb.from("crm_deal_phones").insert({ deal_id: deal.id, telefone: newPhone.trim() });
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {
@@ -177,13 +177,13 @@ export function DealBasicEditor({ deal, phones, autoInteresse, autoRendaFamiliar
   };
 
   const removePhone = async (phoneId: string) => {
-    await supabase.from("crm_deal_phones").delete().eq("id", phoneId);
+    await crmDb.from("crm_deal_phones").delete().eq("id", phoneId);
     onSave();
   };
 
   const updatePhone = async (phoneId: string, newTelefone: string) => {
     if (!newTelefone.trim()) return;
-    const { error } = await supabase.from("crm_deal_phones").update({ telefone: newTelefone.trim() }).eq("id", phoneId);
+    const { error } = await crmDb.from("crm_deal_phones").update({ telefone: newTelefone.trim() }).eq("id", phoneId);
     if (error) {
       toast({ title: "Erro", description: error.message, variant: "destructive" });
     } else {

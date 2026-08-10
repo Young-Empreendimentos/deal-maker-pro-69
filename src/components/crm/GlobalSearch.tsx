@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { crmDb } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { Input } from "@/components/ui/input";
 import { Search, X, User, Phone, Mail, ChevronRight } from "lucide-react";
@@ -56,7 +56,7 @@ export function GlobalSearch() {
     setLoading(true);
 
     // Busca por nome e e-mail
-    let dealsQuery = supabase
+    let dealsQuery = crmDb
       .from("crm_deals")
       .select("id, cliente_nome, cliente_email, status, responsavel_id")
       .or(`cliente_nome.ilike.%${q}%,cliente_email.ilike.%${q}%`)
@@ -70,7 +70,7 @@ export function GlobalSearch() {
     const { data: byName } = await dealsQuery;
 
     // Busca por telefone
-    const { data: phones } = await supabase
+    const { data: phones } = await crmDb
       .from("crm_deal_phones")
       .select("deal_id, telefone")
       .ilike("telefone", `%${q}%`)
@@ -80,7 +80,7 @@ export function GlobalSearch() {
     let byPhone: Result[] = [];
     if (phones && phones.length > 0) {
       const dealIds = [...new Set(phones.map((p) => p.deal_id))];
-      let phoneDealsQuery = supabase
+      let phoneDealsQuery = crmDb
         .from("crm_deals")
         .select("id, cliente_nome, cliente_email, status, responsavel_id")
         .in("id", dealIds);

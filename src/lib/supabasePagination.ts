@@ -5,7 +5,7 @@
  *
  * Uso:
  *   const tasks = await fetchAllPaged((from, to) =>
- *     supabase.from("crm_tasks").select("*").eq("concluida", true)
+ *     crmDb.from("crm_tasks").select("*").eq("concluida", true)
  *       .order("updated_at", { ascending: false })
  *       .range(from, to)
  *   );

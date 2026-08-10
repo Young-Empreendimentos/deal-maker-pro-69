@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, crmDb } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
@@ -97,7 +97,7 @@ export default function Auditoria() {
 
   const carregarTrilha = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase.from("crm_deal_status_log")
+    const { data } = await crmDb.from("crm_deal_status_log")
       .select("id, deal_id, status_anterior, status_novo, responsavel_id, created_at")
       .gte("created_at", fromIso).lt("created_at", toIso)
       .order("created_at", { ascending: false }).limit(500);
@@ -105,7 +105,7 @@ export default function Auditoria() {
     setLogs(rowsLog);
     const ids = [...new Set(rowsLog.map((r) => r.deal_id))];
     if (ids.length) {
-      const { data: deals } = await supabase.from("crm_deals").select("id, cliente_nome").in("id", ids);
+      const { data: deals } = await crmDb.from("crm_deals").select("id, cliente_nome").in("id", ids);
       const m: Record<string, string> = {};
       (deals as any[] ?? []).forEach((d) => { m[d.id] = d.cliente_nome || "—"; });
       setDealMap(m);

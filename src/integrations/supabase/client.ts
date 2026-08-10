@@ -15,3 +15,10 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     autoRefreshToken: true,
   }
 });
+
+// Cutover 2026-08: as tabelas crm_ foram movidas para o schema `crm` no Postgres
+// (as views de compatibilidade seguem no schema public). Use `crmDb` em TODA operação
+// de tabela/view crm_ (.select/.insert/.update/.delete/.upsert). RPCs (.rpc), auth e
+// storage continuam no client public (`supabase`). O schema `crm` não está no types.ts
+// gerado, por isso o cast — em runtime funciona; a tipagem vem das views em public.
+export const crmDb = supabase.schema("crm" as any);

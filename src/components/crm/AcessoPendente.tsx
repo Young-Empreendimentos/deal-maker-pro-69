@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { crmDb } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Clock, Lock } from "lucide-react";
 
@@ -18,7 +18,7 @@ export function AcessoPendente({ status }: { status: "pending" | "inactive" }) {
   // desativado e quer voltar (idempotente por user_id — não duplica).
   useEffect(() => {
     if (!user) return;
-    void (supabase as any).from("crm_solicitacoes_acesso").upsert(
+    void (crmDb as any).from("crm_solicitacoes_acesso").upsert(
       { user_id: user.id, email: user.email ?? null, nome: nome || null, status: "pendente" },
       { onConflict: "user_id", ignoreDuplicates: true },
     );
