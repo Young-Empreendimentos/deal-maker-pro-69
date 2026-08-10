@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { supabase, crmDb } from "@/integrations/supabase/client";
+import { crmDb } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -420,7 +420,8 @@ async function fetchAll<T = any>(
   filter?: (q: any) => any
 ): Promise<T[]> {
   const build = () => {
-    let q: any = supabase.from(table as any).select(select, { count: "exact" });
+    // fetchAll só é usado com tabelas do schema crm (crm_deals, crm_formulario_historico_dados)
+    let q: any = crmDb.from(table as any).select(select, { count: "exact" });
     if (filter) q = filter(q);
     return q;
   };
