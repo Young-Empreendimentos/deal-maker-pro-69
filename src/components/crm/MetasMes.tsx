@@ -12,6 +12,12 @@ type Prog = { escopo: string; ref_id: string; nome: string; meta_vendas: number;
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
+// Consultores que NÃO entram nas metas (desligado / gestão comercial).
+const CONSULTORES_SEM_META = new Set([
+  "7c3c08e2-ceca-4e1b-9c04-a5bb7b7d18d4", // M. Linhares (Murilo) — desligado
+  "61aaeca9-f853-47af-836d-56e2f8ae6542", // C. Bortoluzzi (caroline@) — gestão comercial
+]);
+
 /**
  * Quadro de metas mensais (nº de vendas) por empreendimento e por consultor.
  * - Progresso (meta × realizado) vem da RPC crm_metas_progresso (1ª venda válida).
@@ -50,7 +56,7 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
     return () => { vivo = false; };
   }, [mesISO]);
 
-  const lista = aba === "empreendimento" ? emps : users;
+  const lista = aba === "empreendimento" ? emps : users.filter((u) => !CONSULTORES_SEM_META.has(u.id));
 
   function prevMes() { if (mes === 0) { setMes(11); setAno((a) => a - 1); } else setMes((m) => m - 1); }
   function nextMes() { if (mes === 11) { setMes(0); setAno((a) => a + 1); } else setMes((m) => m + 1); }
