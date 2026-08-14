@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, FlaskConical, Search, X, Plus, Paperclip,
+  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
@@ -59,7 +59,6 @@ export default function Atendimento() {
   const [sending, setSending] = useState(false);
   const [agents, setAgents] = useState<CwAgent[]>([]);
   const [busy, setBusy] = useState(false);
-  const [criandoTeste, setCriandoTeste] = useState(false);
   const [busca, setBusca] = useState("");
   const [resultadosBusca, setResultadosBusca] = useState<CwConversation[]>([]);
   const [buscando, setBuscando] = useState(false);
@@ -190,35 +189,6 @@ export default function Atendimento() {
     }
   }
 
-  async function criarTeste() {
-    setCriandoTeste(true);
-    try {
-      const r = await chatwoot.createTestConversation();
-      const novoId = (r as { conversation_id?: number })?.conversation_id;
-      setStatusTab("open");
-      setAssigneeTab("all");
-      // A conversa recém-criada leva 1-2s para entrar na listagem do Chatwoot;
-      // tenta algumas vezes e já abre a conversa quando ela aparecer.
-      let achou = false;
-      for (let i = 0; i < 5; i++) {
-        await new Promise((res) => setTimeout(res, 1200));
-        const rr = await chatwoot.listConversations("open", "all");
-        const lista = rr.data?.payload ?? [];
-        setConvs(lista);
-        if (novoId && lista.some((c) => c.id === novoId)) { setSelId(novoId); achou = true; break; }
-        if (!novoId && lista.length) { achou = true; break; }
-      }
-      toast({
-        title: achou ? "Conversa de teste criada ✅" : "Conversa criada, atualizando…",
-        description: achou ? "Abri ela pra você — responda aí embaixo." : "Se não aparecer, me avise.",
-      });
-    } catch (e) {
-      toast({ title: "Não consegui criar a conversa de teste", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setCriandoTeste(false);
-    }
-  }
-
   async function iniciarConversa() {
     const tel = busca.trim();
     if (!tel) return;
@@ -256,13 +226,6 @@ export default function Atendimento() {
         <Headset className="h-5 w-5 text-primary" />
         <h1 className="text-xl font-bold">Atendimento</h1>
         <Badge variant="secondary" className="ml-1">beta</Badge>
-        {isAdmin && (
-          <Button variant="outline" size="sm" className="ml-auto gap-1.5" onClick={criarTeste} disabled={criandoTeste}>
-            {criandoTeste ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5" />}
-            <span className="hidden sm:inline">Criar conversa de teste</span>
-            <span className="sm:hidden">Teste</span>
-          </Button>
-        )}
       </div>
 
       {erro && (
