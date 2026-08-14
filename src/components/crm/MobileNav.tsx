@@ -1,4 +1,4 @@
-import { LayoutDashboard, Handshake, Building2, Settings, LogOut, Menu, X, ClipboardList, Droplet, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Handshake, Building2, Settings, LogOut, Menu, X, ClipboardList, Droplet, ShieldCheck, Headset } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { NavLink, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -9,6 +9,7 @@ import { ThemeToggle } from "./ThemeToggle";
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
+  { to: "/atendimento", label: "Atendimento", icon: Headset, adminOnly: true },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/auditoria", label: "Auditoria", icon: ShieldCheck, adminOnly: true },
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },

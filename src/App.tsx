@@ -11,6 +11,7 @@ import { AcessoPendente } from "@/components/crm/AcessoPendente";
 // Páginas carregadas sob demanda (code-splitting) — reduz o bundle inicial
 const Login = lazy(() => import("./pages/Login"));
 const Negociacoes = lazy(() => import("./pages/Negociacoes"));
+const Atendimento = lazy(() => import("./pages/Atendimento"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const Configuracoes = lazy(() => import("./pages/Configuracoes"));
 const Tarefas = lazy(() => import("./pages/Tarefas"));
@@ -51,6 +52,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/negociacoes" element={<ProtectedRoute><Negociacoes /></ProtectedRoute>} />
       <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
+      <Route path="/atendimento" element={<ProtectedRoute adminOnly><Atendimento /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute adminOnly><Relatorios /></ProtectedRoute>} />
       <Route path="/relatorio-diario" element={<ProtectedRoute><RelatorioDiario /></ProtectedRoute>} />

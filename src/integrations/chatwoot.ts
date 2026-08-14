@@ -1,0 +1,69 @@
+// Ponte do app com o Chatwoot. Nunca fala direto com o Chatwoot: sempre passa
+// pela Edge Function `chatwoot-proxy` (que guarda o token e valida o usuário do CRM).
+import { supabase } from "./supabase/client";
+
+export type CwAgent = { id: number; name: string; email: string; availability_status?: string };
+
+export type CwSender = {
+  id: number;
+  name?: string;
+  phone_number?: string | null;
+  email?: string | null;
+  thumbnail?: string;
+};
+
+export type CwConversation = {
+  id: number;
+  status: "open" | "resolved" | "pending" | "snoozed";
+  unread_count?: number;
+  timestamp?: number;
+  meta?: { sender?: CwSender; assignee?: CwAgent | null };
+  last_non_activity_message?: { content?: string } | null;
+  messages?: CwMessage[];
+};
+
+export type CwMessage = {
+  id: number;
+  content: string | null;
+  // 0 = recebida (cliente) · 1 = enviada (atendente) · 2 = atividade/sistema · 3 = template
+  message_type: 0 | 1 | 2 | 3;
+  created_at: number;
+  private?: boolean;
+  sender?: { name?: string; type?: string };
+};
+
+async function call<T = any>(action: string, params: Record<string, unknown> = {}): Promise<T> {
+  const { data, error } = await supabase.functions.invoke("chatwoot-proxy", { body: { action, ...params } });
+  if (error) {
+    let msg = error.message || "Falha ao falar com o Chatwoot";
+    try {
+      const j = await (error as any).context?.json?.();
+      if (j?.error) msg = j.error;
+    } catch { /* ignora */ }
+    throw new Error(msg);
+  }
+  if ((data as any)?.error) throw new Error((data as any).error);
+  return data as T;
+}
+
+export const chatwoot = {
+  /** Diagnóstico: confirma secrets + Chatwoot no ar. */
+  health: () => call<{ ok: boolean; chatwoot_url: string; account_id: string; inboxes: number }>("health"),
+
+  listConversations: (status: string, assignee_type: string = "all") =>
+    call<{ ok: boolean; data: { meta?: any; payload?: CwConversation[] } }>("list_conversations", { status, assignee_type }),
+
+  getMessages: (conversation_id: number) =>
+    call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }),
+
+  sendMessage: (conversation_id: number, content: string, signature_name?: string) =>
+    call("send_message", { conversation_id, content, signature_name }),
+
+  assign: (conversation_id: number, assignee_id: number | null) =>
+    call("assign_conversation", { conversation_id, assignee_id }),
+
+  toggleStatus: (conversation_id: number, status: "resolved" | "open" | "pending") =>
+    call("toggle_status", { conversation_id, status }),
+
+  listAgents: () => call<{ ok: boolean; data: CwAgent[] }>("list_agents"),
+};
