@@ -9,9 +9,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
-  Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2, Phone,
-  ArrowLeft, MessageSquarePlus, AlertTriangle, User as UserIcon, FlaskConical,
+  Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
+  ArrowLeft, AlertTriangle, FlaskConical,
 } from "lucide-react";
+import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
 const POLL_MS = 6000;
 
@@ -365,37 +366,7 @@ export default function Atendimento() {
               O painel da negociação aparece aqui ao abrir uma conversa.
             </div>
           ) : (
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              <div className="flex flex-col items-center text-center gap-2 pb-3 border-b">
-                <div className="flex h-14 w-14 items-center justify-center rounded-full bg-primary/10 text-primary text-lg font-semibold">
-                  {iniciais(sel.meta?.sender?.name)}
-                </div>
-                <div>
-                  <p className="font-semibold">{sel.meta?.sender?.name || "Contato sem nome"}</p>
-                  <p className="text-xs text-muted-foreground flex items-center justify-center gap-1">
-                    <Phone className="h-3 w-3" /> {fonePretty(sel.meta?.sender?.phone_number)}
-                  </p>
-                </div>
-              </div>
-
-              <div className="space-y-2">
-                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
-                  <UserIcon className="h-3.5 w-3.5" /> Negociação
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Ainda não vinculei este contato a uma negociação do Pingolead.
-                </p>
-                <Button className="w-full gap-2" variant="default" disabled title="Disponível na próxima etapa">
-                  <MessageSquarePlus className="h-4 w-4" /> Criar negociação
-                </Button>
-                <Button className="w-full gap-2" variant="outline" disabled title="Disponível na próxima etapa">
-                  Vincular a existente
-                </Button>
-                <p className="text-[11px] text-muted-foreground text-center pt-1">
-                  Criar/vincular negociação entra na próxima etapa (Fase 2).
-                </p>
-              </div>
-            </div>
+            <AtendimentoDealPanel phone={sel.meta?.sender?.phone_number} nome={sel.meta?.sender?.name} />
           )}
         </div>
       </div>

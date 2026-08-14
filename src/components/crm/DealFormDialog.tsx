@@ -12,9 +12,13 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess: () => void;
+  /** Pré-preenche o formulário (ex.: criar negociação a partir de uma conversa do WhatsApp). */
+  initial?: { nome?: string; telefone?: string };
+  /** Chamado com o id do deal recém-criado (ex.: para vincular a conversa). */
+  onCreated?: (dealId: string) => void;
 }
 
-export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
+export function DealFormDialog({ open, onOpenChange, onSuccess, initial, onCreated }: Props) {
   const { user } = useAuth();
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -34,8 +38,15 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
     if (open) {
       crmDb.from("crm_fontes_lead").select("id, nome").eq("ativo", true).then(({ data }) => setFontes(data ?? []));
       crmDb.from("crm_empreendimentos").select("id, nome").eq("ativo", true).then(({ data }) => setEmpreendimentos(data ?? []));
+      // Pré-preenche com o que veio da conversa (nome/telefone), mantendo o resto.
+      setForm((f) => ({
+        ...f,
+        cliente_nome: initial?.nome ?? f.cliente_nome,
+        telefone: initial?.telefone ?? f.telefone,
+      }));
     }
-  }, [open]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, initial?.nome, initial?.telefone]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,30 +57,31 @@ export function DealFormDialog({ open, onOpenChange, onSuccess }: Props) {
     }
     setLoading(true);
 
-    const { error } = await crmDb.from("crm_deals").insert({
+    const { data: novo, error } = await crmDb.from("crm_deals").insert({
       cliente_nome: form.cliente_nome,
       cliente_email: form.cliente_email || null,
       qualificacao: form.qualificacao as any,
       fonte_id: form.fonte_id || null,
       empreendimento_id: form.empreendimento_id,
       responsavel_id: user.id,
-    });
+    } as any).select("id").single();
 
-    if (error) {
-      toast({ title: "Erro ao criar negociação", description: error.message, variant: "destructive" });
-    } else {
-      // Add phone if provided
-      if (form.telefone) {
-        const { data: dealData } = await crmDb.from("crm_deals").select("id").eq("cliente_nome", form.cliente_nome).eq("responsavel_id", user.id).order("created_at", { ascending: false }).limit(1).single();
-        if (dealData) {
-          await crmDb.from("crm_deal_phones").insert({ deal_id: dealData.id, telefone: form.telefone });
-        }
-      }
-      toast({ title: "Negociação criada com sucesso!" });
-      onOpenChange(false);
-      setForm({ cliente_nome: "", cliente_email: "", qualificacao: "frio", fonte_id: "", empreendimento_id: "", telefone: "" });
-      onSuccess();
+    if (error || !novo) {
+      toast({ title: "Erro ao criar negociação", description: error?.message ?? "Tente novamente.", variant: "destructive" });
+      setLoading(false);
+      return;
     }
+
+    // Associa o telefone, se houver.
+    if (form.telefone) {
+      await crmDb.from("crm_deal_phones").insert({ deal_id: novo.id, telefone: form.telefone } as any);
+    }
+
+    toast({ title: "Negociação criada com sucesso!" });
+    onOpenChange(false);
+    setForm({ cliente_nome: "", cliente_email: "", qualificacao: "frio", fonte_id: "", empreendimento_id: "", telefone: "" });
+    onCreated?.(novo.id);
+    onSuccess();
     setLoading(false);
   };
 
