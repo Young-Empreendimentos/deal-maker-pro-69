@@ -57,6 +57,10 @@ export const chatwoot = {
   searchConversations: (q: string) =>
     call<{ ok: boolean; data: { payload?: CwConversation[] } }>("search_conversations", { q }),
 
+  /** Inicia (ou reabre) uma conversa de WhatsApp com um número. */
+  startConversation: (phone: string, name?: string) =>
+    call<{ ok: boolean; conversation_id: number; reused: boolean }>("start_conversation", { phone, name }),
+
   getMessages: (conversation_id: number) =>
     call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }),
 

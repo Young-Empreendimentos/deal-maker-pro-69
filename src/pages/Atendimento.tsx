@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/crm/AppLayout";
+import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { chatwoot, type CwAgent, type CwConversation, type CwMessage } from "@/integrations/chatwoot";
 import { Button } from "@/components/ui/button";
@@ -11,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, FlaskConical, Search, X,
+  ArrowLeft, AlertTriangle, FlaskConical, Search, X, Plus,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
@@ -32,10 +33,14 @@ function iniciais(nome?: string) {
 function fonePretty(f?: string | null) {
   return f || "sem telefone";
 }
+function pareceNumero(s: string) {
+  return s.replace(/[^0-9]/g, "").length >= 6;
+}
 
 export default function Atendimento() {
   const { user, nome, isAdmin } = useAuth();
   const { toast } = useToast();
+  const [sp] = useSearchParams();
 
   const [statusTab, setStatusTab] = useState<StatusTab>("open");
   // Piloto (número central): todos veem as conversas do número. A separação por pessoa
@@ -54,6 +59,8 @@ export default function Atendimento() {
   const [busca, setBusca] = useState("");
   const [resultadosBusca, setResultadosBusca] = useState<CwConversation[]>([]);
   const [buscando, setBuscando] = useState(false);
+  const [nomeInicial, setNomeInicial] = useState("");
+  const [iniciando, setIniciando] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadConvs = useCallback(async (silent = false) => {
@@ -110,6 +117,13 @@ export default function Atendimento() {
     }, 350);
     return () => clearTimeout(t);
   }, [busca]);
+
+  // Veio de "Conversar no WhatsApp" numa negociação: já busca o número.
+  useEffect(() => {
+    const tel = sp.get("tel");
+    if (tel) { setBusca(tel); setNomeInicial(sp.get("nome") ?? ""); }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const filtered = useMemo(() => {
     const me = user?.email?.toLowerCase();
@@ -201,6 +215,22 @@ export default function Atendimento() {
     }
   }
 
+  async function iniciarConversa() {
+    const tel = busca.trim();
+    if (!tel) return;
+    setIniciando(true);
+    try {
+      const r = await chatwoot.startConversation(tel, nomeInicial || undefined);
+      const id = (r as { conversation_id?: number })?.conversation_id;
+      setBusca(""); setNomeInicial("");
+      if (id) { setSelId(id); await loadConvs(true); await loadMsgs(id, true); }
+    } catch (e) {
+      toast({ title: "Não consegui iniciar a conversa", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setIniciando(false);
+    }
+  }
+
   const abasAssignee: { key: AssigneeTab; label: string; adminOnly?: boolean }[] = [
     { key: "me", label: "Minhas" },
     { key: "unassigned", label: "Não atribuídas", adminOnly: true },
@@ -252,6 +282,16 @@ export default function Atendimento() {
               )}
             </div>
           </div>
+          {buscaAtiva && pareceNumero(busca) && (
+            <button
+              onClick={iniciarConversa}
+              disabled={iniciando}
+              className="flex items-center gap-2 px-3 py-2 border-b text-sm text-primary hover:bg-primary/5 transition-colors w-full text-left"
+            >
+              {iniciando ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
+              <span className="truncate">Iniciar conversa com <strong>{busca.trim()}</strong></span>
+            </button>
+          )}
           {!buscaAtiva && (
             <div className="flex gap-1 p-2 border-b">
               <TabBtn active={statusTab === "open"} onClick={() => { setStatusTab("open"); setSelId(null); }}>Abertas</TabBtn>

@@ -148,6 +148,56 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // Inicia (ou reabre) uma conversa de WhatsApp com um número — atender a partir do CRM.
+      case "start_conversation": {
+        const digits = String(payload.phone ?? "").replace(/[^0-9]/g, "");
+        if (digits.length < 8) return J({ error: "Telefone inválido." }, 400);
+        const phone = "+" + digits;
+        const nome = String(payload.name ?? "").trim() || phone;
+        const suf = digits.slice(-8);
+
+        // Acha o inbox de WhatsApp (o real da Evolution; nunca o de teste).
+        const inboxesResp = await cw(`/inboxes`, { method: "GET" });
+        const inboxes = (inboxesResp?.payload ?? []).filter((i: any) => i.name !== "Pingolead (teste)");
+        const wa = inboxes.find((i: any) => /whatsapp/i.test(String(i.channel_type ?? ""))) ?? inboxes[0];
+        if (!wa) return J({ error: "Nenhum inbox de WhatsApp encontrado. Conecte o número primeiro." }, 400);
+
+        // Já existe conversa com esse número? Reaproveita.
+        const foundResp = await cw(`/conversations/search?q=${encodeURIComponent(suf)}`, { method: "GET" });
+        const found = ((foundResp?.data ?? foundResp)?.payload ?? []);
+        const existing = found.find((c: any) => String(c.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "").endsWith(suf));
+        if (existing) return J({ ok: true, conversation_id: existing.id, reused: true });
+
+        // Cria o contato (ou acha, se já existir) e abre a conversa.
+        let contactId: number | undefined;
+        let sourceId: string | undefined;
+        let mk: any = null;
+        try {
+          mk = await cw(`/contacts`, { method: "POST", body: JSON.stringify({ inbox_id: wa.id, name: nome, phone_number: phone }) });
+        } catch { mk = null; }
+        if (mk) {
+          const contact = mk?.payload?.contact ?? mk?.payload ?? mk;
+          contactId = contact?.id;
+          sourceId = contact?.contact_inboxes?.[0]?.source_id ?? mk?.payload?.contact_inbox?.source_id;
+        } else {
+          const s = await cw(`/contacts/search?q=${encodeURIComponent(suf)}`, { method: "GET" });
+          const list = ((s?.data ?? s)?.payload ?? s?.payload ?? []);
+          const hit = list.find((c: any) => String(c.phone_number ?? "").replace(/[^0-9]/g, "").endsWith(suf)) ?? list[0];
+          contactId = hit?.id;
+          sourceId = hit?.contact_inboxes?.find((ci: any) => ci?.inbox?.id === wa.id)?.source_id ?? hit?.contact_inboxes?.[0]?.source_id;
+          if (contactId && !sourceId) {
+            let ci: any = null;
+            try { ci = await cw(`/contacts/${contactId}/contact_inboxes`, { method: "POST", body: JSON.stringify({ inbox_id: wa.id }) }); } catch { ci = null; }
+            sourceId = ci?.source_id ?? ci?.payload?.source_id;
+          }
+        }
+        if (!contactId) return J({ error: "Não consegui preparar o contato no Chatwoot." }, 500);
+
+        const conv = await cw(`/conversations`, { method: "POST", body: JSON.stringify({ source_id: sourceId, inbox_id: wa.id, contact_id: contactId }) });
+        const convId = conv?.id ?? conv?.payload?.id;
+        return J({ ok: true, conversation_id: convId, reused: false });
+      }
+
       // TEMP (fase de teste): cria uma conversa fake para validar a tela sem WhatsApp.
       // Garante um inbox tipo API "Pingolead (teste)", um contato e 1 mensagem do "cliente".
       case "create_test_conversation": {
