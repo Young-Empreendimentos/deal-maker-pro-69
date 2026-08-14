@@ -222,6 +222,15 @@ export default function Atendimento() {
   async function iniciarConversa() {
     const tel = busca.trim();
     if (!tel) return;
+    // Exige o código do país (não assume Brasil) — evita mandar mensagem pro país errado.
+    if (tel.replace(/[^0-9]/g, "").length < 12) {
+      toast({
+        title: "Inclua o código do país",
+        description: "Ex.: 55 51 99999-9999 (55 = Brasil). Sem o código do país, o WhatsApp pode entender o número errado.",
+        variant: "destructive",
+      });
+      return;
+    }
     setIniciando(true);
     try {
       const r = await chatwoot.startConversation(tel, nomeInicial || undefined);

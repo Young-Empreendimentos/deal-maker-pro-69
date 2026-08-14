@@ -19,6 +19,7 @@ const CONSULTORES_SEM_META = new Set([
   "fb37f75d-124d-43d0-bf79-c49c6e01720f", // E. Tebaldi (eduardo@)
   "1f0a16df-0777-4907-91c9-2592c94a39b2", // C. Tebaldi (tebaldi@)
   "53d3b898-bbb1-445d-8cff-9b1452167542", // M. Vargas (matheus@)
+  "57ce770f-ed66-4ccf-9bd1-e42fb9a382f7", // Elen (elen@) — admin, não é meta
 ]);
 
 // Empreendimentos que NÃO entram nas metas.
