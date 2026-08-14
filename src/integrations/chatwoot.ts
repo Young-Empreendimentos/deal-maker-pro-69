@@ -22,6 +22,14 @@ export type CwConversation = {
   messages?: CwMessage[];
 };
 
+export type CwAttachment = {
+  id: number;
+  file_type: string; // image | audio | video | file | ...
+  data_url?: string;
+  thumb_url?: string;
+  extension?: string | null;
+};
+
 export type CwMessage = {
   id: number;
   content: string | null;
@@ -30,6 +38,7 @@ export type CwMessage = {
   created_at: number;
   private?: boolean;
   sender?: { name?: string; type?: string };
+  attachments?: CwAttachment[];
 };
 
 async function call<T = any>(action: string, params: Record<string, unknown> = {}): Promise<T> {

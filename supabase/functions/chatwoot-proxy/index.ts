@@ -99,6 +99,11 @@ Deno.serve(async (req) => {
         const cid = payload.conversation_id;
         if (!cid) return J({ error: "conversation_id obrigatório" }, 400);
         const data = await cw(`/conversations/${cid}/messages`, { method: "GET" });
+        // Resolve URLs de anexos (relativos -> absolutos) p/ o app abrir imagens/áudios/arquivos.
+        const abs = (u?: string) => (!u ? u : (u.startsWith("http") ? u : `${CHATWOOT_URL}${u.startsWith("/") ? "" : "/"}${u}`));
+        for (const m of (data?.payload ?? [])) {
+          for (const a of (m.attachments ?? [])) { a.data_url = abs(a.data_url); a.thumb_url = abs(a.thumb_url); }
+        }
         return J({ ok: true, data });
       }
 

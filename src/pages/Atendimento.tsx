@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AppLayout } from "@/components/crm/AppLayout";
 import { useSearchParams } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { chatwoot, type CwAgent, type CwConversation, type CwMessage } from "@/integrations/chatwoot";
+import { chatwoot, type CwAgent, type CwAttachment, type CwConversation, type CwMessage } from "@/integrations/chatwoot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, FlaskConical, Search, X, Plus,
+  ArrowLeft, AlertTriangle, FlaskConical, Search, X, Plus, Paperclip,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
@@ -35,6 +35,10 @@ function fonePretty(f?: string | null) {
 }
 function pareceNumero(s: string) {
   return s.replace(/[^0-9]/g, "").length >= 6;
+}
+function limpaAssinatura(s: string) {
+  // No WhatsApp a assinatura do atendente vira negrito (*Nome:*); no painel, mostra sem os asteriscos.
+  return s.replace(/^\*([^\n*]+):\*/, "$1:");
 }
 
 export default function Atendimento() {
@@ -410,10 +414,12 @@ export default function Atendimento() {
                   return (
                     <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
                       <div className={cn(
-                        "max-w-[78%] rounded-2xl px-3 py-1.5 text-sm whitespace-pre-wrap break-words",
+                        "max-w-[78%] rounded-2xl px-3 py-1.5 text-sm break-words",
                         mine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border rounded-bl-sm",
                       )}>
-                        {m.content || <span className="italic opacity-60">(sem texto)</span>}
+                        {(m.attachments ?? []).map((a) => <Anexo key={a.id} att={a} mine={mine} />)}
+                        {m.content && <div className="whitespace-pre-wrap">{limpaAssinatura(m.content)}</div>}
+                        {!m.content && !(m.attachments?.length) && <span className="italic opacity-60">(sem texto)</span>}
                         <div className={cn("text-[10px] mt-0.5 text-right", mine ? "text-primary-foreground/70" : "text-muted-foreground")}>{hora(m.created_at)}</div>
                       </div>
                     </div>
@@ -457,6 +463,25 @@ export default function Atendimento() {
         </div>
       </div>
     </AppLayout>
+  );
+}
+
+function Anexo({ att, mine }: { att: CwAttachment; mine: boolean }) {
+  const url = att.data_url;
+  if (!url) return null;
+  if (att.file_type === "image") {
+    return <img src={url} alt="imagem" loading="lazy" onClick={() => window.open(url, "_blank")} className="rounded-lg max-w-full max-h-64 mb-1 cursor-pointer block" />;
+  }
+  if (att.file_type === "audio") {
+    return <audio controls src={url} className="max-w-full mb-1" />;
+  }
+  if (att.file_type === "video") {
+    return <video controls src={url} className="rounded-lg max-w-full max-h-64 mb-1" />;
+  }
+  return (
+    <a href={url} target="_blank" rel="noreferrer" className={cn("flex items-center gap-1.5 underline mb-1", mine ? "text-primary-foreground" : "text-primary")}>
+      <Paperclip className="h-3.5 w-3.5 shrink-0" /> {att.extension ? att.extension.toUpperCase() : "Arquivo"}
+    </a>
   );
 }
 
