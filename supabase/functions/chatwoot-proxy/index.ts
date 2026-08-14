@@ -88,7 +88,10 @@ Deno.serve(async (req) => {
         // 'me' no Chatwoot é relativo ao token; filtramos por agente no app. Aqui tratamos só unassigned.
         if (assigneeType === "unassigned") params.set("assignee_type", "unassigned");
         if (payload.page) params.set("page", String(payload.page));
-        const data = await cw(`/conversations?${params.toString()}`, { method: "GET" });
+        const raw = await cw(`/conversations?${params.toString()}`, { method: "GET" });
+        // O endpoint de conversas embrulha em { data: { meta, payload } } — os demais não.
+        // Desembrulha para o app ler direto data.payload.
+        const data = raw?.data ?? raw;
         return J({ ok: true, data });
       }
 
@@ -148,6 +151,12 @@ Deno.serve(async (req) => {
           });
         }
         const inboxId = inbox.id ?? inbox?.payload?.id;
+        // Garante que os atendentes ENXERGUEM este inbox (senão a listagem não traz as conversas dele).
+        try {
+          const agentsResp = await cw(`/agents`, { method: "GET" });
+          const agentIds = (Array.isArray(agentsResp) ? agentsResp : (agentsResp?.payload ?? [])).map((a: any) => a.id).filter(Boolean);
+          if (agentIds.length) await cw(`/inbox_members`, { method: "POST", body: JSON.stringify({ inbox_id: inboxId, user_ids: agentIds }) });
+        } catch (_e) { /* provavelmente já são membros */ }
         const uniq = `${Date.now()}`.slice(-7) + Math.floor(Math.random() * 90 + 10);
         const nomeCliente = String(payload.name ?? `Cliente Teste ${uniq.slice(-3)}`);
         const contactResp = await cw(`/contacts`, {
