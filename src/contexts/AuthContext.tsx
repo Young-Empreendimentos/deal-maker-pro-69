@@ -25,6 +25,8 @@ interface AuthContextType {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   isAdmin: boolean;
+  /** Pode ver/usar a área de Atendimento (admin ou habilitado na lista crm_atendimento_habilitado). */
+  podeAtender: boolean;
   /** Vê os leads de todos os consultores (admin OU gestor). Só visibilidade — não dá poderes de admin. */
   veTodosLeads: boolean;
   /** Papel de recuperação: vê os próprios leads + os PERDIDOS de todos (assume ao reativar). */
@@ -49,14 +51,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthStatus>(null);
+  const [podeAtender, setPodeAtender] = useState(false);
 
   const fetchUserMeta = async (userId: string) => {
-    const [roleRes, profileRes] = await Promise.all([
+    const [roleRes, profileRes, atendRes] = await Promise.all([
       crmDb.from("crm_user_roles").select("role, ativo").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
+      crmDb.from("crm_atendimento_habilitado").select("user_id").eq("user_id", userId).maybeSingle(),
     ]);
     setNome(profileRes.data?.nome ?? "");
     setRole((roleRes.data?.role as UserRole) ?? "user");
+    setPodeAtender(roleRes.data?.role === "admin" || !!atendRes.data);
     // Define a situação de acesso ao CRM (a UI decide o que mostrar; o RLS já bloqueia no banco)
     if (!roleRes.data)                     setAuthStatus("pending");
     else if (roleRes.data.ativo === false) setAuthStatus("inactive");
@@ -99,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRole("user");
         setNome("");
         setAuthStatus(null);
+        setPodeAtender(false);
       }
     });
 
@@ -133,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       session, user, role, nome, loading, authError,
       signIn, signInWithGoogle, signOut,
       isAdmin: role === "admin",
+      podeAtender,
       veTodosLeads: role === "admin" || role === "gestor",
       isRecuperacao: role === "recuperacao",
       authStatus,

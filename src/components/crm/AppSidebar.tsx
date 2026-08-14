@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
-  { to: "/atendimento", label: "Atendimento", icon: Headset },
+  { to: "/atendimento", label: "Atendimento", icon: Headset, atendimento: true },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, adminOnly: true },
   { to: "/relatorio-diario", label: "Relatório Diário", icon: CalendarRange },
@@ -16,7 +16,7 @@ const links = [
 ];
 
 export function AppSidebar() {
-  const { isAdmin, nome, user, signOut } = useAuth();
+  const { isAdmin, podeAtender, nome, user, signOut } = useAuth();
   const location = useLocation();
   const inicial = (nome || user?.email || "?").trim().charAt(0).toUpperCase();
 
@@ -40,6 +40,7 @@ export function AppSidebar() {
         <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto overflow-x-hidden">
           {links.map((link) => {
             if (link.adminOnly && !isAdmin) return null;
+            if ((link as { atendimento?: boolean }).atendimento && !podeAtender) return null;
             const active = location.pathname.startsWith(link.to);
             return (
               <NavLink

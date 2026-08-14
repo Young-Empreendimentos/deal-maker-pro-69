@@ -9,14 +9,14 @@ import { ThemeToggle } from "./ThemeToggle";
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
-  { to: "/atendimento", label: "Atendimento", icon: Headset },
+  { to: "/atendimento", label: "Atendimento", icon: Headset, atendimento: true },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/auditoria", label: "Auditoria", icon: ShieldCheck, adminOnly: true },
   { to: "/configuracoes", label: "Configurações", icon: Settings, adminOnly: true },
 ];
 
 export function MobileNav() {
-  const { isAdmin, signOut } = useAuth();
+  const { isAdmin, podeAtender, signOut } = useAuth();
   const location = useLocation();
   const [open, setOpen] = useState(false);
 
@@ -41,6 +41,7 @@ export function MobileNav() {
         <nav className="bg-card border-b border-border p-3 space-y-1">
           {links.map((link) => {
             if (link.adminOnly && !isAdmin) return null;
+            if ((link as { atendimento?: boolean }).atendimento && !podeAtender) return null;
             const active = location.pathname.startsWith(link.to);
             return (
               <NavLink

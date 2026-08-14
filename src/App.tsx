@@ -27,8 +27,8 @@ const NotFound = lazy(() => import("./pages/NotFound"));
 
 const queryClient = new QueryClient();
 
-function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
-  const { user, loading, isAdmin, authStatus } = useAuth();
+function ProtectedRoute({ children, adminOnly = false, atendimentoOnly = false }: { children: React.ReactNode; adminOnly?: boolean; atendimentoOnly?: boolean }) {
+  const { user, loading, isAdmin, authStatus, podeAtender } = useAuth();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
   if (!user) return <Navigate to="/login" replace />;
   // Meta do usuário (papel/autorização) ainda carregando
@@ -36,6 +36,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   // Logado mas sem acesso ao CRM → tela de aviso (não o app vazio)
   if (authStatus !== "authorized") return <AcessoPendente status={authStatus} />;
   if (adminOnly && !isAdmin) return <Navigate to="/negociacoes" replace />;
+  if (atendimentoOnly && !podeAtender) return <Navigate to="/negociacoes" replace />;
   return <>{children}</>;
 }
 
@@ -52,7 +53,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/negociacoes" element={<ProtectedRoute><Negociacoes /></ProtectedRoute>} />
       <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
-      <Route path="/atendimento" element={<ProtectedRoute><Atendimento /></ProtectedRoute>} />
+      <Route path="/atendimento" element={<ProtectedRoute atendimentoOnly><Atendimento /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute adminOnly><Relatorios /></ProtectedRoute>} />
       <Route path="/relatorio-diario" element={<ProtectedRoute><RelatorioDiario /></ProtectedRoute>} />
