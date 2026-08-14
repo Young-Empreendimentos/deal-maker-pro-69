@@ -147,11 +147,25 @@ export default function Atendimento() {
   async function criarTeste() {
     setCriandoTeste(true);
     try {
-      await chatwoot.createTestConversation();
+      const r = await chatwoot.createTestConversation();
+      const novoId = (r as { conversation_id?: number })?.conversation_id;
       setStatusTab("open");
       setAssigneeTab("all");
-      await loadConvs(true);
-      toast({ title: "Conversa de teste criada", description: "Aparece em Abertas. Clique nela para atender." });
+      // A conversa recém-criada leva 1-2s para entrar na listagem do Chatwoot;
+      // tenta algumas vezes e já abre a conversa quando ela aparecer.
+      let achou = false;
+      for (let i = 0; i < 5; i++) {
+        await new Promise((res) => setTimeout(res, 1200));
+        const rr = await chatwoot.listConversations("open", "all");
+        const lista = rr.data?.payload ?? [];
+        setConvs(lista);
+        if (novoId && lista.some((c) => c.id === novoId)) { setSelId(novoId); achou = true; break; }
+        if (!novoId && lista.length) { achou = true; break; }
+      }
+      toast({
+        title: achou ? "Conversa de teste criada ✅" : "Conversa criada, atualizando…",
+        description: achou ? "Abri ela pra você — responda aí embaixo." : "Se não aparecer, me avise.",
+      });
     } catch (e) {
       toast({ title: "Não consegui criar a conversa de teste", description: (e as Error).message, variant: "destructive" });
     } finally {
