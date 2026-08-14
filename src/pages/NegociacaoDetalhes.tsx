@@ -21,6 +21,7 @@ import { KANBAN_COLUMNS, QUAL_COLORS } from "./Negociacoes";
 import { TASK_TIPOS, TIPO_CONFIG } from "./Tarefas";
 import { DealProposalForm, isProposalComplete } from "@/components/crm/DealProposalForm";
 import { DealBasicEditor } from "@/components/crm/DealBasicEditor";
+import { HistoricoConversas } from "@/components/crm/HistoricoConversas";
 import { DealGallery } from "@/components/crm/DealGallery";
 
 type DealDetail = {
@@ -934,6 +935,9 @@ export default function NegociacaoDetalhes() {
             <p className="text-[10px] text-muted-foreground">Ctrl+Enter para enviar</p>
           </CardContent>
         </Card>
+
+        {/* Histórico de conversas (WhatsApp) — só leitura, preenchido pelo webhook */}
+        <HistoricoConversas dealId={deal.id} />
       </div>
 
       {/* New Task Dialog */}
