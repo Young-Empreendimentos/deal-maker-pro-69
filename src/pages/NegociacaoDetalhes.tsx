@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin, AlertTriangle, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -94,7 +94,7 @@ function formatDuracao(ms: number): string {
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin, isRecuperacao } = useAuth();
+  const { user, isAdmin, isRecuperacao, podeAtender } = useAuth();
   const { toast } = useToast();
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
@@ -538,6 +538,18 @@ export default function NegociacaoDetalhes() {
                   >
                     {deal.status === "vendido" ? "Vendido" : "Perdido"}
                   </Badge>
+                )}
+                {podeAtender && phones.length > 0 && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-emerald-200 hover:text-white hover:bg-emerald-500/20"
+                    onClick={() => navigate(`/atendimento?tel=${encodeURIComponent(phones[0].telefone)}&nome=${encodeURIComponent(deal.cliente_nome)}`)}
+                    title="Abrir/iniciar conversa no WhatsApp com este cliente"
+                  >
+                    <MessageCircle className="h-4 w-4 mr-1" />
+                    Conversar
+                  </Button>
                 )}
                 <Button
                   variant="ghost"
