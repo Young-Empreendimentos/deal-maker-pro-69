@@ -348,9 +348,7 @@ export default function Atendimento() {
                       selId === c.id && "bg-muted",
                     )}
                   >
-                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                      {iniciais(s?.name)}
-                    </div>
+                    <Avatar nome={s?.name} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium text-sm truncate">{s?.name || fonePretty(s?.phone_number)}</span>
@@ -378,9 +376,7 @@ export default function Atendimento() {
               {/* Cabeçalho da conversa */}
               <div className="flex items-center gap-2 px-3 py-2 border-b">
                 <button className="lg:hidden p-1" onClick={() => setSelId(null)}><ArrowLeft className="h-4 w-4" /></button>
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-primary text-xs font-semibold">
-                  {iniciais(sel.meta?.sender?.name)}
-                </div>
+                <Avatar nome={sel.meta?.sender?.name} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
                   <p className="text-[11px] text-muted-foreground truncate">
@@ -492,6 +488,15 @@ function Anexo({ att, mine }: { att: CwAttachment; mine: boolean }) {
       <Paperclip className="h-3.5 w-3.5 shrink-0" /> {att.extension ? att.extension.toUpperCase() : "Arquivo"}
     </a>
   );
+}
+
+function Avatar({ nome, foto, className }: { nome?: string | null; foto?: string | null; className?: string }) {
+  const [erro, setErro] = useState(false);
+  const base = "shrink-0 rounded-full flex items-center justify-center font-semibold overflow-hidden";
+  if (foto && !erro) {
+    return <img src={foto} alt="" onError={() => setErro(true)} className={cn(base, "object-cover bg-muted", className)} />;
+  }
+  return <div className={cn(base, "bg-primary/10 text-primary", className)}>{iniciais(nome ?? undefined)}</div>;
 }
 
 function TabBtn({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {

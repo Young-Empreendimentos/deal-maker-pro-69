@@ -42,7 +42,7 @@ Deno.serve(async (req) => {
     }
 
     // Grava (dedup por chatwoot_message_id).
-    await admin.schema("crm").from("crm_atendimento_mensagens").upsert({
+    const { error } = await admin.schema("crm").from("crm_atendimento_mensagens").upsert({
       chatwoot_message_id: mid,
       conversation_id: convId,
       deal_id: dealId,
@@ -53,6 +53,7 @@ Deno.serve(async (req) => {
       anexos,
       msg_em: msgEm,
     }, { onConflict: "chatwoot_message_id", ignoreDuplicates: true });
+    if (error) { console.error("chatwoot-webhook upsert:", error.message); return new Response("db-error", { status: 200 }); }
 
     return new Response("ok", { status: 200 });
   } catch (e) {

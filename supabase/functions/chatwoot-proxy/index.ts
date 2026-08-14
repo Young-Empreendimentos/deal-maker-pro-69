@@ -92,6 +92,11 @@ Deno.serve(async (req) => {
         // O endpoint de conversas embrulha em { data: { meta, payload } } — os demais não.
         // Desembrulha para o app ler direto data.payload.
         const data = raw?.data ?? raw;
+        // Resolve a foto de perfil (thumbnail) do contato p/ URL absoluta.
+        const absT = (u?: string) => (!u ? u : (u.startsWith("http") ? u : `${CHATWOOT_URL}${u.startsWith("/") ? "" : "/"}${u}`));
+        for (const c of (data?.payload ?? [])) {
+          if (c?.meta?.sender) c.meta.sender.thumbnail = absT(c.meta.sender.thumbnail);
+        }
         return J({ ok: true, data });
       }
 
