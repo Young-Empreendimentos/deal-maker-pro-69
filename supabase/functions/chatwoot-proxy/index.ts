@@ -56,8 +56,9 @@ Deno.serve(async (req) => {
     const { data: { user: caller } } = await callerClient.auth.getUser();
     if (!caller) return J({ error: "Não autenticado" }, 401);
 
-    // Precisa estar na lista do CRM e ativo.
-    const { data: roleRow } = await admin.from("crm_user_roles").select("role, ativo").eq("user_id", caller.id).maybeSingle();
+    // Precisa estar na lista do CRM e ativo. (crm_user_roles vive no schema `crm` após o cutover.)
+    const { data: roleRow, error: roleErr } = await admin.schema("crm").from("crm_user_roles").select("role, ativo").eq("user_id", caller.id).maybeSingle();
+    if (roleErr) return J({ error: `Erro ao checar permissão no CRM: ${roleErr.message}` }, 500);
     if (!roleRow || roleRow.ativo === false) return J({ error: "Sem acesso ao CRM" }, 403);
     const isAdmin = roleRow.role === "admin";
 
