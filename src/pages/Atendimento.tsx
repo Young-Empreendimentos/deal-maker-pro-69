@@ -10,7 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2, Phone,
-  ArrowLeft, MessageSquarePlus, AlertTriangle, User as UserIcon,
+  ArrowLeft, MessageSquarePlus, AlertTriangle, User as UserIcon, FlaskConical,
 } from "lucide-react";
 
 const POLL_MS = 6000;
@@ -46,6 +46,7 @@ export default function Atendimento() {
   const [sending, setSending] = useState(false);
   const [agents, setAgents] = useState<CwAgent[]>([]);
   const [busy, setBusy] = useState(false);
+  const [criandoTeste, setCriandoTeste] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadConvs = useCallback(async (silent = false) => {
@@ -143,6 +144,21 @@ export default function Atendimento() {
     }
   }
 
+  async function criarTeste() {
+    setCriandoTeste(true);
+    try {
+      await chatwoot.createTestConversation();
+      setStatusTab("open");
+      setAssigneeTab("all");
+      await loadConvs(true);
+      toast({ title: "Conversa de teste criada", description: "Aparece em Abertas. Clique nela para atender." });
+    } catch (e) {
+      toast({ title: "Não consegui criar a conversa de teste", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setCriandoTeste(false);
+    }
+  }
+
   const abasAssignee: { key: AssigneeTab; label: string; adminOnly?: boolean }[] = [
     { key: "me", label: "Minhas" },
     { key: "unassigned", label: "Não atribuídas", adminOnly: true },
@@ -155,6 +171,13 @@ export default function Atendimento() {
         <Headset className="h-5 w-5 text-primary" />
         <h1 className="text-xl font-bold">Atendimento</h1>
         <Badge variant="secondary" className="ml-1">beta</Badge>
+        {isAdmin && (
+          <Button variant="outline" size="sm" className="ml-auto gap-1.5" onClick={criarTeste} disabled={criandoTeste}>
+            {criandoTeste ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FlaskConical className="h-3.5 w-3.5" />}
+            <span className="hidden sm:inline">Criar conversa de teste</span>
+            <span className="sm:hidden">Teste</span>
+          </Button>
+        )}
       </div>
 
       {erro && (

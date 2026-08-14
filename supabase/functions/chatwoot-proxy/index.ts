@@ -135,6 +135,45 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // TEMP (fase de teste): cria uma conversa fake para validar a tela sem WhatsApp.
+      // Garante um inbox tipo API "Pingolead (teste)", um contato e 1 mensagem do "cliente".
+      case "create_test_conversation": {
+        const inboxes = await cw(`/inboxes`, { method: "GET" });
+        let inbox = (inboxes?.payload ?? []).find((i: any) => i.name === "Pingolead (teste)");
+        if (!inbox) {
+          inbox = await cw(`/inboxes`, {
+            method: "POST",
+            body: JSON.stringify({ name: "Pingolead (teste)", channel: { type: "api", webhook_url: "" } }),
+          });
+        }
+        const inboxId = inbox.id ?? inbox?.payload?.id;
+        const uniq = `${Date.now()}`.slice(-7) + Math.floor(Math.random() * 90 + 10);
+        const nomeCliente = String(payload.name ?? `Cliente Teste ${uniq.slice(-3)}`);
+        const contactResp = await cw(`/contacts`, {
+          method: "POST",
+          body: JSON.stringify({ inbox_id: inboxId, name: nomeCliente, phone_number: `+55519${uniq}` }),
+        });
+        const contact = contactResp?.payload?.contact ?? contactResp?.payload ?? contactResp;
+        const contactId = contact?.id;
+        const sourceId =
+          contact?.contact_inboxes?.[0]?.source_id ??
+          contactResp?.payload?.contact_inbox?.source_id ??
+          contact?.contact_inbox?.source_id;
+        const conv = await cw(`/conversations`, {
+          method: "POST",
+          body: JSON.stringify({ source_id: sourceId, inbox_id: inboxId, contact_id: contactId }),
+        });
+        const convId = conv?.id ?? conv?.payload?.id;
+        await cw(`/conversations/${convId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({
+            content: String(payload.text ?? "Olá! Vi o anúncio de vocês e queria saber sobre os lotes disponíveis. 🙂"),
+            message_type: "incoming",
+          }),
+        });
+        return J({ ok: true, conversation_id: convId });
+      }
+
       default:
         return J({ error: `Ação desconhecida: ${action || "(vazia)"}` }, 400);
     }

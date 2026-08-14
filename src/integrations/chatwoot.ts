@@ -66,4 +66,7 @@ export const chatwoot = {
     call("toggle_status", { conversation_id, status }),
 
   listAgents: () => call<{ ok: boolean; data: CwAgent[] }>("list_agents"),
+
+  /** TEMP (fase de teste): cria uma conversa fake para validar a tela sem WhatsApp. */
+  createTestConversation: () => call<{ ok: boolean; conversation_id: number }>("create_test_conversation"),
 };
