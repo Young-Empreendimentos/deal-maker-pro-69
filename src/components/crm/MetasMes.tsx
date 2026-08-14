@@ -16,6 +16,18 @@ const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julh
 const CONSULTORES_SEM_META = new Set([
   "7c3c08e2-ceca-4e1b-9c04-a5bb7b7d18d4", // M. Linhares (Murilo) — desligado
   "61aaeca9-f853-47af-836d-56e2f8ae6542", // C. Bortoluzzi (caroline@) — gestão comercial
+  "fb37f75d-124d-43d0-bf79-c49c6e01720f", // E. Tebaldi (eduardo@)
+  "1f0a16df-0777-4907-91c9-2592c94a39b2", // C. Tebaldi (tebaldi@)
+  "53d3b898-bbb1-445d-8cff-9b1452167542", // M. Vargas (matheus@)
+]);
+
+// Empreendimentos que NÃO entram nas metas.
+const EMPREENDIMENTOS_SEM_META = new Set([
+  "c15d6b4c-c7db-4d95-a63e-eb98ccaab637", // Parque Lorena Itaqui
+  "0b7e7271-b929-4244-800d-a22ee2b82bbb", // Young
+  "23fea984-3848-4479-b90a-300494c50090", // Parque Lorena I
+  "b53a3316-11f9-4359-bc4d-bbbdfbe71ccd", // Parque da Guarda Residence
+  "ef8a2d9e-6df8-4bec-abc7-3d7e651b82ec", // Jardim do Parque
 ]);
 
 /**
@@ -56,7 +68,9 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
     return () => { vivo = false; };
   }, [mesISO]);
 
-  const lista = aba === "empreendimento" ? emps : users.filter((u) => !CONSULTORES_SEM_META.has(u.id));
+  const lista = aba === "empreendimento"
+    ? emps.filter((e) => !EMPREENDIMENTOS_SEM_META.has(e.id))
+    : users.filter((u) => !CONSULTORES_SEM_META.has(u.id));
 
   function prevMes() { if (mes === 0) { setMes(11); setAno((a) => a - 1); } else setMes((m) => m - 1); }
   function nextMes() { if (mes === 11) { setMes(0); setAno((a) => a + 1); } else setMes((m) => m + 1); }
