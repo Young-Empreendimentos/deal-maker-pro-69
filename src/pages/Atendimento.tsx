@@ -36,7 +36,9 @@ export default function Atendimento() {
   const { toast } = useToast();
 
   const [statusTab, setStatusTab] = useState<StatusTab>("open");
-  const [assigneeTab, setAssigneeTab] = useState<AssigneeTab>(isAdmin ? "all" : "me");
+  // Piloto (número central): todos veem as conversas do número. A separação por pessoa
+  // ("Minhas") entra quando cada consultor tiver o próprio número conectado.
+  const [assigneeTab, setAssigneeTab] = useState<AssigneeTab>("all");
   const [convs, setConvs] = useState<CwConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -211,20 +213,22 @@ export default function Atendimento() {
             <TabBtn active={statusTab === "open"} onClick={() => { setStatusTab("open"); setSelId(null); }}>Abertas</TabBtn>
             <TabBtn active={statusTab === "resolved"} onClick={() => { setStatusTab("resolved"); setSelId(null); }}>Resolvidas</TabBtn>
           </div>
-          <div className="flex gap-1 px-2 py-1.5 border-b overflow-x-auto">
-            {abasAssignee.filter((a) => !a.adminOnly || isAdmin).map((a) => (
-              <button
-                key={a.key}
-                onClick={() => setAssigneeTab(a.key)}
-                className={cn(
-                  "px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
-                  assigneeTab === a.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
-                )}
-              >
-                {a.label}
-              </button>
-            ))}
-          </div>
+          {isAdmin && (
+            <div className="flex gap-1 px-2 py-1.5 border-b overflow-x-auto">
+              {abasAssignee.filter((a) => !a.adminOnly || isAdmin).map((a) => (
+                <button
+                  key={a.key}
+                  onClick={() => setAssigneeTab(a.key)}
+                  className={cn(
+                    "px-2.5 py-1 rounded-full text-xs font-medium whitespace-nowrap transition-colors",
+                    assigneeTab === a.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-muted",
+                  )}
+                >
+                  {a.label}
+                </button>
+              ))}
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto">
             {loading ? (

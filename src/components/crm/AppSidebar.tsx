@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 const links = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/negociacoes", label: "Negociações", icon: Handshake },
-  { to: "/atendimento", label: "Atendimento", icon: Headset, adminOnly: true },
+  { to: "/atendimento", label: "Atendimento", icon: Headset },
   { to: "/tarefas", label: "Tarefas", icon: ClipboardList },
   { to: "/relatorios", label: "Relatórios", icon: BarChart3, adminOnly: true },
   { to: "/relatorio-diario", label: "Relatório Diário", icon: CalendarRange },

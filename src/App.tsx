@@ -52,7 +52,7 @@ function AppRoutes() {
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/negociacoes" element={<ProtectedRoute><Negociacoes /></ProtectedRoute>} />
       <Route path="/negociacoes/:id" element={<ProtectedRoute><NegociacaoDetalhes /></ProtectedRoute>} />
-      <Route path="/atendimento" element={<ProtectedRoute adminOnly><Atendimento /></ProtectedRoute>} />
+      <Route path="/atendimento" element={<ProtectedRoute><Atendimento /></ProtectedRoute>} />
       <Route path="/tarefas" element={<ProtectedRoute><Tarefas /></ProtectedRoute>} />
       <Route path="/relatorios" element={<ProtectedRoute adminOnly><Relatorios /></ProtectedRoute>} />
       <Route path="/relatorio-diario" element={<ProtectedRoute><RelatorioDiario /></ProtectedRoute>} />
