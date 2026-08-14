@@ -53,6 +53,10 @@ export const chatwoot = {
   listConversations: (status: string, assignee_type: string = "all") =>
     call<{ ok: boolean; data: { meta?: any; payload?: CwConversation[] } }>("list_conversations", { status, assignee_type }),
 
+  /** Busca conversas (inclui antigas/resolvidas) por nome, telefone ou conteúdo. */
+  searchConversations: (q: string) =>
+    call<{ ok: boolean; data: { payload?: CwConversation[] } }>("search_conversations", { q }),
+
   getMessages: (conversation_id: number) =>
     call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }),
 

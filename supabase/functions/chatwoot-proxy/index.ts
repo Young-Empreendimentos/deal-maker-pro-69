@@ -139,6 +139,15 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // Busca conversas (inclui antigas/resolvidas) por nome, telefone ou conteúdo.
+      case "search_conversations": {
+        const q = String(payload.q ?? "").trim();
+        if (!q) return J({ ok: true, data: { payload: [] } });
+        const raw = await cw(`/conversations/search?q=${encodeURIComponent(q)}`, { method: "GET" });
+        const data = raw?.data ?? raw;
+        return J({ ok: true, data });
+      }
+
       // TEMP (fase de teste): cria uma conversa fake para validar a tela sem WhatsApp.
       // Garante um inbox tipo API "Pingolead (teste)", um contato e 1 mensagem do "cliente".
       case "create_test_conversation": {

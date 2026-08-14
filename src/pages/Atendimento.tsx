@@ -4,13 +4,14 @@ import { useAuth } from "@/contexts/AuthContext";
 import { chatwoot, type CwAgent, type CwConversation, type CwMessage } from "@/integrations/chatwoot";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, FlaskConical,
+  ArrowLeft, AlertTriangle, FlaskConical, Search, X,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
@@ -50,6 +51,9 @@ export default function Atendimento() {
   const [agents, setAgents] = useState<CwAgent[]>([]);
   const [busy, setBusy] = useState(false);
   const [criandoTeste, setCriandoTeste] = useState(false);
+  const [busca, setBusca] = useState("");
+  const [resultadosBusca, setResultadosBusca] = useState<CwConversation[]>([]);
+  const [buscando, setBuscando] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadConvs = useCallback(async (silent = false) => {
@@ -89,6 +93,24 @@ export default function Atendimento() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
+  // Busca conversas antigas/resolvidas (server-side no Chatwoot), com debounce.
+  useEffect(() => {
+    const q = busca.trim();
+    if (q.length < 2) { setResultadosBusca([]); setBuscando(false); return; }
+    setBuscando(true);
+    const t = setTimeout(async () => {
+      try {
+        const r = await chatwoot.searchConversations(q);
+        setResultadosBusca(r.data?.payload ?? []);
+      } catch {
+        setResultadosBusca([]);
+      } finally {
+        setBuscando(false);
+      }
+    }, 350);
+    return () => clearTimeout(t);
+  }, [busca]);
+
   const filtered = useMemo(() => {
     const me = user?.email?.toLowerCase();
     return convs.filter((c) => {
@@ -98,9 +120,12 @@ export default function Atendimento() {
     });
   }, [convs, assigneeTab, user]);
 
+  const buscaAtiva = busca.trim().length >= 2;
+  const listaExibida = buscaAtiva ? resultadosBusca : filtered;
+
   const sel = useMemo(
-    () => convs.find((c) => c.id === selId) ?? null,
-    [convs, selId],
+    () => convs.find((c) => c.id === selId) ?? resultadosBusca.find((c) => c.id === selId) ?? null,
+    [convs, resultadosBusca, selId],
   );
 
   async function enviar() {
@@ -133,7 +158,7 @@ export default function Atendimento() {
 
   async function resolverOuReabrir() {
     if (!sel) return;
-    const novo = statusTab === "open" ? "resolved" : "open";
+    const novo = sel.status === "resolved" ? "open" : "resolved";
     setBusy(true);
     try {
       await chatwoot.toggleStatus(sel.id, novo);
@@ -210,11 +235,30 @@ export default function Atendimento() {
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_300px] gap-3 h-[calc(100vh-11rem)]">
         {/* Coluna 1 — lista de conversas */}
         <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", selId && "hidden lg:flex")}>
-          <div className="flex gap-1 p-2 border-b">
-            <TabBtn active={statusTab === "open"} onClick={() => { setStatusTab("open"); setSelId(null); }}>Abertas</TabBtn>
-            <TabBtn active={statusTab === "resolved"} onClick={() => { setStatusTab("resolved"); setSelId(null); }}>Resolvidas</TabBtn>
+          {/* Busca de conversas (inclui antigas/resolvidas) */}
+          <div className="p-2 border-b">
+            <div className="relative">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground pointer-events-none" />
+              <Input
+                value={busca}
+                onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar por nome ou número…"
+                className="pl-8 pr-8 h-8 text-sm"
+              />
+              {busca && (
+                <button onClick={() => setBusca("")} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              )}
+            </div>
           </div>
-          {isAdmin && (
+          {!buscaAtiva && (
+            <div className="flex gap-1 p-2 border-b">
+              <TabBtn active={statusTab === "open"} onClick={() => { setStatusTab("open"); setSelId(null); }}>Abertas</TabBtn>
+              <TabBtn active={statusTab === "resolved"} onClick={() => { setStatusTab("resolved"); setSelId(null); }}>Resolvidas</TabBtn>
+            </div>
+          )}
+          {isAdmin && !buscaAtiva && (
             <div className="flex gap-1 px-2 py-1.5 border-b overflow-x-auto">
               {abasAssignee.filter((a) => !a.adminOnly || isAdmin).map((a) => (
                 <button
@@ -232,12 +276,14 @@ export default function Atendimento() {
           )}
 
           <div className="flex-1 overflow-y-auto">
-            {loading ? (
+            {(buscaAtiva ? buscando : loading) ? (
               <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-            ) : filtered.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-10 px-4">Nenhuma conversa {statusTab === "open" ? "aberta" : "resolvida"} aqui.</p>
+            ) : listaExibida.length === 0 ? (
+              <p className="text-center text-sm text-muted-foreground py-10 px-4">
+                {buscaAtiva ? "Nenhuma conversa encontrada." : `Nenhuma conversa ${statusTab === "open" ? "aberta" : "resolvida"} aqui.`}
+              </p>
             ) : (
-              filtered.map((c) => {
+              listaExibida.map((c) => {
                 const s = c.meta?.sender;
                 const last = c.last_non_activity_message?.content ?? c.messages?.[c.messages.length - 1]?.content ?? "";
                 return (
@@ -311,9 +357,9 @@ export default function Atendimento() {
                 </Popover>
 
                 {/* Resolver / Reabrir */}
-                <Button variant={statusTab === "open" ? "default" : "outline"} size="sm" className="h-8 gap-1.5" onClick={resolverOuReabrir} disabled={busy}>
-                  {statusTab === "open" ? <CheckCheck className="h-3.5 w-3.5" /> : <RotateCcw className="h-3.5 w-3.5" />}
-                  <span className="hidden sm:inline">{statusTab === "open" ? "Resolver" : "Reabrir"}</span>
+                <Button variant={sel.status === "resolved" ? "outline" : "default"} size="sm" className="h-8 gap-1.5" onClick={resolverOuReabrir} disabled={busy}>
+                  {sel.status === "resolved" ? <RotateCcw className="h-3.5 w-3.5" /> : <CheckCheck className="h-3.5 w-3.5" />}
+                  <span className="hidden sm:inline">{sel.status === "resolved" ? "Reabrir" : "Resolver"}</span>
                 </Button>
               </div>
 
@@ -337,7 +383,7 @@ export default function Atendimento() {
               </div>
 
               {/* Caixa de resposta */}
-              {statusTab === "open" ? (
+              {sel.status !== "resolved" ? (
                 <div className="border-t p-2 flex items-end gap-2">
                   <Textarea
                     value={reply}
