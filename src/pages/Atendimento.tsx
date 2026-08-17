@@ -83,7 +83,7 @@ export default function Atendimento() {
   const [agents, setAgents] = useState<CwAgent[]>([]);
   const [busy, setBusy] = useState(false);
   const [busca, setBusca] = useState("");
-  const [resultadosBusca, setResultadosBusca] = useState<CwConversation[]>([]);
+  const [convsTodas, setConvsTodas] = useState<CwConversation[]>([]);
   const [buscando, setBuscando] = useState(false);
   const [nomeInicial, setNomeInicial] = useState("");
   const [iniciando, setIniciando] = useState(false);
@@ -200,18 +200,24 @@ export default function Atendimento() {
     })();
   }, [busca, inboxesEnvio, agendaLoaded]);
 
-  // Busca: conversas antigas/resolvidas (Chatwoot) + contatos por NOME (CRM), com debounce.
+  // Busca: carrega TODAS as conversas (abertas + resolvidas) p/ filtrar localmente pelo nome
+  // resolvido (CRM/agenda/lápis) — mais confiável que a busca do Chatwoot — + contatos do CRM.
   useEffect(() => {
     const q = busca.trim();
-    if (q.length < 2) { setResultadosBusca([]); setContatos([]); setBuscando(false); return; }
+    if (q.length < 2) { setConvsTodas([]); setContatos([]); setBuscando(false); return; }
     setBuscando(true);
     const t = setTimeout(async () => {
       try {
-        const [rc, rk] = await Promise.all([
-          chatwoot.searchConversations(q).catch(() => ({ data: { payload: [] } } as any)),
+        const [ab, re, rk] = await Promise.all([
+          chatwoot.listConversations("open").catch(() => ({ data: { payload: [] } } as any)),
+          chatwoot.listConversations("resolved").catch(() => ({ data: { payload: [] } } as any)),
           chatwoot.searchContacts(q).catch(() => ({ data: [] } as any)),
         ]);
-        setResultadosBusca(rc.data?.payload ?? []);
+        const todas = [...(ab.data?.payload ?? []), ...(re.data?.payload ?? [])];
+        const vistos = new Set<number>();
+        const uniq: CwConversation[] = [];
+        for (const c of todas) { if (c && !vistos.has(c.id)) { vistos.add(c.id); uniq.push(c); } }
+        setConvsTodas(uniq);
         setContatos(rk.data ?? []);
       } finally {
         setBuscando(false);
@@ -226,6 +232,13 @@ export default function Atendimento() {
     if (tel) { setBusca(tel); setNomeInicial(sp.get("nome") ?? ""); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Mapa telefone(últimos 8)→nome salvo na agenda, p/ mostrar o nome nas conversas.
+  const agendaMap = useMemo(() => {
+    const m: Record<string, string> = {};
+    for (const a of agenda) { const suf = a.telefone.replace(/[^0-9]/g, "").slice(-8); if (suf && !m[suf]) m[suf] = a.nome; }
+    return m;
+  }, [agenda]);
 
   // Contatos da agenda que batem com a busca (fora os que já vieram do CRM).
   const agendaMatches = useMemo(() => {
@@ -270,17 +283,16 @@ export default function Atendimento() {
   const listaExibida = useMemo(() => {
     if (!buscaAtiva) return filtered;
     const q = busca.trim().toLowerCase();
-    const nomeDe = (c: any) => String(nomesManuais[c?.id] || c?.cliente_nome_crm || c?.meta?.sender?.name || "").toLowerCase();
-    const locais = convs.filter((c: any) => nomeDe(c).includes(q) || String(c?.meta?.sender?.phone_number ?? "").includes(q));
-    const vistos = new Set<number>();
-    const out: CwConversation[] = [];
-    for (const c of [...locais, ...resultadosBusca]) { if (c && !vistos.has(c.id)) { vistos.add(c.id); out.push(c); } }
-    return out;
-  }, [buscaAtiva, filtered, busca, convs, resultadosBusca, nomesManuais]);
+    const nomeDe = (c: any) => {
+      const suf = String(c?.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "").slice(-8);
+      return String(nomesManuais[c?.id] || c?.cliente_nome_crm || (suf && agendaMap[suf]) || c?.meta?.sender?.name || "").toLowerCase();
+    };
+    return convsTodas.filter((c: any) => nomeDe(c).includes(q) || String(c?.meta?.sender?.phone_number ?? "").includes(q));
+  }, [buscaAtiva, filtered, busca, convsTodas, nomesManuais, agendaMap]);
 
   const sel = useMemo(
-    () => convs.find((c) => c.id === selId) ?? resultadosBusca.find((c) => c.id === selId) ?? null,
-    [convs, resultadosBusca, selId],
+    () => convs.find((c) => c.id === selId) ?? convsTodas.find((c) => c.id === selId) ?? null,
+    [convs, convsTodas, selId],
   );
 
   async function enviar() {
@@ -507,7 +519,10 @@ export default function Atendimento() {
 
   // Nome exibido de um contato: 1º o nome que o atendente definiu no lápis (sessão),
   // 2º o nome do CRM (negociação), 3º o nome do WhatsApp, 4º o número.
-  const nomeExibido = (c: any) => nomesManuais[c?.id] || c?.cliente_nome_crm || c?.meta?.sender?.name || fonePretty(c?.meta?.sender?.phone_number);
+  const nomeExibido = (c: any) => {
+    const suf = String(c?.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "").slice(-8);
+    return nomesManuais[c?.id] || c?.cliente_nome_crm || (suf && agendaMap[suf]) || c?.meta?.sender?.name || fonePretty(c?.meta?.sender?.phone_number);
+  };
 
   // Modo escrever (compose): conversa nova ainda não criada no Chatwoot.
   const emCompose = !sel && !!compose;
