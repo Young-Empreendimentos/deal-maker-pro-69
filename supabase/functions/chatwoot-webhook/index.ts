@@ -85,6 +85,22 @@ Deno.serve(async (req) => {
     // Foto de perfil (só p/ mensagens do cliente, quando o contato ainda não tem avatar).
     if (direcao === "in") await sincronizarFoto(sender?.id, phone, !!sender?.thumbnail);
 
+    // Atribuição automática: conversa da caixa vai pro atendente da caixa (se ainda sem atendente).
+    const inboxId = conv?.inbox_id;
+    if (inboxId && !conv?.meta?.assignee && CW_TOKEN) {
+      try {
+        const { data: inbRow } = await admin.schema("crm").from("crm_atendimento_inbox").select("chatwoot_agent_id").eq("inbox_id", inboxId).maybeSingle();
+        const agentId = (inbRow as any)?.chatwoot_agent_id;
+        if (agentId && convId) {
+          await fetch(`${CW_URL}/api/v1/accounts/${CW_ACC}/conversations/${convId}/assignments`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json", "api_access_token": CW_TOKEN },
+            body: JSON.stringify({ assignee_id: agentId }),
+          });
+        }
+      } catch (_e) { /* atribuição best-effort */ }
+    }
+
     return new Response("ok", { status: 200 });
   } catch (e) {
     console.error("chatwoot-webhook:", (e as Error).message);
