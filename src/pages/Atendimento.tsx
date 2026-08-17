@@ -73,7 +73,9 @@ export default function Atendimento() {
   const [convs, setConvs] = useState<CwConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
-  const [selId, setSelId] = useState<number | null>(null);
+  const [selId, setSelId] = useState<number | null>(() => {
+    try { const s = sessionStorage.getItem("atendimento_sel"); return s ? Number(s) : null; } catch { return null; }
+  });
   const [msgs, setMsgs] = useState<CwMessage[]>([]);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
@@ -95,6 +97,7 @@ export default function Atendimento() {
   const chunksRef = useRef<Blob[]>([]);
   const timerRef = useRef<number | null>(null);
   const enviarAoPararRef = useRef(false);
+  const ocupadoRef = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadConvs = useCallback(async (silent = false) => {
@@ -130,6 +133,17 @@ export default function Atendimento() {
   }, [selId]);
   // Ao sair da tela, garante que o microfone seja liberado.
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); if (timerRef.current) clearInterval(timerRef.current); }, []);
+  // Mantém a conversa aberta mesmo depois de um reload (rede de segurança abaixo).
+  useEffect(() => {
+    try { if (selId) sessionStorage.setItem("atendimento_sel", String(selId)); else sessionStorage.removeItem("atendimento_sel"); } catch { /* ignora */ }
+  }, [selId]);
+  // Rede de segurança: recarrega a página a cada 5 min (caso o polling trave e pare de
+  // trazer conversas novas) — mas NUNCA no meio de digitar / gravar / enviar.
+  useEffect(() => { ocupadoRef.current = !!(reply.trim() || gravando || enviandoAudio || sending); }, [reply, gravando, enviandoAudio, sending]);
+  useEffect(() => {
+    const t = setInterval(() => { if (!ocupadoRef.current) window.location.reload(); }, 5 * 60 * 1000);
+    return () => clearInterval(t);
+  }, []);
 
   // Atualização automática (sem realtime): repuxa a lista e a conversa aberta.
   useEffect(() => {
