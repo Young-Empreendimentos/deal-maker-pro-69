@@ -156,6 +156,14 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // Marca a conversa como lida no Chatwoot (some a bolinha depois que o atendente abre).
+      case "mark_read": {
+        const cid = payload.conversation_id;
+        if (!cid) return J({ error: "conversation_id obrigatório" }, 400);
+        try { await cw(`/conversations/${cid}/update_last_seen`, { method: "POST" }); } catch (_e) { /* best-effort */ }
+        return J({ ok: true });
+      }
+
       case "send_message": {
         const cid = payload.conversation_id;
         const content = String(payload.content ?? "").trim();

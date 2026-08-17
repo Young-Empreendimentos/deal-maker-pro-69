@@ -94,6 +94,9 @@ export const chatwoot = {
   toggleStatus: (conversation_id: number, status: "resolved" | "open" | "pending") =>
     call("toggle_status", { conversation_id, status }),
 
+  /** Marca a conversa como lida no Chatwoot (some a bolinha de não-lida). */
+  markRead: (conversation_id: number) => call("mark_read", { conversation_id }),
+
   /** Define/edita o nome do contato no Chatwoot (para números que aparecem sem nome). */
   renameContact: (contact_id: number, name: string) =>
     call("rename_contact", { contact_id, name }),

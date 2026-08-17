@@ -70,6 +70,7 @@ export default function Atendimento() {
   // Piloto (número central): todos veem as conversas do número. A separação por pessoa
   // ("Minhas") entra quando cada consultor tiver o próprio número conectado.
   const [assigneeTab, setAssigneeTab] = useState<AssigneeTab>("all");
+  const [filtroAtendente, setFiltroAtendente] = useState("");
   const [convs, setConvs] = useState<CwConversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
@@ -131,7 +132,14 @@ export default function Atendimento() {
 
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { chatwoot.listAgents().then((r) => setAgents(r.data ?? [])).catch(() => {}); }, []);
-  useEffect(() => { if (selId) loadMsgs(selId); else setMsgs([]); }, [selId, loadMsgs]);
+  useEffect(() => {
+    if (selId) {
+      loadMsgs(selId);
+      // Marca como lida no Chatwoot (some a bolinha) e limpa localmente na hora.
+      chatwoot.markRead(selId).catch(() => {});
+      setConvs((cs) => cs.map((c) => (c.id === selId ? { ...c, unread_count: 0 } : c)));
+    } else setMsgs([]);
+  }, [selId, loadMsgs]);
   useEffect(() => {
     setEditandoNome(false);
     // trocou de conversa no meio de uma gravação: descarta o áudio
@@ -201,14 +209,22 @@ export default function Atendimento() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Atendentes existentes (p/ o filtro do admin).
+  const atendentes = useMemo(() => {
+    const s = new Set<string>();
+    for (const c of convs) { const n = (c as any).atendente_nome; if (n) s.add(n); }
+    return Array.from(s).sort();
+  }, [convs]);
+
   const filtered = useMemo(() => {
     const me = user?.email?.toLowerCase();
     return convs.filter((c) => {
+      if (filtroAtendente && (c as any).atendente_nome !== filtroAtendente) return false;
       if (assigneeTab === "me") return c.meta?.assignee?.email?.toLowerCase() === me;
       if (assigneeTab === "unassigned") return !c.meta?.assignee;
       return true;
     });
-  }, [convs, assigneeTab, user]);
+  }, [convs, assigneeTab, user, filtroAtendente]);
 
   const buscaAtiva = busca.trim().length >= 2;
   const listaExibida = buscaAtiva ? resultadosBusca : filtered;
@@ -484,7 +500,6 @@ export default function Atendimento() {
       <div className="mb-4 flex items-center gap-2">
         <Headset className="h-5 w-5 text-primary" />
         <h1 className="text-xl font-bold">Atendimento</h1>
-        <Badge variant="secondary" className="ml-1">beta</Badge>
       </div>
 
       {erro && (
@@ -517,46 +532,6 @@ export default function Atendimento() {
               )}
             </div>
           </div>
-          {buscaAtiva && (contatos.length > 0 || pareceNumero(busca)) && (
-            <div className="border-b">
-              {inboxesEnvio.length > 1 && (
-                <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                  <span className="shrink-0">Enviar pelo número:</span>
-                  <select
-                    value={inboxEnvio ?? ""}
-                    onChange={(e) => setInboxEnvio(Number(e.target.value))}
-                    className="flex-1 h-7 rounded-md border bg-background px-2 text-xs"
-                  >
-                    {inboxesEnvio.map((i) => <option key={i.inbox_id} value={i.inbox_id}>{i.nome}</option>)}
-                  </select>
-                </div>
-              )}
-              {contatos.map((c, i) => (
-                <button
-                  key={`ct-${c.deal_id}-${i}`}
-                  onClick={() => abrirContatoCrm(c)}
-                  disabled={iniciando}
-                  className="flex items-center gap-2 px-3 py-2 border-t text-sm hover:bg-primary/5 transition-colors w-full text-left"
-                >
-                  <Plus className="h-4 w-4 shrink-0 text-primary" />
-                  <span className="min-w-0 flex-1 truncate">
-                    Iniciar com <strong>{c.cliente_nome}</strong>
-                    <span className="text-muted-foreground"> · {fonePretty(c.telefone)}{c.empreendimento_nome ? ` · ${c.empreendimento_nome}` : ""}</span>
-                  </span>
-                </button>
-              ))}
-              {pareceNumero(busca) && (
-                <button
-                  onClick={iniciarConversa}
-                  disabled={iniciando}
-                  className="flex items-center gap-2 px-3 py-2 border-t text-sm text-primary hover:bg-primary/5 transition-colors w-full text-left"
-                >
-                  {iniciando ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
-                  <span className="truncate">Iniciar conversa com o número <strong>{busca.trim()}</strong></span>
-                </button>
-              )}
-            </div>
-          )}
           {!buscaAtiva && (
             <div className="flex gap-1 p-2 border-b">
               <TabBtn active={statusTab === "open"} onClick={() => { setStatusTab("open"); setSelId(null); }}>Abertas</TabBtn>
@@ -579,39 +554,98 @@ export default function Atendimento() {
               ))}
             </div>
           )}
+          {isAdmin && !buscaAtiva && atendentes.length > 0 && (
+            <div className="flex items-center gap-2 px-2 py-1.5 border-b text-xs">
+              <span className="text-muted-foreground shrink-0">Atendente:</span>
+              <select
+                value={filtroAtendente}
+                onChange={(e) => setFiltroAtendente(e.target.value)}
+                className="flex-1 h-7 rounded-md border bg-background px-2 text-xs"
+              >
+                <option value="">Todos</option>
+                {atendentes.map((n) => <option key={n} value={n}>{n}</option>)}
+              </select>
+            </div>
+          )}
 
           <div className="flex-1 overflow-y-auto">
             {(buscaAtiva ? buscando : loading) ? (
               <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-            ) : listaExibida.length === 0 ? (
-              <p className="text-center text-sm text-muted-foreground py-10 px-4">
-                {buscaAtiva ? "Nenhuma conversa encontrada." : `Nenhuma conversa ${statusTab === "open" ? "aberta" : "resolvida"} aqui.`}
-              </p>
             ) : (
-              listaExibida.map((c) => {
-                const s = c.meta?.sender;
-                const last = c.last_non_activity_message?.content ?? c.messages?.[c.messages.length - 1]?.content ?? "";
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => { setCompose(null); setSelId(c.id); }}
-                    className={cn(
-                      "w-full text-left flex gap-3 px-3 py-2.5 border-b hover:bg-muted/50 transition-colors",
-                      selId === c.id && "bg-muted",
-                    )}
-                  >
-                    <Avatar nome={nomeExibido(c)} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm truncate">{nomeExibido(c)}</span>
-                        <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.timestamp)}</span>
+              <>
+                {listaExibida.length === 0 ? (
+                  <p className="text-center text-sm text-muted-foreground py-8 px-4">
+                    {buscaAtiva ? "Nenhuma conversa com esse nome." : `Nenhuma conversa ${statusTab === "open" ? "aberta" : "resolvida"} aqui.`}
+                  </p>
+                ) : (
+                  listaExibida.map((c) => {
+                    const s = c.meta?.sender;
+                    const last = c.last_non_activity_message?.content ?? c.messages?.[c.messages.length - 1]?.content ?? "";
+                    return (
+                      <button
+                        key={c.id}
+                        onClick={() => { setCompose(null); setSelId(c.id); }}
+                        className={cn(
+                          "w-full text-left flex gap-3 px-3 py-2.5 border-b hover:bg-muted/50 transition-colors",
+                          selId === c.id && "bg-muted",
+                        )}
+                      >
+                        <Avatar nome={nomeExibido(c)} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-medium text-sm truncate">{nomeExibido(c)}</span>
+                            <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.timestamp)}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">{last || "—"}</p>
+                        </div>
+                        {!!c.unread_count && <span className="self-center h-2 w-2 rounded-full bg-primary shrink-0" />}
+                      </button>
+                    );
+                  })
+                )}
+                {/* Buscar por nome: primeiro as conversas (acima); aqui embaixo, iniciar nova a partir do CRM. */}
+                {buscaAtiva && (contatos.length > 0 || pareceNumero(busca)) && (
+                  <div className="border-t">
+                    <p className="px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Iniciar nova conversa</p>
+                    {inboxesEnvio.length > 1 && (
+                      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                        <span className="shrink-0">Enviar pelo número:</span>
+                        <select
+                          value={inboxEnvio ?? ""}
+                          onChange={(e) => setInboxEnvio(Number(e.target.value))}
+                          className="flex-1 h-7 rounded-md border bg-background px-2 text-xs"
+                        >
+                          {inboxesEnvio.map((i) => <option key={i.inbox_id} value={i.inbox_id}>{i.nome}</option>)}
+                        </select>
                       </div>
-                      <p className="text-xs text-muted-foreground truncate">{last || "—"}</p>
-                    </div>
-                    {!!c.unread_count && <span className="self-center h-2 w-2 rounded-full bg-primary shrink-0" />}
-                  </button>
-                );
-              })
+                    )}
+                    {contatos.map((c, i) => (
+                      <button
+                        key={`ct-${c.deal_id}-${i}`}
+                        onClick={() => abrirContatoCrm(c)}
+                        disabled={iniciando}
+                        className="flex items-center gap-2 px-3 py-2 border-t text-sm hover:bg-primary/5 transition-colors w-full text-left"
+                      >
+                        <Plus className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0 flex-1 truncate">
+                          Iniciar com <strong>{c.cliente_nome}</strong>
+                          <span className="text-muted-foreground"> · {fonePretty(c.telefone)}{c.empreendimento_nome ? ` · ${c.empreendimento_nome}` : ""}</span>
+                        </span>
+                      </button>
+                    ))}
+                    {pareceNumero(busca) && (
+                      <button
+                        onClick={iniciarConversa}
+                        disabled={iniciando}
+                        className="flex items-center gap-2 px-3 py-2 border-t text-sm text-primary hover:bg-primary/5 transition-colors w-full text-left"
+                      >
+                        {iniciando ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
+                        <span className="truncate">Iniciar conversa com o número <strong>{busca.trim()}</strong></span>
+                      </button>
+                    )}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
