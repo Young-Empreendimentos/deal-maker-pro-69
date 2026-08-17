@@ -8,9 +8,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 const CW_URL = Deno.env.get("CHATWOOT_URL") ?? "";
 const CW_ACC = Deno.env.get("CHATWOOT_ACCOUNT_ID") ?? "1";
 const CW_TOKEN = Deno.env.get("CHATWOOT_API_TOKEN") ?? "";
-const EVO_URL = Deno.env.get("EVOLUTION_URL") ?? "";
-const EVO_KEY = Deno.env.get("EVOLUTION_API_KEY") ?? "";
-const EVO_INST = Deno.env.get("EVOLUTION_INSTANCE") ?? "";
+const EVO_URL = (Deno.env.get("EVOLUTION_URL") ?? "").trim();
+const EVO_KEY = (Deno.env.get("EVOLUTION_API_KEY") ?? "").trim();
+const EVO_INST = (Deno.env.get("EVOLUTION_INSTANCE") ?? "").trim();
 
 // Busca a foto de perfil do WhatsApp na Evolution e seta como avatar do contato no Chatwoot.
 // Best-effort: se faltar config, não tiver foto ou der erro, apenas ignora (fica nas iniciais).
