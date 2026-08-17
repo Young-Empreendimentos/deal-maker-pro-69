@@ -245,7 +245,20 @@ export default function Atendimento() {
   }, [convs, assigneeTab, user, filtroAtendente]);
 
   const buscaAtiva = busca.trim().length >= 2;
-  const listaExibida = buscaAtiva ? resultadosBusca : filtered;
+  // Ao buscar, junta: (1) conversas já carregadas que batem pelo nome RESOLVIDO
+  // (CRM / agenda / nome dado no lápis) ou telefone, e (2) o resultado do Chatwoot
+  // (nome do contato / conteúdo). Assim a conversa recente aparece mesmo quando o
+  // contato só tem o número (ex.: Paloma). Dedup por id; conversas primeiro.
+  const listaExibida = useMemo(() => {
+    if (!buscaAtiva) return filtered;
+    const q = busca.trim().toLowerCase();
+    const nomeDe = (c: any) => String(nomesManuais[c?.id] || c?.cliente_nome_crm || c?.meta?.sender?.name || "").toLowerCase();
+    const locais = convs.filter((c: any) => nomeDe(c).includes(q) || String(c?.meta?.sender?.phone_number ?? "").includes(q));
+    const vistos = new Set<number>();
+    const out: CwConversation[] = [];
+    for (const c of [...locais, ...resultadosBusca]) { if (c && !vistos.has(c.id)) { vistos.add(c.id); out.push(c); } }
+    return out;
+  }, [buscaAtiva, filtered, busca, convs, resultadosBusca, nomesManuais]);
 
   const sel = useMemo(
     () => convs.find((c) => c.id === selId) ?? resultadosBusca.find((c) => c.id === selId) ?? null,
