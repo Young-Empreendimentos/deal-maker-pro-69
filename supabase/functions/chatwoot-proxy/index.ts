@@ -50,6 +50,20 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const admin = createClient(supabaseUrl, serviceRoleKey);
 
+    // Mostra o nome cadastrado no CRM (não o apelido do WhatsApp) quando o telefone
+    // da conversa casa com uma negociação. Best-effort, em paralelo (a lista é pequena).
+    const anexaNomeCrm = async (convs: any[]) => {
+      await Promise.all((convs ?? []).map(async (c: any) => {
+        const tel = c?.meta?.sender?.phone_number;
+        if (!tel) return;
+        try {
+          const { data: dr } = await admin.rpc("crm_deal_por_telefone", { p_tel: tel });
+          const nome = (dr as any[])?.[0]?.cliente_nome;
+          if (nome) c.cliente_nome_crm = nome;
+        } catch (_e) { /* ignora */ }
+      }));
+    };
+
     // Quem está chamando? (usuário logado no Pingolead)
     const authHeader = req.headers.get("Authorization") ?? "";
     const callerClient = createClient(supabaseUrl, anonKey, { global: { headers: { Authorization: authHeader } } });
@@ -115,6 +129,7 @@ Deno.serve(async (req) => {
           if (c?.meta?.sender) c.meta.sender.thumbnail = absT(c.meta.sender.thumbnail);
           (c as any).atendente_nome = inbAtendente[Number(c.inbox_id)] ?? null;
         }
+        await anexaNomeCrm(data?.payload);
         return J({ ok: true, data });
       }
 
@@ -178,6 +193,7 @@ Deno.serve(async (req) => {
         if (inboxesPermitidos && data?.payload) {
           data.payload = data.payload.filter((c: any) => inboxesPermitidos!.includes(Number(c.inbox_id)));
         }
+        await anexaNomeCrm(data?.payload);
         return J({ ok: true, data });
       }
 

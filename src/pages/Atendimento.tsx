@@ -311,10 +311,10 @@ export default function Atendimento() {
                       selId === c.id && "bg-muted",
                     )}
                   >
-                    <Avatar nome={s?.name} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
+                    <Avatar nome={c.cliente_nome_crm || s?.name} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm truncate">{s?.name || fonePretty(s?.phone_number)}</span>
+                        <span className="font-medium text-sm truncate">{c.cliente_nome_crm || s?.name || fonePretty(s?.phone_number)}</span>
                         <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.timestamp)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{last || "—"}</p>
@@ -339,9 +339,9 @@ export default function Atendimento() {
               {/* Cabeçalho da conversa */}
               <div className="flex items-center gap-2 px-3 py-2 border-b">
                 <button className="lg:hidden p-1" onClick={() => setSelId(null)}><ArrowLeft className="h-4 w-4" /></button>
-                <Avatar nome={sel.meta?.sender?.name} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
+                <Avatar nome={sel.cliente_nome_crm || sel.meta?.sender?.name} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
+                  <p className="font-medium text-sm truncate">{sel.cliente_nome_crm || sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
                   <p className="text-[11px] text-muted-foreground truncate">
                     {sel.atendente_nome ? `Atendente: ${sel.atendente_nome}` : (sel.meta?.assignee ? `Atendente: ${sel.meta.assignee.name}` : "Sem atendente")}
                   </p>

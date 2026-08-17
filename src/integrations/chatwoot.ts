@@ -19,6 +19,7 @@ export type CwConversation = {
   timestamp?: number;
   inbox_id?: number;
   atendente_nome?: string | null;
+  cliente_nome_crm?: string | null; // nome cadastrado no CRM (quando o telefone casa com uma negociação)
   meta?: { sender?: CwSender; assignee?: CwAgent | null };
   last_non_activity_message?: { content?: string } | null;
   messages?: CwMessage[];
