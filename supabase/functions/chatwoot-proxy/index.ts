@@ -184,6 +184,25 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // Envia um áudio (base64) como anexo de mensagem outgoing -> vira áudio no WhatsApp.
+      case "send_audio": {
+        const cid = payload.conversation_id;
+        const b64 = String(payload.audio_base64 ?? "");
+        const mime = String(payload.mime ?? "audio/webm");
+        if (!cid || !b64) return J({ error: "conversation_id e audio_base64 obrigatórios" }, 400);
+        const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+        const ext = mime.includes("ogg") ? "ogg" : (mime.includes("mp4") || mime.includes("m4a") ? "m4a" : "webm");
+        const fd = new FormData();
+        fd.append("message_type", "outgoing");
+        fd.append("attachments[]", new Blob([bin], { type: mime }), `audio.${ext}`);
+        const url = `${CHATWOOT_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${cid}/messages`;
+        const res = await fetch(url, { method: "POST", headers: { api_access_token: CHATWOOT_TOKEN }, body: fd });
+        const txt = await res.text();
+        if (!res.ok) return J({ error: `Chatwoot HTTP ${res.status}: ${txt.slice(0, 200)}` }, 500);
+        let data: any; try { data = txt ? JSON.parse(txt) : null; } catch { data = txt; }
+        return J({ ok: true, data });
+      }
+
       // Define/edita o nome de um contato no Chatwoot (p/ números que vêm sem nome).
       case "rename_contact": {
         const contactId = payload.contact_id;

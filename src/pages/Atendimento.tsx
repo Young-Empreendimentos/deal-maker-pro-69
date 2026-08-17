@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip, Pencil, Check,
+  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip, Pencil, Check, Mic, Trash2,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
@@ -39,6 +39,26 @@ function pareceNumero(s: string) {
 function limpaAssinatura(s: string) {
   // No WhatsApp a assinatura do atendente vira negrito (*Nome:*); no painel, mostra sem os asteriscos.
   return s.replace(/^\*([^\n*]+):\*/, "$1:");
+}
+function fmtSeg(s: number) {
+  const m = Math.floor(s / 60), r = s % 60;
+  return `${m}:${String(r).padStart(2, "0")}`;
+}
+// Escolhe um formato de áudio que o navegador saiba gravar (opus é o ideal p/ WhatsApp).
+function melhorMimeAudio() {
+  const cands = ["audio/ogg;codecs=opus", "audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+  for (const m of cands) {
+    try { if (typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m)) return m; } catch { /* ignora */ }
+  }
+  return "";
+}
+function blobParaBase64(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onloadend = () => { const s = String(r.result || ""); const i = s.indexOf(","); resolve(i >= 0 ? s.slice(i + 1) : s); };
+    r.onerror = reject;
+    r.readAsDataURL(blob);
+  });
 }
 
 export default function Atendimento() {
@@ -67,6 +87,14 @@ export default function Atendimento() {
   const [editandoNome, setEditandoNome] = useState(false);
   const [nomeEdit, setNomeEdit] = useState("");
   const [salvandoNome, setSalvandoNome] = useState(false);
+  const [gravando, setGravando] = useState(false);
+  const [enviandoAudio, setEnviandoAudio] = useState(false);
+  const [segGrav, setSegGrav] = useState(0);
+  const gravadorRef = useRef<MediaRecorder | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const chunksRef = useRef<Blob[]>([]);
+  const timerRef = useRef<number | null>(null);
+  const enviarAoPararRef = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadConvs = useCallback(async (silent = false) => {
@@ -94,7 +122,14 @@ export default function Atendimento() {
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { chatwoot.listAgents().then((r) => setAgents(r.data ?? [])).catch(() => {}); }, []);
   useEffect(() => { if (selId) loadMsgs(selId); else setMsgs([]); }, [selId, loadMsgs]);
-  useEffect(() => { setEditandoNome(false); }, [selId]);
+  useEffect(() => {
+    setEditandoNome(false);
+    // trocou de conversa no meio de uma gravação: descarta o áudio
+    enviarAoPararRef.current = false;
+    if (gravadorRef.current && gravadorRef.current.state !== "inactive") gravadorRef.current.stop();
+  }, [selId]);
+  // Ao sair da tela, garante que o microfone seja liberado.
+  useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); if (timerRef.current) clearInterval(timerRef.current); }, []);
 
   // Atualização automática (sem realtime): repuxa a lista e a conversa aberta.
   useEffect(() => {
@@ -195,6 +230,73 @@ export default function Atendimento() {
       toast({ title: "Não consegui salvar o nome", description: (e as Error).message, variant: "destructive" });
     } finally {
       setSalvandoNome(false);
+    }
+  }
+
+  function pararStreamGrav() {
+    streamRef.current?.getTracks().forEach((t) => t.stop());
+    streamRef.current = null;
+    if (timerRef.current) { clearInterval(timerRef.current); timerRef.current = null; }
+  }
+
+  async function iniciarGravacao() {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      toast({ title: "Seu navegador não permite gravar áudio", variant: "destructive" });
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+      const mime = melhorMimeAudio();
+      const mr = new MediaRecorder(stream, mime ? { mimeType: mime } : undefined);
+      chunksRef.current = [];
+      mr.ondataavailable = (e) => { if (e.data.size > 0) chunksRef.current.push(e.data); };
+      mr.onstop = async () => {
+        const deveEnviar = enviarAoPararRef.current;
+        enviarAoPararRef.current = false;
+        const tipo = mr.mimeType || mime || "audio/webm";
+        const blob = new Blob(chunksRef.current, { type: tipo });
+        const conv = sel;
+        pararStreamGrav();
+        setGravando(false);
+        setSegGrav(0);
+        if (!deveEnviar || !conv || blob.size === 0) return;
+        setEnviandoAudio(true);
+        try {
+          const b64 = await blobParaBase64(blob);
+          await chatwoot.sendAudio(conv.id, b64, tipo);
+          await loadMsgs(conv.id, true);
+        } catch (e) {
+          toast({ title: "Não consegui enviar o áudio", description: (e as Error).message, variant: "destructive" });
+        } finally {
+          setEnviandoAudio(false);
+        }
+      };
+      mr.start();
+      gravadorRef.current = mr;
+      setGravando(true);
+      setSegGrav(0);
+      timerRef.current = window.setInterval(() => setSegGrav((s) => s + 1), 1000);
+    } catch {
+      toast({ title: "Não consegui acessar o microfone", description: "Permita o uso do microfone no navegador.", variant: "destructive" });
+      pararStreamGrav();
+    }
+  }
+
+  function enviarAudio() {
+    if (!gravadorRef.current || gravadorRef.current.state === "inactive") return;
+    enviarAoPararRef.current = true;
+    gravadorRef.current.stop();
+  }
+
+  function cancelarGravacao() {
+    enviarAoPararRef.current = false;
+    if (gravadorRef.current && gravadorRef.current.state !== "inactive") {
+      gravadorRef.current.stop();
+    } else {
+      pararStreamGrav();
+      setGravando(false);
+      setSegGrav(0);
     }
   }
 
@@ -454,18 +556,46 @@ export default function Atendimento() {
 
               {/* Caixa de resposta */}
               {sel.status !== "resolved" ? (
-                <div className="border-t p-2 flex items-end gap-2">
-                  <Textarea
-                    value={reply}
-                    onChange={(e) => setReply(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-                    placeholder={`Responder como ${nome || "atendente"}…`}
-                    className="min-h-[42px] max-h-32 resize-none"
-                  />
-                  <Button onClick={enviar} disabled={sending || !reply.trim()} size="icon" className="h-[42px] w-[42px] shrink-0">
-                    {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
-                </div>
+                (gravando || enviandoAudio) ? (
+                  <div className="border-t p-2 flex items-center gap-2">
+                    {gravando && (
+                      <Button variant="ghost" size="icon" onClick={cancelarGravacao} title="Cancelar" className="h-[42px] w-[42px] shrink-0 text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                    <div className="flex-1 flex items-center gap-2 text-sm text-muted-foreground">
+                      {enviandoAudio ? (
+                        <><Loader2 className="h-4 w-4 animate-spin" /> Enviando áudio…</>
+                      ) : (
+                        <><span className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" /> Gravando… {fmtSeg(segGrav)}</>
+                      )}
+                    </div>
+                    {gravando && (
+                      <Button onClick={enviarAudio} size="icon" title="Enviar áudio" className="h-[42px] w-[42px] shrink-0">
+                        <Send className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ) : (
+                  <div className="border-t p-2 flex items-end gap-2">
+                    <Textarea
+                      value={reply}
+                      onChange={(e) => setReply(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+                      placeholder={`Responder como ${nome || "atendente"}…`}
+                      className="min-h-[42px] max-h-32 resize-none"
+                    />
+                    {reply.trim() ? (
+                      <Button onClick={enviar} disabled={sending} size="icon" className="h-[42px] w-[42px] shrink-0">
+                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+                      </Button>
+                    ) : (
+                      <Button onClick={iniciarGravacao} variant="outline" size="icon" title="Gravar áudio" className="h-[42px] w-[42px] shrink-0">
+                        <Mic className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                )
               ) : (
                 <div className="border-t p-3 text-center text-xs text-muted-foreground">
                   Conversa resolvida. Reabra para responder (ou o cliente reabre ao mandar mensagem).
