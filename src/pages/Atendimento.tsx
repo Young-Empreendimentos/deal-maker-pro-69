@@ -91,8 +91,8 @@ export default function Atendimento() {
   const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
   const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
   const [compose, setCompose] = useState<{ phone: string; nome: string; inboxId: number | null } | null>(null);
-  const [agenda, setAgenda] = useState<{ nome: string; telefone: string }[]>([]);
-  const [agendaInbox, setAgendaInbox] = useState<number | null>(null);
+  const [agenda, setAgenda] = useState<{ nome: string; telefone: string; inbox_id: number; inboxNome: string }[]>([]);
+  const [agendaLoaded, setAgendaLoaded] = useState<number[]>([]);
   const [nomesManuais, setNomesManuais] = useState<Record<number, string>>(() => {
     try { return JSON.parse(localStorage.getItem("atendimento_nomes") || "{}"); } catch { return {}; }
   });
@@ -184,11 +184,21 @@ export default function Atendimento() {
     }).catch(() => {});
   }, []);
 
-  // Carrega a agenda (contatos salvos do WhatsApp) do número selecionado — uma vez por número.
+  // Carrega a agenda (contatos salvos) de TODOS os números do atendente — 1x cada.
   useEffect(() => {
-    if (busca.trim().length < 2 || !inboxEnvio || agendaInbox === inboxEnvio) return;
-    chatwoot.whatsappContacts(inboxEnvio).then((r) => { setAgenda(r.data ?? []); setAgendaInbox(inboxEnvio); }).catch(() => {});
-  }, [busca, inboxEnvio, agendaInbox]);
+    if (busca.trim().length < 2 || inboxesEnvio.length === 0) return;
+    const faltam = inboxesEnvio.filter((i) => !agendaLoaded.includes(i.inbox_id));
+    if (faltam.length === 0) return;
+    setAgendaLoaded((prev) => [...prev, ...faltam.map((i) => i.inbox_id)]);
+    (async () => {
+      const novos = await Promise.all(faltam.map((i) =>
+        chatwoot.whatsappContacts(i.inbox_id)
+          .then((r) => (r.data ?? []).map((c) => ({ ...c, inbox_id: i.inbox_id, inboxNome: i.nome })))
+          .catch(() => [] as { nome: string; telefone: string; inbox_id: number; inboxNome: string }[])
+      ));
+      setAgenda((prev) => [...prev, ...novos.flat()]);
+    })();
+  }, [busca, inboxesEnvio, agendaLoaded]);
 
   // Busca: conversas antigas/resolvidas (Chatwoot) + contatos por NOME (CRM), com debounce.
   useEffect(() => {
@@ -220,11 +230,19 @@ export default function Atendimento() {
   // Contatos da agenda que batem com a busca (fora os que já vieram do CRM).
   const agendaMatches = useMemo(() => {
     const q = busca.trim().toLowerCase();
-    if (q.length < 2) return [] as { nome: string; telefone: string }[];
+    if (q.length < 2) return [] as typeof agenda;
     const jaTem = new Set(contatos.map((c) => c.telefone.replace(/[^0-9]/g, "").slice(-8)));
-    return agenda
-      .filter((a) => a.nome.toLowerCase().includes(q) && !jaTem.has(a.telefone.replace(/[^0-9]/g, "").slice(-8)))
-      .slice(0, 8);
+    const vistos = new Set<string>();
+    const out: typeof agenda = [];
+    for (const a of agenda) {
+      if (!a.nome.toLowerCase().includes(q)) continue;
+      const suf = a.telefone.replace(/[^0-9]/g, "").slice(-8);
+      if (jaTem.has(suf) || vistos.has(suf)) continue;
+      vistos.add(suf);
+      out.push(a);
+      if (out.length >= 8) break;
+    }
+    return out;
   }, [agenda, busca, contatos]);
 
   // Atendentes existentes (p/ o filtro do admin).
@@ -297,22 +315,23 @@ export default function Atendimento() {
   }
 
   async function salvarNomeContato() {
-    const cid = sel?.meta?.sender?.id;
     const novo = nomeEdit.trim();
-    if (!cid || !novo) { setEditandoNome(false); return; }
+    if (!sel || !novo) { setEditandoNome(false); return; }
+    const convId = sel.id;
+    const cid = sel.meta?.sender?.id;
     setSalvandoNome(true);
+    // O nome definido no lápis vale NA HORA (e persiste no navegador) — não depende do Chatwoot.
+    setNomesManuais((m) => ({ ...m, [convId]: novo }));
+    setConvs((cs) => cs.map((c) => (c.id === convId
+      ? { ...c, meta: { ...c.meta, sender: { ...c.meta?.sender, name: novo } } }
+      : c)));
+    setEditandoNome(false);
     try {
-      await chatwoot.renameContact(cid, novo);
-      // O nome definido no lápis passa a ser o exibido (vale p/ qualquer contato, inclusive negociação).
-      setNomesManuais((m) => ({ ...m, [sel!.id]: novo }));
-      setConvs((cs) => cs.map((c) => (c.id === sel!.id
-        ? { ...c, meta: { ...c.meta, sender: { ...c.meta?.sender, id: cid, name: novo } } }
-        : c)));
-      setEditandoNome(false);
+      // Best-effort: também renomeia o contato no Chatwoot (compartilha com todos), se tiver id.
+      if (cid) await chatwoot.renameContact(cid, novo);
       toast({ title: "Nome salvo" });
-      await loadConvs(true);
-    } catch (e) {
-      toast({ title: "Não consegui salvar o nome", description: (e as Error).message, variant: "destructive" });
+    } catch {
+      toast({ title: "Nome salvo", description: "Aparece pra você; não consegui gravar no Chatwoot." });
     } finally {
       setSalvandoNome(false);
     }
@@ -407,11 +426,12 @@ export default function Atendimento() {
   // pela caixa (número) de envio escolhida, injeta na lista e abre na hora.
   // Abre a conversa com um número: se já existe, abre com o histórico; se não, entra no
   // "modo escrever" — NÃO cria nada no Chatwoot (a conversa só nasce ao enviar a 1ª mensagem).
-  async function abrirConversa(phoneComPais: string, nomeContato: string) {
+  async function abrirConversa(phoneComPais: string, nomeContato: string, inboxOverride?: number) {
     const digits = phoneComPais.replace(/[^0-9]/g, "");
+    const inbox = inboxOverride ?? inboxEnvio ?? undefined;
     setIniciando(true);
     try {
-      const r = await chatwoot.startConversation("+" + digits, nomeContato || undefined, inboxEnvio ?? undefined, true);
+      const r = await chatwoot.startConversation("+" + digits, nomeContato || undefined, inbox, true);
       setBusca(""); setNomeInicial(""); setContatos([]);
       const id = (r as any)?.conversation_id;
       if (id) {
@@ -421,7 +441,7 @@ export default function Atendimento() {
         loadConvs(true);
       } else {
         setSelId(null);
-        setCompose({ phone: "+" + digits, nome: nomeContato || "", inboxId: inboxEnvio ?? null });
+        setCompose({ phone: "+" + digits, nome: nomeContato || "", inboxId: inbox ?? null });
       }
     } catch (e) {
       toast({ title: "Não consegui abrir a conversa", description: (e as Error).message, variant: "destructive" });
@@ -471,12 +491,12 @@ export default function Atendimento() {
     abrirConversa("+" + d, c.cliente_nome);
   }
 
-  // Clique num contato da AGENDA do WhatsApp (o número já vem com código do país).
-  function abrirAgenda(a: { nome: string; telefone: string }) {
+  // Clique num contato da AGENDA do WhatsApp (abre pelo número dono daquela agenda).
+  function abrirAgenda(a: { nome: string; telefone: string; inbox_id: number }) {
     let d = (a.telefone || "").replace(/[^0-9]/g, "");
     if (d.length <= 11 && !d.startsWith("55")) d = "55" + d;
     if (d.length < 12) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
-    abrirConversa("+" + d, a.nome);
+    abrirConversa("+" + d, a.nome, a.inbox_id);
   }
 
   const abasAssignee: { key: AssigneeTab; label: string; adminOnly?: boolean }[] = [
@@ -682,7 +702,7 @@ export default function Atendimento() {
                         <Plus className="h-4 w-4 shrink-0 text-primary" />
                         <span className="min-w-0 flex-1 truncate">
                           Iniciar com <strong>{a.nome}</strong>
-                          <span className="text-muted-foreground"> · {fonePretty("+" + a.telefone)} · agenda</span>
+                          <span className="text-muted-foreground"> · {fonePretty("+" + a.telefone)} · agenda ({a.inboxNome})</span>
                         </span>
                       </button>
                     ))}
