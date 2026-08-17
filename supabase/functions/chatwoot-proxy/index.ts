@@ -62,6 +62,13 @@ Deno.serve(async (req) => {
     if (!roleRow || roleRow.ativo === false) return J({ error: "Sem acesso ao CRM" }, 403);
     const isAdmin = roleRow.role === "admin";
 
+    // Caixas (inboxes) que o atendente pode ver. Admin => null (todas).
+    let inboxesPermitidos: number[] | null = null;
+    if (!isAdmin) {
+      const { data: inbRows } = await admin.schema("crm").from("crm_atendimento_inbox").select("inbox_id").eq("user_id", caller.id);
+      inboxesPermitidos = (inbRows ?? []).map((r: any) => Number(r.inbox_id));
+    }
+
     const payload = await req.json().catch(() => ({} as any));
     const action = String(payload?.action ?? "");
 
@@ -92,6 +99,10 @@ Deno.serve(async (req) => {
         // O endpoint de conversas embrulha em { data: { meta, payload } } — os demais não.
         // Desembrulha para o app ler direto data.payload.
         const data = raw?.data ?? raw;
+        // Filtra pelas caixas que o atendente pode ver (admin vê todas).
+        if (inboxesPermitidos && data?.payload) {
+          data.payload = data.payload.filter((c: any) => inboxesPermitidos!.includes(Number(c.inbox_id)));
+        }
         // Resolve a foto de perfil (thumbnail) do contato p/ URL absoluta.
         const absT = (u?: string) => (!u ? u : (u.startsWith("http") ? u : `${CHATWOOT_URL}${u.startsWith("/") ? "" : "/"}${u}`));
         for (const c of (data?.payload ?? [])) {
@@ -155,6 +166,9 @@ Deno.serve(async (req) => {
         if (!q) return J({ ok: true, data: { payload: [] } });
         const raw = await cw(`/conversations/search?q=${encodeURIComponent(q)}`, { method: "GET" });
         const data = raw?.data ?? raw;
+        if (inboxesPermitidos && data?.payload) {
+          data.payload = data.payload.filter((c: any) => inboxesPermitidos!.includes(Number(c.inbox_id)));
+        }
         return J({ ok: true, data });
       }
 
