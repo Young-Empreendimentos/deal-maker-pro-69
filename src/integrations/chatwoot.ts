@@ -82,6 +82,10 @@ export const chatwoot = {
   sendableInboxes: () =>
     call<{ ok: boolean; data: { inbox_id: number; nome: string }[] }>("sendable_inboxes"),
 
+  /** Agenda do WhatsApp do número (caixa) — contatos salvos, pra buscar por nome. */
+  whatsappContacts: (inbox_id: number) =>
+    call<{ ok: boolean; data: { nome: string; telefone: string }[] }>("whatsapp_contacts", { inbox_id }),
+
   getMessages: (conversation_id: number) =>
     call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }),
 

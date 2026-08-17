@@ -13,6 +13,9 @@ const corsHeaders = {
 const CHATWOOT_URL = (Deno.env.get("CHATWOOT_URL") ?? "").replace(/\/+$/, "");
 const CHATWOOT_ACCOUNT_ID = Deno.env.get("CHATWOOT_ACCOUNT_ID") ?? "1";
 const CHATWOOT_TOKEN = Deno.env.get("CHATWOOT_API_TOKEN") ?? "";
+// Evolution (p/ buscar a agenda do WhatsApp do número).
+const EVO_URL = (Deno.env.get("EVOLUTION_URL") ?? "").trim().replace(/\/+$/, "");
+const EVO_KEY = (Deno.env.get("EVOLUTION_API_KEY") ?? "").trim();
 
 // Chama a Application API do Chatwoot já com o account e o token.
 async function cw(path: string, init?: RequestInit) {
@@ -251,6 +254,31 @@ Deno.serve(async (req) => {
         }
         const { data } = await admin.schema("crm").from("crm_atendimento_inbox").select("inbox_id, nome").eq("user_id", caller.id);
         return J({ ok: true, data: (data ?? []).map((r: any) => ({ inbox_id: Number(r.inbox_id), nome: r.nome })) });
+      }
+
+      // Agenda do WhatsApp do número (caixa): contatos salvos, pra buscar por nome.
+      case "whatsapp_contacts": {
+        const inboxId = Number(payload.inbox_id) || 0;
+        if (!inboxId || !EVO_URL || !EVO_KEY) return J({ ok: true, data: [] });
+        const { data: inbRow } = await admin.schema("crm").from("crm_atendimento_inbox").select("evolution_instance").eq("inbox_id", inboxId).maybeSingle();
+        const inst = (inbRow as any)?.evolution_instance;
+        if (!inst) return J({ ok: true, data: [] });
+        let arr: any[] = [];
+        try {
+          const r = await fetch(`${EVO_URL}/chat/findContacts/${encodeURIComponent(inst)}`, { method: "POST", headers: { apikey: EVO_KEY, "Content-Type": "application/json" }, body: JSON.stringify({}) });
+          const j = await r.json();
+          arr = Array.isArray(j) ? j : (j?.contacts ?? j?.data ?? []);
+        } catch (_e) { arr = []; }
+        const out: any[] = [];
+        for (const c of arr) {
+          if (c?.isGroup) continue;
+          const jid = String(c?.remoteJid ?? "");
+          if (!jid.endsWith("@s.whatsapp.net")) continue;
+          const nome = String(c?.pushName ?? "").trim();
+          if (!nome) continue;
+          out.push({ nome, telefone: jid.split("@")[0] });
+        }
+        return J({ ok: true, data: out });
       }
 
       // Busca conversas (inclui antigas/resolvidas) por nome, telefone ou conteúdo.

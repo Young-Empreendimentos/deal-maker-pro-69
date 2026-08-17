@@ -91,6 +91,8 @@ export default function Atendimento() {
   const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
   const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
   const [compose, setCompose] = useState<{ phone: string; nome: string; inboxId: number | null } | null>(null);
+  const [agenda, setAgenda] = useState<{ nome: string; telefone: string }[]>([]);
+  const [agendaInbox, setAgendaInbox] = useState<number | null>(null);
   const [nomesManuais, setNomesManuais] = useState<Record<number, string>>(() => {
     try { return JSON.parse(localStorage.getItem("atendimento_nomes") || "{}"); } catch { return {}; }
   });
@@ -182,6 +184,12 @@ export default function Atendimento() {
     }).catch(() => {});
   }, []);
 
+  // Carrega a agenda (contatos salvos do WhatsApp) do número selecionado — uma vez por número.
+  useEffect(() => {
+    if (busca.trim().length < 2 || !inboxEnvio || agendaInbox === inboxEnvio) return;
+    chatwoot.whatsappContacts(inboxEnvio).then((r) => { setAgenda(r.data ?? []); setAgendaInbox(inboxEnvio); }).catch(() => {});
+  }, [busca, inboxEnvio, agendaInbox]);
+
   // Busca: conversas antigas/resolvidas (Chatwoot) + contatos por NOME (CRM), com debounce.
   useEffect(() => {
     const q = busca.trim();
@@ -208,6 +216,16 @@ export default function Atendimento() {
     if (tel) { setBusca(tel); setNomeInicial(sp.get("nome") ?? ""); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Contatos da agenda que batem com a busca (fora os que já vieram do CRM).
+  const agendaMatches = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (q.length < 2) return [] as { nome: string; telefone: string }[];
+    const jaTem = new Set(contatos.map((c) => c.telefone.replace(/[^0-9]/g, "").slice(-8)));
+    return agenda
+      .filter((a) => a.nome.toLowerCase().includes(q) && !jaTem.has(a.telefone.replace(/[^0-9]/g, "").slice(-8)))
+      .slice(0, 8);
+  }, [agenda, busca, contatos]);
 
   // Atendentes existentes (p/ o filtro do admin).
   const atendentes = useMemo(() => {
@@ -440,6 +458,14 @@ export default function Atendimento() {
     abrirConversa("+" + d, c.cliente_nome);
   }
 
+  // Clique num contato da AGENDA do WhatsApp (o número já vem com código do país).
+  function abrirAgenda(a: { nome: string; telefone: string }) {
+    let d = (a.telefone || "").replace(/[^0-9]/g, "");
+    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d;
+    if (d.length < 12) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
+    abrirConversa("+" + d, a.nome);
+  }
+
   const abasAssignee: { key: AssigneeTab; label: string; adminOnly?: boolean }[] = [
     { key: "me", label: "Minhas" },
     { key: "unassigned", label: "Não atribuídas", adminOnly: true },
@@ -604,7 +630,7 @@ export default function Atendimento() {
                   })
                 )}
                 {/* Buscar por nome: primeiro as conversas (acima); aqui embaixo, iniciar nova a partir do CRM. */}
-                {buscaAtiva && (contatos.length > 0 || pareceNumero(busca)) && (
+                {buscaAtiva && (contatos.length > 0 || agendaMatches.length > 0 || pareceNumero(busca)) && (
                   <div className="border-t">
                     <p className="px-3 pt-2 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground">Iniciar nova conversa</p>
                     {inboxesEnvio.length > 1 && (
@@ -630,6 +656,20 @@ export default function Atendimento() {
                         <span className="min-w-0 flex-1 truncate">
                           Iniciar com <strong>{c.cliente_nome}</strong>
                           <span className="text-muted-foreground"> · {fonePretty(c.telefone)}{c.empreendimento_nome ? ` · ${c.empreendimento_nome}` : ""}</span>
+                        </span>
+                      </button>
+                    ))}
+                    {agendaMatches.map((a, i) => (
+                      <button
+                        key={`ag-${i}-${a.telefone}`}
+                        onClick={() => abrirAgenda(a)}
+                        disabled={iniciando}
+                        className="flex items-center gap-2 px-3 py-2 border-t text-sm hover:bg-primary/5 transition-colors w-full text-left"
+                      >
+                        <Plus className="h-4 w-4 shrink-0 text-primary" />
+                        <span className="min-w-0 flex-1 truncate">
+                          Iniciar com <strong>{a.nome}</strong>
+                          <span className="text-muted-foreground"> · {fonePretty("+" + a.telefone)} · agenda</span>
                         </span>
                       </button>
                     ))}
