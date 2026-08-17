@@ -89,16 +89,17 @@ Deno.serve(async (req) => {
       // Lista conversas. status: open|resolved|pending|all ; assignee_type: me|unassigned|assigned|all
       case "list_conversations": {
         const status = String(payload.status ?? "open");
-        const assigneeType = String(payload.assignee_type ?? "all");
         const params = new URLSearchParams();
-        if (status && status !== "all") params.set("status", status);
-        // 'me' no Chatwoot é relativo ao token; filtramos por agente no app. Aqui tratamos só unassigned.
-        if (assigneeType === "unassigned") params.set("assignee_type", "unassigned");
         if (payload.page) params.set("page", String(payload.page));
         const raw = await cw(`/conversations?${params.toString()}`, { method: "GET" });
         // O endpoint de conversas embrulha em { data: { meta, payload } } — os demais não.
         // Desembrulha para o app ler direto data.payload.
         const data = raw?.data ?? raw;
+        // Aba "Abertas" = open + pending (conversa a atender); "Resolvidas" = resolved.
+        if (data?.payload) {
+          data.payload = data.payload.filter((c: any) =>
+            status === "resolved" ? c.status === "resolved" : (c.status === "open" || c.status === "pending"));
+        }
         // Filtra pelas caixas que o atendente pode ver (admin vê todas).
         if (inboxesPermitidos && data?.payload) {
           data.payload = data.payload.filter((c: any) => inboxesPermitidos!.includes(Number(c.inbox_id)));
