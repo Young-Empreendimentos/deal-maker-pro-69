@@ -90,6 +90,7 @@ export default function Atendimento() {
   const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
   const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
   const [compose, setCompose] = useState<{ phone: string; nome: string; inboxId: number | null } | null>(null);
+  const [nomesManuais, setNomesManuais] = useState<Record<number, string>>({});
   const [editandoNome, setEditandoNome] = useState(false);
   const [nomeEdit, setNomeEdit] = useState("");
   const [salvandoNome, setSalvandoNome] = useState(false);
@@ -251,7 +252,8 @@ export default function Atendimento() {
     setSalvandoNome(true);
     try {
       await chatwoot.renameContact(cid, novo);
-      // Reflete na hora e repuxa a lista (o nome do contato passa a aparecer).
+      // O nome definido no lápis passa a ser o exibido (vale p/ qualquer contato, inclusive negociação).
+      setNomesManuais((m) => ({ ...m, [sel!.id]: novo }));
       setConvs((cs) => cs.map((c) => (c.id === sel!.id
         ? { ...c, meta: { ...c.meta, sender: { ...c.meta?.sender, id: cid, name: novo } } }
         : c)));
@@ -424,6 +426,10 @@ export default function Atendimento() {
     { key: "all", label: "Todas", adminOnly: true },
   ];
 
+  // Nome exibido de um contato: 1º o nome que o atendente definiu no lápis (sessão),
+  // 2º o nome do CRM (negociação), 3º o nome do WhatsApp, 4º o número.
+  const nomeExibido = (c: any) => nomesManuais[c?.id] || c?.cliente_nome_crm || c?.meta?.sender?.name || fonePretty(c?.meta?.sender?.phone_number);
+
   // Modo escrever (compose): conversa nova ainda não criada no Chatwoot.
   const emCompose = !sel && !!compose;
   const alvoConv: any = sel ?? (compose ? { id: 0, status: "open", inbox_id: compose.inboxId ?? undefined, meta: { sender: { id: 0, name: compose.nome, phone_number: compose.phone } } } : null);
@@ -590,10 +596,10 @@ export default function Atendimento() {
                       selId === c.id && "bg-muted",
                     )}
                   >
-                    <Avatar nome={c.cliente_nome_crm || s?.name} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
+                    <Avatar nome={nomeExibido(c)} foto={s?.thumbnail} className="h-9 w-9 text-xs" />
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium text-sm truncate">{c.cliente_nome_crm || s?.name || fonePretty(s?.phone_number)}</span>
+                        <span className="font-medium text-sm truncate">{nomeExibido(c)}</span>
                         <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.timestamp)}</span>
                       </div>
                       <p className="text-xs text-muted-foreground truncate">{last || "—"}</p>
@@ -637,7 +643,7 @@ export default function Atendimento() {
               {/* Cabeçalho da conversa */}
               <div className="flex items-center gap-2 px-3 py-2 border-b">
                 <button className="lg:hidden p-1" onClick={fecharConversa}><ArrowLeft className="h-4 w-4" /></button>
-                <Avatar nome={sel.cliente_nome_crm || sel.meta?.sender?.name} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
+                <Avatar nome={nomeExibido(sel)} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
                 <div className="min-w-0 flex-1">
                   {editandoNome ? (
                     <div className="flex items-center gap-1">
@@ -658,17 +664,15 @@ export default function Atendimento() {
                     </div>
                   ) : (
                     <div className="flex items-center gap-1">
-                      <p className="font-medium text-sm truncate">{sel.cliente_nome_crm || sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
-                      {!sel.cliente_nome_crm && (
-                        <button
-                          type="button"
-                          title="Dar um nome a este contato"
-                          className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
-                          onClick={() => { setNomeEdit(sel.meta?.sender?.name ?? ""); setEditandoNome(true); }}
-                        >
-                          <Pencil className="h-3 w-3" />
-                        </button>
-                      )}
+                      <p className="font-medium text-sm truncate">{nomeExibido(sel)}</p>
+                      <button
+                        type="button"
+                        title="Dar/editar o nome deste contato"
+                        className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
+                        onClick={() => { setNomeEdit(nomesManuais[sel.id] || sel.cliente_nome_crm || sel.meta?.sender?.name || ""); setEditandoNome(true); }}
+                      >
+                        <Pencil className="h-3 w-3" />
+                      </button>
                     </div>
                   )}
                   <p className="text-[11px] text-muted-foreground truncate">
