@@ -134,6 +134,15 @@ Deno.serve(async (req) => {
           method: "POST",
           body: JSON.stringify({ content: finalContent, message_type: "outgoing", private: false }),
         });
+        // Atividade do dia: 1 tarefa "Whatsapp" concluída por dia por cliente, no nome de quem respondeu.
+        const phoneAtiv = String(payload.phone ?? "").replace(/[^0-9]/g, "");
+        if (phoneAtiv) {
+          try {
+            const { data: dealRows } = await admin.rpc("crm_deal_por_telefone", { p_tel: phoneAtiv });
+            const dealId = (dealRows as any[])?.[0]?.deal_id;
+            if (dealId) await admin.rpc("crm_registra_atividade_whats", { p_deal: dealId, p_user: caller.id });
+          } catch (_e) { /* atividade é best-effort */ }
+        }
         return J({ ok: true, data });
       }
 

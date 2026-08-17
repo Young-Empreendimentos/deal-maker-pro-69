@@ -149,7 +149,7 @@ export default function Atendimento() {
     if (!sel || !reply.trim()) return;
     setSending(true);
     try {
-      await chatwoot.sendMessage(sel.id, reply.trim(), nome || undefined);
+      await chatwoot.sendMessage(sel.id, reply.trim(), nome || undefined, sel.meta?.sender?.phone_number ?? undefined);
       setReply("");
       await loadMsgs(sel.id, true);
     } catch (e) {

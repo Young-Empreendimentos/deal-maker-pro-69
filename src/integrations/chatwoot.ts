@@ -73,8 +73,8 @@ export const chatwoot = {
   getMessages: (conversation_id: number) =>
     call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }),
 
-  sendMessage: (conversation_id: number, content: string, signature_name?: string) =>
-    call("send_message", { conversation_id, content, signature_name }),
+  sendMessage: (conversation_id: number, content: string, signature_name?: string, phone?: string) =>
+    call("send_message", { conversation_id, content, signature_name, phone }),
 
   assign: (conversation_id: number, assignee_id: number | null) =>
     call("assign_conversation", { conversation_id, assignee_id }),
