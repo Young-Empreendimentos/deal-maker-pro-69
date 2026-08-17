@@ -90,8 +90,8 @@ export const chatwoot = {
     call("rename_contact", { contact_id, name }),
 
   /** Envia um áudio gravado (base64) como mensagem de voz para o WhatsApp do cliente. */
-  sendAudio: (conversation_id: number, audio_base64: string, mime: string) =>
-    call("send_audio", { conversation_id, audio_base64, mime }),
+  sendAudio: (conversation_id: number, audio_base64: string, mime: string, signature_name?: string) =>
+    call("send_audio", { conversation_id, audio_base64, mime, signature_name }),
 
   listAgents: () => call<{ ok: boolean; data: CwAgent[] }>("list_agents"),
 

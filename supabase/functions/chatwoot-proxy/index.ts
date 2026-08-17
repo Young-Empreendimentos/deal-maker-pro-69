@@ -76,12 +76,24 @@ Deno.serve(async (req) => {
     if (!roleRow || roleRow.ativo === false) return J({ error: "Sem acesso ao CRM" }, 403);
     const isAdmin = roleRow.role === "admin";
 
-    // Caixas (inboxes) que o atendente pode ver. Admin => null (todas).
+    // Caixas (inboxes) e agente(s) do atendente. Admin => vê todas.
     let inboxesPermitidos: number[] | null = null;
+    let meusAgentes: number[] = [];
     if (!isAdmin) {
-      const { data: inbRows } = await admin.schema("crm").from("crm_atendimento_inbox").select("inbox_id").eq("user_id", caller.id);
+      const { data: inbRows } = await admin.schema("crm").from("crm_atendimento_inbox").select("inbox_id, chatwoot_agent_id").eq("user_id", caller.id);
       inboxesPermitidos = (inbRows ?? []).map((r: any) => Number(r.inbox_id));
+      meusAgentes = (inbRows ?? []).map((r: any) => Number(r.chatwoot_agent_id)).filter(Boolean);
     }
+    // Visibilidade p/ não-admin: conversa ATRIBUÍDA só aparece pro atendente atribuído
+    // (permite transferir de uma pessoa p/ outra); sem atribuição, aparece pro dono da caixa.
+    const filtraVisiveis = (convs: any[]) => {
+      if (isAdmin || !convs) return convs;
+      return convs.filter((c: any) => {
+        const aid = c?.meta?.assignee?.id;
+        if (aid) return meusAgentes.includes(Number(aid));
+        return (inboxesPermitidos ?? []).includes(Number(c.inbox_id));
+      });
+    };
 
     const payload = await req.json().catch(() => ({} as any));
     const action = String(payload?.action ?? "");
@@ -115,10 +127,8 @@ Deno.serve(async (req) => {
           data.payload = data.payload.filter((c: any) =>
             status === "resolved" ? c.status === "resolved" : (c.status === "open" || c.status === "pending"));
         }
-        // Filtra pelas caixas que o atendente pode ver (admin vê todas).
-        if (inboxesPermitidos && data?.payload) {
-          data.payload = data.payload.filter((c: any) => inboxesPermitidos!.includes(Number(c.inbox_id)));
-        }
+        // Visibilidade por atribuição/caixa (admin vê todas; atribuída segue o atendente).
+        if (data?.payload) data.payload = filtraVisiveis(data.payload);
         // Resolve a foto de perfil (thumbnail) do contato p/ URL absoluta.
         const absT = (u?: string) => (!u ? u : (u.startsWith("http") ? u : `${CHATWOOT_URL}${u.startsWith("/") ? "" : "/"}${u}`));
         // Atendente de cada conversa = quem cuida da caixa (mapeamento por inbox).
@@ -127,7 +137,8 @@ Deno.serve(async (req) => {
         for (const r of (mapRows ?? [])) inbAtendente[Number((r as any).inbox_id)] = (r as any).nome ?? "";
         for (const c of (data?.payload ?? [])) {
           if (c?.meta?.sender) c.meta.sender.thumbnail = absT(c.meta.sender.thumbnail);
-          (c as any).atendente_nome = inbAtendente[Number(c.inbox_id)] ?? null;
+          // Nome do atendente: prefere quem está ATRIBUÍDO (reflete a transferência); senão, o dono da caixa.
+          (c as any).atendente_nome = c?.meta?.assignee?.name ?? inbAtendente[Number(c.inbox_id)] ?? null;
         }
         await anexaNomeCrm(data?.payload);
         return J({ ok: true, data });
@@ -192,7 +203,10 @@ Deno.serve(async (req) => {
         if (!cid || !b64) return J({ error: "conversation_id e audio_base64 obrigatórios" }, 400);
         const bin = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
         const ext = mime.includes("ogg") ? "ogg" : (mime.includes("mp4") || mime.includes("m4a") ? "m4a" : "webm");
+        // Assinatura de quem enviou (igual ao texto): vai junto do áudio.
+        const sig = String(payload.signature_name ?? "").trim();
         const fd = new FormData();
+        if (sig) fd.append("content", `*${sig}:*`);
         fd.append("message_type", "outgoing");
         fd.append("attachments[]", new Blob([bin], { type: mime }), `audio.${ext}`);
         const url = `${CHATWOOT_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}/conversations/${cid}/messages`;
@@ -218,9 +232,7 @@ Deno.serve(async (req) => {
         if (!q) return J({ ok: true, data: { payload: [] } });
         const raw = await cw(`/conversations/search?q=${encodeURIComponent(q)}`, { method: "GET" });
         const data = raw?.data ?? raw;
-        if (inboxesPermitidos && data?.payload) {
-          data.payload = data.payload.filter((c: any) => inboxesPermitidos!.includes(Number(c.inbox_id)));
-        }
+        if (data?.payload) data.payload = filtraVisiveis(data.payload);
         await anexaNomeCrm(data?.payload);
         return J({ ok: true, data });
       }

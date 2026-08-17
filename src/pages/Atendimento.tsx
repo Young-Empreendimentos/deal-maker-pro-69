@@ -278,7 +278,7 @@ export default function Atendimento() {
         setEnviandoAudio(true);
         try {
           const b64 = await blobParaBase64(blob);
-          await chatwoot.sendAudio(conv.id, b64, tipo);
+          await chatwoot.sendAudio(conv.id, b64, tipo, nome || undefined);
           await loadMsgs(conv.id, true);
         } catch (e) {
           toast({ title: "Não consegui enviar o áudio", description: (e as Error).message, variant: "destructive" });
