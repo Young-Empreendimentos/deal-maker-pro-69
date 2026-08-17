@@ -290,6 +290,10 @@ Deno.serve(async (req) => {
           if (existing?.id) return J({ ok: true, conversation_id: existing.id, reused: true, inbox_id: existing.inbox_id ?? wa.id, phone });
         }
 
+        // Modo "só verificar" (find_only): NÃO cria conversa — evita o rascunho vazio.
+        // O app usa isso pra abrir a tela de escrever; só cria de fato ao enviar a 1ª mensagem.
+        if (payload.find_only) return J({ ok: true, conversation_id: null, reused: false, inbox_id: wa.id, phone });
+
         // Não achou: garante o contato (cria se não existir) e abre a conversa.
         if (!contactId) {
           let mk: any = null;

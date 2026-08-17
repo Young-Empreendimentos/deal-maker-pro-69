@@ -89,6 +89,7 @@ export default function Atendimento() {
   const [inboxesEnvio, setInboxesEnvio] = useState<{ inbox_id: number; nome: string }[]>([]);
   const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
   const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
+  const [compose, setCompose] = useState<{ phone: string; nome: string; inboxId: number | null } | null>(null);
   const [editandoNome, setEditandoNome] = useState(false);
   const [nomeEdit, setNomeEdit] = useState("");
   const [salvandoNome, setSalvandoNome] = useState(false);
@@ -213,12 +214,15 @@ export default function Atendimento() {
   );
 
   async function enviar() {
-    if (!sel || !reply.trim()) return;
+    const texto = reply.trim();
+    if (!texto || sending) return;
     setSending(true);
     try {
-      await chatwoot.sendMessage(sel.id, reply.trim(), nome || undefined, sel.meta?.sender?.phone_number ?? undefined);
+      const alvo = await garantirConversa();
+      if (!alvo) return;
+      await chatwoot.sendMessage(alvo.id, texto, nome || undefined, alvo.phone ?? undefined);
       setReply("");
-      await loadMsgs(sel.id, true);
+      await loadMsgs(alvo.id, true);
     } catch (e) {
       toast({ title: "Não consegui enviar", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -284,16 +288,18 @@ export default function Atendimento() {
         enviarAoPararRef.current = false;
         const tipo = mr.mimeType || mime || "audio/webm";
         const blob = new Blob(chunksRef.current, { type: tipo });
-        const conv = sel;
+        const temAlvo = !!(sel || compose);
         pararStreamGrav();
         setGravando(false);
         setSegGrav(0);
-        if (!deveEnviar || !conv || blob.size === 0) return;
+        if (!deveEnviar || !temAlvo || blob.size === 0) return;
         setEnviandoAudio(true);
         try {
+          const alvo = await garantirConversa();
+          if (!alvo) return;
           const b64 = await blobParaBase64(blob);
-          await chatwoot.sendAudio(conv.id, b64, tipo, nome || undefined);
-          await loadMsgs(conv.id, true);
+          await chatwoot.sendAudio(alvo.id, b64, tipo, nome || undefined);
+          await loadMsgs(alvo.id, true);
         } catch (e) {
           toast({ title: "Não consegui enviar o áudio", description: (e as Error).message, variant: "destructive" });
         } finally {
@@ -346,25 +352,49 @@ export default function Atendimento() {
 
   // Abre a conversa com um número (já com código do país). Cria/reaproveita no Chatwoot
   // pela caixa (número) de envio escolhida, injeta na lista e abre na hora.
+  // Abre a conversa com um número: se já existe, abre com o histórico; se não, entra no
+  // "modo escrever" — NÃO cria nada no Chatwoot (a conversa só nasce ao enviar a 1ª mensagem).
   async function abrirConversa(phoneComPais: string, nomeContato: string) {
     const digits = phoneComPais.replace(/[^0-9]/g, "");
     setIniciando(true);
     try {
-      const r = await chatwoot.startConversation("+" + digits, nomeContato || undefined, inboxEnvio ?? undefined);
-      const id = (r as any)?.conversation_id;
-      if (!id) throw new Error("Não consegui abrir a conversa.");
-      const novo: any = { id, status: "open", inbox_id: (r as any)?.inbox_id, meta: { sender: { id: 0, name: nomeContato || "", phone_number: (r as any)?.phone ?? ("+" + digits) } } };
-      setConvs((prev) => [novo, ...prev.filter((c) => c.id !== id)]);
+      const r = await chatwoot.startConversation("+" + digits, nomeContato || undefined, inboxEnvio ?? undefined, true);
       setBusca(""); setNomeInicial(""); setContatos([]);
-      setSelId(id);
-      await loadMsgs(id, true);
-      loadConvs(true);
+      const id = (r as any)?.conversation_id;
+      if (id) {
+        setCompose(null);
+        setSelId(id);
+        await loadMsgs(id, true);
+        loadConvs(true);
+      } else {
+        setSelId(null);
+        setCompose({ phone: "+" + digits, nome: nomeContato || "", inboxId: inboxEnvio ?? null });
+      }
     } catch (e) {
       toast({ title: "Não consegui abrir a conversa", description: (e as Error).message, variant: "destructive" });
     } finally {
       setIniciando(false);
     }
   }
+
+  // Garante uma conversa real p/ enviar: no modo escrever, cria agora (só na 1ª mensagem).
+  async function garantirConversa(): Promise<{ id: number; phone?: string } | null> {
+    if (sel) return { id: sel.id, phone: sel.meta?.sender?.phone_number ?? undefined };
+    if (compose) {
+      const r = await chatwoot.startConversation(compose.phone, compose.nome || undefined, compose.inboxId ?? undefined);
+      const id = (r as any)?.conversation_id;
+      if (!id) throw new Error("Não consegui abrir a conversa.");
+      const novo: any = { id, status: "open", inbox_id: (r as any)?.inbox_id, meta: { sender: { id: 0, name: compose.nome || "", phone_number: (r as any)?.phone ?? compose.phone } } };
+      setConvs((prev) => [novo, ...prev.filter((c) => c.id !== id)]);
+      setCompose(null);
+      setSelId(id);
+      loadConvs(true);
+      return { id, phone: compose.phone };
+    }
+    return null;
+  }
+
+  function fecharConversa() { setSelId(null); setCompose(null); }
 
   // Botão "Iniciar conversa com o número digitado" — exige o código do país.
   function iniciarConversa() {
@@ -393,6 +423,51 @@ export default function Atendimento() {
     { key: "unassigned", label: "Não atribuídas", adminOnly: true },
     { key: "all", label: "Todas", adminOnly: true },
   ];
+
+  // Modo escrever (compose): conversa nova ainda não criada no Chatwoot.
+  const emCompose = !sel && !!compose;
+  const alvoConv: any = sel ?? (compose ? { id: 0, status: "open", inbox_id: compose.inboxId ?? undefined, meta: { sender: { id: 0, name: compose.nome, phone_number: compose.phone } } } : null);
+  // Caixa de resposta (texto + microfone/gravação) — usada tanto na conversa quanto no modo escrever.
+  const caixaResposta = (gravando || enviandoAudio) ? (
+    <div className="border-t p-2 flex items-center gap-2">
+      {gravando && (
+        <Button variant="ghost" size="icon" onClick={cancelarGravacao} title="Cancelar" className="h-[42px] w-[42px] shrink-0 text-destructive">
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
+      <div className="flex-1 flex items-center gap-2 text-sm text-muted-foreground">
+        {enviandoAudio ? (
+          <><Loader2 className="h-4 w-4 animate-spin" /> Enviando áudio…</>
+        ) : (
+          <><span className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" /> Gravando… {fmtSeg(segGrav)}</>
+        )}
+      </div>
+      {gravando && (
+        <Button onClick={enviarAudio} size="icon" title="Enviar áudio" className="h-[42px] w-[42px] shrink-0">
+          <Send className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  ) : (
+    <div className="border-t p-2 flex items-end gap-2">
+      <Textarea
+        value={reply}
+        onChange={(e) => setReply(e.target.value)}
+        onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
+        placeholder={`Responder como ${nome || "atendente"}…`}
+        className="min-h-[42px] max-h-32 resize-none"
+      />
+      {reply.trim() ? (
+        <Button onClick={enviar} disabled={sending} size="icon" className="h-[42px] w-[42px] shrink-0">
+          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
+        </Button>
+      ) : (
+        <Button onClick={iniciarGravacao} variant="outline" size="icon" title="Gravar áudio" className="h-[42px] w-[42px] shrink-0">
+          <Mic className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
 
   return (
     <AppLayout>
@@ -509,7 +584,7 @@ export default function Atendimento() {
                 return (
                   <button
                     key={c.id}
-                    onClick={() => setSelId(c.id)}
+                    onClick={() => { setCompose(null); setSelId(c.id); }}
                     className={cn(
                       "w-full text-left flex gap-3 px-3 py-2.5 border-b hover:bg-muted/50 transition-colors",
                       selId === c.id && "bg-muted",
@@ -532,8 +607,27 @@ export default function Atendimento() {
         </div>
 
         {/* Coluna 2 — conversa + resposta */}
-        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", !selId && "hidden lg:flex")}>
-          {!sel ? (
+        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", (!selId && !compose) && "hidden lg:flex")}>
+          {emCompose ? (
+            <>
+              {/* Modo escrever — nova conversa (ainda não criada) */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b">
+                <button className="lg:hidden p-1" onClick={fecharConversa}><ArrowLeft className="h-4 w-4" /></button>
+                <Avatar nome={compose!.nome} className="h-8 w-8 text-xs" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{compose!.nome || fonePretty(compose!.phone)}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">Nova conversa</p>
+                </div>
+                <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" onClick={fecharConversa} title="Fechar"><X className="h-4 w-4" /></Button>
+              </div>
+              <div className="flex-1 overflow-y-auto p-6 flex flex-col items-center justify-center text-center text-muted-foreground gap-1 bg-muted/20">
+                <Send className="h-8 w-8 opacity-30" />
+                <p className="text-sm">Escreva a 1ª mensagem para <strong>{compose!.nome || fonePretty(compose!.phone)}</strong>.</p>
+                <p className="text-xs">A conversa só é criada quando você enviar.</p>
+              </div>
+              {caixaResposta}
+            </>
+          ) : !sel ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
               <Headset className="h-10 w-10 opacity-30" />
               <p className="text-sm">Escolha uma conversa para começar a atender.</p>
@@ -542,7 +636,7 @@ export default function Atendimento() {
             <>
               {/* Cabeçalho da conversa */}
               <div className="flex items-center gap-2 px-3 py-2 border-b">
-                <button className="lg:hidden p-1" onClick={() => setSelId(null)}><ArrowLeft className="h-4 w-4" /></button>
+                <button className="lg:hidden p-1" onClick={fecharConversa}><ArrowLeft className="h-4 w-4" /></button>
                 <Avatar nome={sel.cliente_nome_crm || sel.meta?.sender?.name} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
                 <div className="min-w-0 flex-1">
                   {editandoNome ? (
@@ -632,48 +726,7 @@ export default function Atendimento() {
               </div>
 
               {/* Caixa de resposta */}
-              {sel.status !== "resolved" ? (
-                (gravando || enviandoAudio) ? (
-                  <div className="border-t p-2 flex items-center gap-2">
-                    {gravando && (
-                      <Button variant="ghost" size="icon" onClick={cancelarGravacao} title="Cancelar" className="h-[42px] w-[42px] shrink-0 text-destructive">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    )}
-                    <div className="flex-1 flex items-center gap-2 text-sm text-muted-foreground">
-                      {enviandoAudio ? (
-                        <><Loader2 className="h-4 w-4 animate-spin" /> Enviando áudio…</>
-                      ) : (
-                        <><span className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" /> Gravando… {fmtSeg(segGrav)}</>
-                      )}
-                    </div>
-                    {gravando && (
-                      <Button onClick={enviarAudio} size="icon" title="Enviar áudio" className="h-[42px] w-[42px] shrink-0">
-                        <Send className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div className="border-t p-2 flex items-end gap-2">
-                    <Textarea
-                      value={reply}
-                      onChange={(e) => setReply(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
-                      placeholder={`Responder como ${nome || "atendente"}…`}
-                      className="min-h-[42px] max-h-32 resize-none"
-                    />
-                    {reply.trim() ? (
-                      <Button onClick={enviar} disabled={sending} size="icon" className="h-[42px] w-[42px] shrink-0">
-                        {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                      </Button>
-                    ) : (
-                      <Button onClick={iniciarGravacao} variant="outline" size="icon" title="Gravar áudio" className="h-[42px] w-[42px] shrink-0">
-                        <Mic className="h-4 w-4" />
-                      </Button>
-                    )}
-                  </div>
-                )
-              ) : (
+              {sel.status !== "resolved" ? caixaResposta : (
                 <div className="border-t p-3 text-center text-xs text-muted-foreground">
                   Conversa resolvida. Reabra para responder (ou o cliente reabre ao mandar mensagem).
                 </div>
@@ -683,13 +736,13 @@ export default function Atendimento() {
         </div>
 
         {/* Coluna 3 — painel da negociação (Fase 2) */}
-        <div className={cn("flex-col rounded-xl border bg-card overflow-hidden", sel ? "hidden lg:flex" : "hidden lg:flex")}>
-          {!sel ? (
+        <div className="flex-col rounded-xl border bg-card overflow-hidden hidden lg:flex">
+          {!alvoConv ? (
             <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm px-4 text-center">
               O painel da negociação aparece aqui ao abrir uma conversa.
             </div>
           ) : (
-            <AtendimentoDealPanel phone={sel.meta?.sender?.phone_number} nome={sel.meta?.sender?.name} />
+            <AtendimentoDealPanel phone={alvoConv.meta?.sender?.phone_number} nome={alvoConv.meta?.sender?.name} />
           )}
         </div>
       </div>
