@@ -86,6 +86,9 @@ export default function Atendimento() {
   const [buscando, setBuscando] = useState(false);
   const [nomeInicial, setNomeInicial] = useState("");
   const [iniciando, setIniciando] = useState(false);
+  const [inboxesEnvio, setInboxesEnvio] = useState<{ inbox_id: number; nome: string }[]>([]);
+  const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
+  const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
   const [editandoNome, setEditandoNome] = useState(false);
   const [nomeEdit, setNomeEdit] = useState("");
   const [salvandoNome, setSalvandoNome] = useState(false);
@@ -156,17 +159,28 @@ export default function Atendimento() {
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  // Busca conversas antigas/resolvidas (server-side no Chatwoot), com debounce.
+  // Números (caixas) pelos quais dá pra iniciar conversa.
+  useEffect(() => {
+    chatwoot.sendableInboxes().then((r) => {
+      const list = r.data ?? [];
+      setInboxesEnvio(list);
+      setInboxEnvio((prev) => prev ?? list[0]?.inbox_id ?? null);
+    }).catch(() => {});
+  }, []);
+
+  // Busca: conversas antigas/resolvidas (Chatwoot) + contatos por NOME (CRM), com debounce.
   useEffect(() => {
     const q = busca.trim();
-    if (q.length < 2) { setResultadosBusca([]); setBuscando(false); return; }
+    if (q.length < 2) { setResultadosBusca([]); setContatos([]); setBuscando(false); return; }
     setBuscando(true);
     const t = setTimeout(async () => {
       try {
-        const r = await chatwoot.searchConversations(q);
-        setResultadosBusca(r.data?.payload ?? []);
-      } catch {
-        setResultadosBusca([]);
+        const [rc, rk] = await Promise.all([
+          chatwoot.searchConversations(q).catch(() => ({ data: { payload: [] } } as any)),
+          chatwoot.searchContacts(q).catch(() => ({ data: [] } as any)),
+        ]);
+        setResultadosBusca(rc.data?.payload ?? []);
+        setContatos(rk.data ?? []);
       } finally {
         setBuscando(false);
       }
@@ -330,10 +344,31 @@ export default function Atendimento() {
     }
   }
 
-  async function iniciarConversa() {
+  // Abre a conversa com um número (já com código do país). Cria/reaproveita no Chatwoot
+  // pela caixa (número) de envio escolhida, injeta na lista e abre na hora.
+  async function abrirConversa(phoneComPais: string, nomeContato: string) {
+    const digits = phoneComPais.replace(/[^0-9]/g, "");
+    setIniciando(true);
+    try {
+      const r = await chatwoot.startConversation("+" + digits, nomeContato || undefined, inboxEnvio ?? undefined);
+      const id = (r as any)?.conversation_id;
+      if (!id) throw new Error("Não consegui abrir a conversa.");
+      const novo: any = { id, status: "open", inbox_id: (r as any)?.inbox_id, meta: { sender: { id: 0, name: nomeContato || "", phone_number: (r as any)?.phone ?? ("+" + digits) } } };
+      setConvs((prev) => [novo, ...prev.filter((c) => c.id !== id)]);
+      setBusca(""); setNomeInicial(""); setContatos([]);
+      setSelId(id);
+      await loadMsgs(id, true);
+      loadConvs(true);
+    } catch (e) {
+      toast({ title: "Não consegui abrir a conversa", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setIniciando(false);
+    }
+  }
+
+  // Botão "Iniciar conversa com o número digitado" — exige o código do país.
+  function iniciarConversa() {
     const tel = busca.trim();
-    if (!tel) return;
-    // Exige o código do país (não assume Brasil) — evita mandar mensagem pro país errado.
     if (tel.replace(/[^0-9]/g, "").length < 12) {
       toast({
         title: "Inclua o código do país",
@@ -342,17 +377,15 @@ export default function Atendimento() {
       });
       return;
     }
-    setIniciando(true);
-    try {
-      const r = await chatwoot.startConversation(tel, nomeInicial || undefined);
-      const id = (r as { conversation_id?: number })?.conversation_id;
-      setBusca(""); setNomeInicial("");
-      if (id) { setSelId(id); await loadConvs(true); await loadMsgs(id, true); }
-    } catch (e) {
-      toast({ title: "Não consegui iniciar a conversa", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setIniciando(false);
-    }
+    abrirConversa(tel, nomeInicial);
+  }
+
+  // Clique num contato do CRM (cliente é do Brasil — completa o 55 se faltar).
+  function abrirContatoCrm(c: { cliente_nome: string; telefone: string }) {
+    let d = (c.telefone || "").replace(/[^0-9]/g, "");
+    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d;
+    if (d.length < 12) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
+    abrirConversa("+" + d, c.cliente_nome);
   }
 
   const abasAssignee: { key: AssigneeTab; label: string; adminOnly?: boolean }[] = [
@@ -399,15 +432,45 @@ export default function Atendimento() {
               )}
             </div>
           </div>
-          {buscaAtiva && pareceNumero(busca) && (
-            <button
-              onClick={iniciarConversa}
-              disabled={iniciando}
-              className="flex items-center gap-2 px-3 py-2 border-b text-sm text-primary hover:bg-primary/5 transition-colors w-full text-left"
-            >
-              {iniciando ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
-              <span className="truncate">Iniciar conversa com <strong>{busca.trim()}</strong></span>
-            </button>
+          {buscaAtiva && (contatos.length > 0 || pareceNumero(busca)) && (
+            <div className="border-b">
+              {inboxesEnvio.length > 1 && (
+                <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
+                  <span className="shrink-0">Enviar pelo número:</span>
+                  <select
+                    value={inboxEnvio ?? ""}
+                    onChange={(e) => setInboxEnvio(Number(e.target.value))}
+                    className="flex-1 h-7 rounded-md border bg-background px-2 text-xs"
+                  >
+                    {inboxesEnvio.map((i) => <option key={i.inbox_id} value={i.inbox_id}>{i.nome}</option>)}
+                  </select>
+                </div>
+              )}
+              {contatos.map((c, i) => (
+                <button
+                  key={`ct-${c.deal_id}-${i}`}
+                  onClick={() => abrirContatoCrm(c)}
+                  disabled={iniciando}
+                  className="flex items-center gap-2 px-3 py-2 border-t text-sm hover:bg-primary/5 transition-colors w-full text-left"
+                >
+                  <Plus className="h-4 w-4 shrink-0 text-primary" />
+                  <span className="min-w-0 flex-1 truncate">
+                    Iniciar com <strong>{c.cliente_nome}</strong>
+                    <span className="text-muted-foreground"> · {fonePretty(c.telefone)}{c.empreendimento_nome ? ` · ${c.empreendimento_nome}` : ""}</span>
+                  </span>
+                </button>
+              ))}
+              {pareceNumero(busca) && (
+                <button
+                  onClick={iniciarConversa}
+                  disabled={iniciando}
+                  className="flex items-center gap-2 px-3 py-2 border-t text-sm text-primary hover:bg-primary/5 transition-colors w-full text-left"
+                >
+                  {iniciando ? <Loader2 className="h-4 w-4 animate-spin shrink-0" /> : <Plus className="h-4 w-4 shrink-0" />}
+                  <span className="truncate">Iniciar conversa com o número <strong>{busca.trim()}</strong></span>
+                </button>
+              )}
+            </div>
           )}
           {!buscaAtiva && (
             <div className="flex gap-1 p-2 border-b">

@@ -69,9 +69,17 @@ export const chatwoot = {
   searchConversations: (q: string) =>
     call<{ ok: boolean; data: { payload?: CwConversation[] } }>("search_conversations", { q }),
 
-  /** Inicia (ou reabre) uma conversa de WhatsApp com um número. */
-  startConversation: (phone: string, name?: string) =>
-    call<{ ok: boolean; conversation_id: number; reused: boolean }>("start_conversation", { phone, name }),
+  /** Inicia (ou reabre) uma conversa de WhatsApp com um número, pela caixa (número) escolhida. */
+  startConversation: (phone: string, name?: string, inbox_id?: number) =>
+    call<{ ok: boolean; conversation_id: number; reused: boolean; inbox_id?: number; phone?: string }>("start_conversation", { phone, name, inbox_id }),
+
+  /** Busca contatos por NOME no CRM (retorna nome + telefone). */
+  searchContacts: (q: string) =>
+    call<{ ok: boolean; data: { deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[] }>("search_contacts", { q }),
+
+  /** Números (caixas) pelos quais o atendente pode iniciar conversa. */
+  sendableInboxes: () =>
+    call<{ ok: boolean; data: { inbox_id: number; nome: string }[] }>("sendable_inboxes"),
 
   getMessages: (conversation_id: number) =>
     call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }),

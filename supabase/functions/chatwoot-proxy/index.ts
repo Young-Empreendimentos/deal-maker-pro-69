@@ -226,6 +226,25 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // Busca contatos pelo NOME no CRM (o Chatwoot só conhece o número).
+      case "search_contacts": {
+        const q = String(payload.q ?? "").trim();
+        if (q.length < 2) return J({ ok: true, data: [] });
+        const { data } = await admin.rpc("crm_busca_contatos", { p_q: q });
+        return J({ ok: true, data: data ?? [] });
+      }
+
+      // Números (caixas) pelos quais o atendente pode iniciar conversa.
+      case "sendable_inboxes": {
+        if (isAdmin) {
+          const resp = await cw(`/inboxes`, { method: "GET" });
+          const list = (resp?.payload ?? []).filter((i: any) => i.name !== "Pingolead (teste)").map((i: any) => ({ inbox_id: i.id, nome: i.name }));
+          return J({ ok: true, data: list });
+        }
+        const { data } = await admin.schema("crm").from("crm_atendimento_inbox").select("inbox_id, nome").eq("user_id", caller.id);
+        return J({ ok: true, data: (data ?? []).map((r: any) => ({ inbox_id: Number(r.inbox_id), nome: r.nome })) });
+      }
+
       // Busca conversas (inclui antigas/resolvidas) por nome, telefone ou conteúdo.
       case "search_conversations": {
         const q = String(payload.q ?? "").trim();
@@ -246,10 +265,12 @@ Deno.serve(async (req) => {
         const nome = String(payload.name ?? "").trim() || phone;
         const suf = digits.slice(-8);
 
-        // Acha o inbox de WhatsApp (o real da Evolution; nunca o de teste).
+        // Caixa de envio: usa a escolhida (inbox_id) ou, na falta, a primeira real.
         const inboxesResp = await cw(`/inboxes`, { method: "GET" });
         const inboxes = (inboxesResp?.payload ?? []).filter((i: any) => i.name !== "Pingolead (teste)");
-        const wa = inboxes.find((i: any) => /whatsapp/i.test(String(i.channel_type ?? ""))) ?? inboxes[0];
+        const wantedInbox = Number(payload.inbox_id) || 0;
+        const wa = (wantedInbox ? inboxes.find((i: any) => Number(i.id) === wantedInbox) : null)
+          ?? inboxes.find((i: any) => /whatsapp/i.test(String(i.channel_type ?? ""))) ?? inboxes[0];
         if (!wa) return J({ error: "Nenhum inbox de WhatsApp encontrado. Conecte o número primeiro." }, 400);
 
         // Acha o contato existente por telefone (últimos 8 dígitos, tolera formatos).
@@ -266,7 +287,7 @@ Deno.serve(async (req) => {
           const convs = ((ccResp?.payload ?? ccResp?.data?.payload ?? ccResp) ?? []);
           const arr = Array.isArray(convs) ? convs : [];
           const existing = arr.find((c: any) => c.inbox_id === wa.id) ?? arr[0];
-          if (existing?.id) return J({ ok: true, conversation_id: existing.id, reused: true });
+          if (existing?.id) return J({ ok: true, conversation_id: existing.id, reused: true, inbox_id: existing.inbox_id ?? wa.id, phone });
         }
 
         // Não achou: garante o contato (cria se não existir) e abre a conversa.
@@ -288,7 +309,7 @@ Deno.serve(async (req) => {
 
         const conv = await cw(`/conversations`, { method: "POST", body: JSON.stringify({ source_id: sourceId, inbox_id: wa.id, contact_id: contactId }) });
         const convId = conv?.id ?? conv?.payload?.id;
-        return J({ ok: true, conversation_id: convId, reused: false });
+        return J({ ok: true, conversation_id: convId, reused: false, inbox_id: wa.id, phone });
       }
 
       // TEMP (fase de teste): cria uma conversa fake para validar a tela sem WhatsApp.
