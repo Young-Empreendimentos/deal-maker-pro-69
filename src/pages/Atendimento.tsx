@@ -12,7 +12,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip,
+  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip, Pencil, Check,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
@@ -64,6 +64,9 @@ export default function Atendimento() {
   const [buscando, setBuscando] = useState(false);
   const [nomeInicial, setNomeInicial] = useState("");
   const [iniciando, setIniciando] = useState(false);
+  const [editandoNome, setEditandoNome] = useState(false);
+  const [nomeEdit, setNomeEdit] = useState("");
+  const [salvandoNome, setSalvandoNome] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
 
   const loadConvs = useCallback(async (silent = false) => {
@@ -91,6 +94,7 @@ export default function Atendimento() {
   useEffect(() => { loadConvs(); }, [loadConvs]);
   useEffect(() => { chatwoot.listAgents().then((r) => setAgents(r.data ?? [])).catch(() => {}); }, []);
   useEffect(() => { if (selId) loadMsgs(selId); else setMsgs([]); }, [selId, loadMsgs]);
+  useEffect(() => { setEditandoNome(false); }, [selId]);
 
   // Atualização automática (sem realtime): repuxa a lista e a conversa aberta.
   useEffect(() => {
@@ -170,6 +174,27 @@ export default function Atendimento() {
       toast({ title: "Não consegui transferir", description: (e as Error).message, variant: "destructive" });
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function salvarNomeContato() {
+    const cid = sel?.meta?.sender?.id;
+    const novo = nomeEdit.trim();
+    if (!cid || !novo) { setEditandoNome(false); return; }
+    setSalvandoNome(true);
+    try {
+      await chatwoot.renameContact(cid, novo);
+      // Reflete na hora e repuxa a lista (o nome do contato passa a aparecer).
+      setConvs((cs) => cs.map((c) => (c.id === sel!.id
+        ? { ...c, meta: { ...c.meta, sender: { ...c.meta?.sender, id: cid, name: novo } } }
+        : c)));
+      setEditandoNome(false);
+      toast({ title: "Nome salvo" });
+      await loadConvs(true);
+    } catch (e) {
+      toast({ title: "Não consegui salvar o nome", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setSalvandoNome(false);
     }
   }
 
@@ -341,7 +366,38 @@ export default function Atendimento() {
                 <button className="lg:hidden p-1" onClick={() => setSelId(null)}><ArrowLeft className="h-4 w-4" /></button>
                 <Avatar nome={sel.cliente_nome_crm || sel.meta?.sender?.name} foto={sel.meta?.sender?.thumbnail} className="h-8 w-8 text-xs" />
                 <div className="min-w-0 flex-1">
-                  <p className="font-medium text-sm truncate">{sel.cliente_nome_crm || sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
+                  {editandoNome ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        autoFocus
+                        value={nomeEdit}
+                        onChange={(e) => setNomeEdit(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === "Enter") salvarNomeContato(); if (e.key === "Escape") setEditandoNome(false); }}
+                        placeholder="Nome do contato"
+                        className="h-7 text-sm"
+                      />
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" disabled={salvandoNome} onClick={salvarNomeContato}>
+                        {salvandoNome ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0" onClick={() => setEditandoNome(false)}>
+                        <X className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <p className="font-medium text-sm truncate">{sel.cliente_nome_crm || sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
+                      {!sel.cliente_nome_crm && (
+                        <button
+                          type="button"
+                          title="Dar um nome a este contato"
+                          className="p-0.5 text-muted-foreground hover:text-foreground shrink-0"
+                          onClick={() => { setNomeEdit(sel.meta?.sender?.name ?? ""); setEditandoNome(true); }}
+                        >
+                          <Pencil className="h-3 w-3" />
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <p className="text-[11px] text-muted-foreground truncate">
                     {sel.atendente_nome ? `Atendente: ${sel.atendente_nome}` : (sel.meta?.assignee ? `Atendente: ${sel.meta.assignee.name}` : "Sem atendente")}
                   </p>

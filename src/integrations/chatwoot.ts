@@ -85,6 +85,10 @@ export const chatwoot = {
   toggleStatus: (conversation_id: number, status: "resolved" | "open" | "pending") =>
     call("toggle_status", { conversation_id, status }),
 
+  /** Define/edita o nome do contato no Chatwoot (para números que aparecem sem nome). */
+  renameContact: (contact_id: number, name: string) =>
+    call("rename_contact", { contact_id, name }),
+
   listAgents: () => call<{ ok: boolean; data: CwAgent[] }>("list_agents"),
 
   /** TEMP (fase de teste): cria uma conversa fake para validar a tela sem WhatsApp. */

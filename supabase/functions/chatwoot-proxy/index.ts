@@ -184,6 +184,15 @@ Deno.serve(async (req) => {
         return J({ ok: true, data });
       }
 
+      // Define/edita o nome de um contato no Chatwoot (p/ números que vêm sem nome).
+      case "rename_contact": {
+        const contactId = payload.contact_id;
+        const nome = String(payload.name ?? "").trim();
+        if (!contactId || !nome) return J({ error: "contact_id e name obrigatórios" }, 400);
+        const data = await cw(`/contacts/${contactId}`, { method: "PUT", body: JSON.stringify({ name: nome }) });
+        return J({ ok: true, data });
+      }
+
       // Busca conversas (inclui antigas/resolvidas) por nome, telefone ou conteúdo.
       case "search_conversations": {
         const q = String(payload.q ?? "").trim();
