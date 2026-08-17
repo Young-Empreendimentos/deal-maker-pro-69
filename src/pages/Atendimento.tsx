@@ -343,7 +343,7 @@ export default function Atendimento() {
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-sm truncate">{sel.meta?.sender?.name || fonePretty(sel.meta?.sender?.phone_number)}</p>
                   <p className="text-[11px] text-muted-foreground truncate">
-                    {sel.meta?.assignee ? `Atendendo: ${sel.meta.assignee.name}` : "Sem atendente"}
+                    {sel.atendente_nome ? `Atendente: ${sel.atendente_nome}` : (sel.meta?.assignee ? `Atendente: ${sel.meta.assignee.name}` : "Sem atendente")}
                   </p>
                 </div>
 

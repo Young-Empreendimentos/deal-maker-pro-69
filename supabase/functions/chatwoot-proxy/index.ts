@@ -105,8 +105,13 @@ Deno.serve(async (req) => {
         }
         // Resolve a foto de perfil (thumbnail) do contato p/ URL absoluta.
         const absT = (u?: string) => (!u ? u : (u.startsWith("http") ? u : `${CHATWOOT_URL}${u.startsWith("/") ? "" : "/"}${u}`));
+        // Atendente de cada conversa = quem cuida da caixa (mapeamento por inbox).
+        const { data: mapRows } = await admin.schema("crm").from("crm_atendimento_inbox").select("inbox_id, nome");
+        const inbAtendente: Record<number, string> = {};
+        for (const r of (mapRows ?? [])) inbAtendente[Number((r as any).inbox_id)] = (r as any).nome ?? "";
         for (const c of (data?.payload ?? [])) {
           if (c?.meta?.sender) c.meta.sender.thumbnail = absT(c.meta.sender.thumbnail);
+          (c as any).atendente_nome = inbAtendente[Number(c.inbox_id)] ?? null;
         }
         return J({ ok: true, data });
       }

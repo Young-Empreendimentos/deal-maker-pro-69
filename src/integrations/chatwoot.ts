@@ -17,6 +17,8 @@ export type CwConversation = {
   status: "open" | "resolved" | "pending" | "snoozed";
   unread_count?: number;
   timestamp?: number;
+  inbox_id?: number;
+  atendente_nome?: string | null;
   meta?: { sender?: CwSender; assignee?: CwAgent | null };
   last_non_activity_message?: { content?: string } | null;
   messages?: CwMessage[];
