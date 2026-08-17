@@ -90,7 +90,9 @@ export default function Atendimento() {
   const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
   const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
   const [compose, setCompose] = useState<{ phone: string; nome: string; inboxId: number | null } | null>(null);
-  const [nomesManuais, setNomesManuais] = useState<Record<number, string>>({});
+  const [nomesManuais, setNomesManuais] = useState<Record<number, string>>(() => {
+    try { return JSON.parse(localStorage.getItem("atendimento_nomes") || "{}"); } catch { return {}; }
+  });
   const [editandoNome, setEditandoNome] = useState(false);
   const [nomeEdit, setNomeEdit] = useState("");
   const [salvandoNome, setSalvandoNome] = useState(false);
@@ -138,6 +140,8 @@ export default function Atendimento() {
   }, [selId]);
   // Ao sair da tela, garante que o microfone seja liberado.
   useEffect(() => () => { streamRef.current?.getTracks().forEach((t) => t.stop()); if (timerRef.current) clearInterval(timerRef.current); }, []);
+  // Guarda os nomes definidos no lápis (sobrevive ao reload de 5 min).
+  useEffect(() => { try { localStorage.setItem("atendimento_nomes", JSON.stringify(nomesManuais)); } catch { /* ignora */ } }, [nomesManuais]);
   // Mantém a conversa aberta mesmo depois de um reload (rede de segurança abaixo).
   useEffect(() => {
     try { if (selId) sessionStorage.setItem("atendimento_sel", String(selId)); else sessionStorage.removeItem("atendimento_sel"); } catch { /* ignora */ }
