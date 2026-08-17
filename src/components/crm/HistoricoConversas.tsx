@@ -1,8 +1,15 @@
 import { useEffect, useState } from "react";
 import { crmDb } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { MessageCircle, Loader2, Paperclip, Lock } from "lucide-react";
+import { MessageCircle, Loader2, Mic, Image as ImageIcon, Video, FileText, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+type Anexo = {
+  file_type?: string;      // audio | image | video | file
+  data_url?: string;
+  extension?: string | null;
+  transcribed_text?: string | null;
+};
 
 type Msg = {
   id: string;
@@ -10,12 +17,53 @@ type Msg = {
   conteudo: string | null;
   autor_nome: string | null;
   msg_em: string | null;
-  anexos: { length?: number } | null;
+  anexos: Anexo[] | null;
 };
 
 // No WhatsApp a assinatura vira negrito (*Nome:*); aqui mostra sem os asteriscos.
 function limpaAssinatura(s?: string | null) {
   return (s ?? "").replace(/^\*([^\n*]+):\*/, "$1:");
+}
+
+const ANEXO = {
+  audio: { icon: Mic, label: "Áudio" },
+  image: { icon: ImageIcon, label: "Imagem" },
+  video: { icon: Video, label: "Vídeo" },
+  file: { icon: FileText, label: "Arquivo" },
+} as const;
+
+function tipoAnexo(ft?: string) {
+  return (ANEXO as any)[ft ?? ""] ?? ANEXO.file;
+}
+
+// Mostra um anexo (áudio toca ali mesmo; imagem vira miniatura; resto vira link).
+function Anexo({ a }: { a: Anexo }) {
+  const info = tipoAnexo(a.file_type);
+  const Icon = info.icon;
+  return (
+    <div className="mb-1">
+      <span className="flex items-center gap-1 text-xs text-muted-foreground">
+        <Icon className="h-3 w-3" /> {info.label}
+      </span>
+      {a.file_type === "audio" && a.data_url && (
+        <audio controls preload="none" src={a.data_url} className="mt-1 h-8 w-56 max-w-full" />
+      )}
+      {a.file_type === "image" && a.data_url && (
+        <a href={a.data_url} target="_blank" rel="noreferrer">
+          <img src={a.data_url} alt="imagem" className="mt-1 max-h-40 rounded-lg" loading="lazy" />
+        </a>
+      )}
+      {a.file_type !== "audio" && a.file_type !== "image" && a.data_url && (
+        <a href={a.data_url} target="_blank" rel="noreferrer" className="mt-1 inline-block text-xs text-primary underline">
+          abrir {info.label.toLowerCase()}
+        </a>
+      )}
+      {/* Transcrição do áudio, quando o Chatwoot conseguir gerar. */}
+      {a.transcribed_text && a.transcribed_text.trim() && (
+        <p className="mt-1 text-xs italic opacity-80">“{a.transcribed_text.trim()}”</p>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -65,19 +113,18 @@ export function HistoricoConversas({ dealId }: { dealId: string }) {
           <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
             {msgs.map((m) => {
               const mine = m.direcao === "out";
-              const temAnexo = Array.isArray(m.anexos) && m.anexos.length > 0;
+              const anexos = Array.isArray(m.anexos) ? m.anexos : [];
+              const texto = limpaAssinatura(m.conteudo);
               return (
                 <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
                   <div className={cn(
                     "max-w-[80%] rounded-2xl px-3 py-1.5 text-sm break-words whitespace-pre-wrap",
                     mine ? "bg-primary/10 rounded-br-sm" : "bg-muted rounded-bl-sm",
                   )}>
-                    {temAnexo && (
-                      <span className="flex items-center gap-1 text-xs text-muted-foreground mb-0.5">
-                        <Paperclip className="h-3 w-3" /> anexo
-                      </span>
-                    )}
-                    {limpaAssinatura(m.conteudo) || <span className="italic opacity-60">(sem texto)</span>}
+                    {anexos.map((a, i) => <Anexo key={i} a={a} />)}
+                    {texto
+                      ? <span>{texto}</span>
+                      : anexos.length === 0 && <span className="italic opacity-60">(sem texto)</span>}
                     <div className="text-[10px] text-muted-foreground mt-0.5 text-right">
                       {m.msg_em ? new Date(m.msg_em).toLocaleString("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }) : ""}
                     </div>

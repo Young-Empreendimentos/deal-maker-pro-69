@@ -1,8 +1,8 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 // Recebe os eventos do Chatwoot (webhook) e espelha as mensagens no Supabase, já
-// vinculadas à negociação pelo telefone. Também sincroniza a foto de perfil do
-// WhatsApp (via Evolution) para o avatar do contato no Chatwoot, quando ainda não tem.
+// vinculadas à negociação pelo telefone. Também: sincroniza a foto de perfil do
+// WhatsApp (via Evolution), cria a tarefa de atendimento do dia e atribui a conversa.
 // Escrita via service role (o app só lê). Segurança: secret opcional (?s=).
 
 const CW_URL = Deno.env.get("CHATWOOT_URL") ?? "";
@@ -85,19 +85,30 @@ Deno.serve(async (req) => {
     // Foto de perfil (só p/ mensagens do cliente, quando o contato ainda não tem avatar).
     if (direcao === "in") await sincronizarFoto(sender?.id, phone, !!sender?.thumbnail);
 
-    // Atribuição automática: conversa da caixa vai pro atendente da caixa (se ainda sem atendente).
+    // Dados da caixa (atendente + agente do Chatwoot) — usados p/ a tarefa e a atribuição.
     const inboxId = conv?.inbox_id;
-    if (inboxId && !conv?.meta?.assignee && CW_TOKEN) {
+    let inbRow: any = null;
+    if (inboxId) {
+      const { data } = await admin.schema("crm").from("crm_atendimento_inbox")
+        .select("user_id, chatwoot_agent_id").eq("inbox_id", inboxId).maybeSingle();
+      inbRow = data;
+    }
+
+    // Tarefa automática: 1 "Atendimento WhatsApp" concluída por dia por cliente, no nome
+    // do atendente da caixa. Vale respondendo pela tela do Pingolead OU pelo celular.
+    if (direcao === "out" && dealId && inbRow?.user_id) {
+      const { error: taskErr } = await admin.rpc("crm_registra_atividade_whats", { p_deal: dealId, p_user: inbRow.user_id });
+      if (taskErr) console.error("atividade whats:", taskErr.message);
+    }
+
+    // Atribuição automática: conversa da caixa vai pro atendente da caixa (se ainda sem atendente).
+    if (inboxId && !conv?.meta?.assignee && CW_TOKEN && inbRow?.chatwoot_agent_id && convId) {
       try {
-        const { data: inbRow } = await admin.schema("crm").from("crm_atendimento_inbox").select("chatwoot_agent_id").eq("inbox_id", inboxId).maybeSingle();
-        const agentId = (inbRow as any)?.chatwoot_agent_id;
-        if (agentId && convId) {
-          await fetch(`${CW_URL}/api/v1/accounts/${CW_ACC}/conversations/${convId}/assignments`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json", "api_access_token": CW_TOKEN },
-            body: JSON.stringify({ assignee_id: agentId }),
-          });
-        }
+        await fetch(`${CW_URL}/api/v1/accounts/${CW_ACC}/conversations/${convId}/assignments`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "api_access_token": CW_TOKEN },
+          body: JSON.stringify({ assignee_id: inbRow.chatwoot_agent_id }),
+        });
       } catch (_e) { /* atribuição best-effort */ }
     }
 

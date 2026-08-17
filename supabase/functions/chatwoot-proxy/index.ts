@@ -90,6 +90,7 @@ Deno.serve(async (req) => {
       case "list_conversations": {
         const status = String(payload.status ?? "open");
         const params = new URLSearchParams();
+        params.set("status", "all"); // traz todas (o default do Chatwoot é só 'open'); filtramos abaixo
         if (payload.page) params.set("page", String(payload.page));
         const raw = await cw(`/conversations?${params.toString()}`, { method: "GET" });
         // O endpoint de conversas embrulha em { data: { meta, payload } } — os demais não.
@@ -140,15 +141,8 @@ Deno.serve(async (req) => {
           method: "POST",
           body: JSON.stringify({ content: finalContent, message_type: "outgoing", private: false }),
         });
-        // Atividade do dia: 1 tarefa "Whatsapp" concluída por dia por cliente, no nome de quem respondeu.
-        const phoneAtiv = String(payload.phone ?? "").replace(/[^0-9]/g, "");
-        if (phoneAtiv) {
-          try {
-            const { data: dealRows } = await admin.rpc("crm_deal_por_telefone", { p_tel: phoneAtiv });
-            const dealId = (dealRows as any[])?.[0]?.deal_id;
-            if (dealId) await admin.rpc("crm_registra_atividade_whats", { p_deal: dealId, p_user: caller.id });
-          } catch (_e) { /* atividade é best-effort */ }
-        }
+        // A tarefa "Atendimento WhatsApp" do dia é criada no webhook (chatwoot-webhook),
+        // que dispara tanto respondendo pela tela quanto pelo celular — fonte única.
         return J({ ok: true, data });
       }
 
