@@ -208,16 +208,11 @@ export default function Atendimento() {
     setBuscando(true);
     const t = setTimeout(async () => {
       try {
-        const [ab, re, rk] = await Promise.all([
-          chatwoot.listConversations("open").catch(() => ({ data: { payload: [] } } as any)),
-          chatwoot.listConversations("resolved").catch(() => ({ data: { payload: [] } } as any)),
+        const [tc, rk] = await Promise.all([
+          chatwoot.listConversations("todas").catch(() => ({ data: { payload: [] } } as any)),
           chatwoot.searchContacts(q).catch(() => ({ data: [] } as any)),
         ]);
-        const todas = [...(ab.data?.payload ?? []), ...(re.data?.payload ?? [])];
-        const vistos = new Set<number>();
-        const uniq: CwConversation[] = [];
-        for (const c of todas) { if (c && !vistos.has(c.id)) { vistos.add(c.id); uniq.push(c); } }
-        setConvsTodas(uniq);
+        setConvsTodas(tc.data?.payload ?? []);
         setContatos(rk.data ?? []);
       } finally {
         setBuscando(false);

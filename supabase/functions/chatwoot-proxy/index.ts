@@ -115,18 +115,21 @@ Deno.serve(async (req) => {
       case "list_inboxes":
         return J({ ok: true, data: await cw(`/inboxes`, { method: "GET" }) });
 
-      // Lista conversas. status: open|resolved|pending|all ; assignee_type: me|unassigned|assigned|all
+      // Lista conversas. status: open|resolved|pending|todas ; "todas" = tudo (usado na busca).
       case "list_conversations": {
         const status = String(payload.status ?? "open");
-        const params = new URLSearchParams();
-        params.set("status", "all"); // traz todas (o default do Chatwoot é só 'open'); filtramos abaixo
-        if (payload.page) params.set("page", String(payload.page));
-        const raw = await cw(`/conversations?${params.toString()}`, { method: "GET" });
-        // O endpoint de conversas embrulha em { data: { meta, payload } } — os demais não.
-        // Desembrulha para o app ler direto data.payload.
-        const data = raw?.data ?? raw;
+        // O Chatwoot pagina de 25 em 25 — busca várias páginas pra não perder conversas antigas.
+        const todas: any[] = [];
+        for (let p = 1; p <= 8; p++) {
+          const raw = await cw(`/conversations?status=all&page=${p}`, { method: "GET" });
+          const d = raw?.data ?? raw;
+          const arr = d?.payload ?? [];
+          todas.push(...arr);
+          if (arr.length < 25) break;
+        }
+        const data: any = { payload: todas };
         // Aba "Abertas" = open + pending (conversa a atender); "Resolvidas" = resolved.
-        if (data?.payload) {
+        if (status !== "todas") {
           data.payload = data.payload.filter((c: any) =>
             status === "resolved" ? c.status === "resolved" : (c.status === "open" || c.status === "pending"));
         }
