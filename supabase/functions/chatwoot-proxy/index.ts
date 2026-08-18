@@ -22,21 +22,38 @@ const EVO_KEY = (Deno.env.get("EVOLUTION_API_KEY") ?? "").trim();
 async function cw(path: string, init?: RequestInit) {
   const url = `${CHATWOOT_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}${path}`;
   const headers = { "Content-Type": "application/json", "api_access_token": CHATWOOT_TOKEN, ...(init?.headers ?? {}) };
-  let res: Response | undefined;
-  let netErr: unknown;
-  for (let tent = 0; tent < 3; tent++) {
-    try { res = await fetch(url, { ...init, headers }); netErr = undefined; break; }
-    catch (e) { netErr = e; await new Promise((r) => setTimeout(r, 300 * (tent + 1))); }
+  // Só re-tenta 5xx em requisições idempotentes (GET/HEAD). POST (enviar mensagem/
+  // áudio, criar conversa) NÃO se repete em 5xx pra não duplicar ação.
+  const metodo = (init?.method ?? "GET").toUpperCase();
+  const idempotente = metodo === "GET" || metodo === "HEAD";
+  let lastErr: unknown;
+  // Reenvia em erro de REDE e tambem quando o Chatwoot responde 5xx/429 (só GET).
+  // (O Railway as vezes reseta a conexao OU devolve 502/503/500 sob carga; sem
+  //  isso, a busca perdia paginas e voltava incompleta, com status 200.)
+  for (let tent = 0; tent < 4; tent++) {
+    let res: Response;
+    try {
+      res = await fetch(url, { ...init, headers });
+    } catch (e) {
+      lastErr = e; // erro de rede -> tenta de novo
+      await new Promise((r) => setTimeout(r, 400 * (tent + 1)));
+      continue;
+    }
+    if ((res.status >= 500 || res.status === 429) && idempotente) {
+      lastErr = new Error(`Chatwoot HTTP ${res.status}`); // transitorio -> tenta de novo
+      await new Promise((r) => setTimeout(r, 400 * (tent + 1)));
+      continue;
+    }
+    const text = await res.text();
+    let body: any;
+    try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+    if (!res.ok) { // 4xx = erro real do pedido; repetir nao adianta
+      const msg = (body && typeof body === "object" && (body.message || body.error)) || (typeof body === "string" ? body : "") || `Chatwoot HTTP ${res.status}`;
+      throw new Error(msg);
+    }
+    return body;
   }
-  if (netErr || !res) throw (netErr instanceof Error ? netErr : new Error("Sem resposta do Chatwoot"));
-  const text = await res.text();
-  let body: any;
-  try { body = text ? JSON.parse(text) : null; } catch { body = text; }
-  if (!res.ok) {
-    const msg = (body && typeof body === "object" && (body.message || body.error)) || (typeof body === "string" ? body : "") || `Chatwoot HTTP ${res.status}`;
-    throw new Error(msg);
-  }
-  return body;
+  throw (lastErr instanceof Error ? lastErr : new Error("Sem resposta do Chatwoot"));
 }
 
 Deno.serve(async (req) => {
@@ -57,15 +74,19 @@ Deno.serve(async (req) => {
     // Mostra o nome cadastrado no CRM (não o apelido do WhatsApp) quando o telefone
     // da conversa casa com uma negociação. Best-effort, em paralelo (a lista é pequena).
     const anexaNomeCrm = async (convs: any[]) => {
-      await Promise.all((convs ?? []).map(async (c: any) => {
-        const tel = c?.meta?.sender?.phone_number;
-        if (!tel) return;
-        try {
-          const { data: dr } = await admin.rpc("crm_deal_por_telefone", { p_tel: tel });
-          const nome = (dr as any[])?.[0]?.cliente_nome;
-          if (nome) c.cliente_nome_crm = nome;
-        } catch (_e) { /* ignora */ }
-      }));
+      // Uma única RPC em lote (antes eram N chamadas — deixava a busca lenta ~6s,
+      // e a resposta lenta estourava o tempo no navegador de alguns usuários).
+      const tels = (convs ?? []).map((c: any) => c?.meta?.sender?.phone_number).filter(Boolean);
+      if (!tels.length) return;
+      try {
+        const { data } = await admin.rpc("crm_nomes_por_telefones", { p_tels: tels });
+        const porSuf: Record<string, string> = {};
+        for (const r of ((data as any[]) ?? [])) porSuf[String((r as any).sufixo)] = (r as any).cliente_nome;
+        for (const c of (convs ?? [])) {
+          const suf = String(c?.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "").slice(-8);
+          if (suf && porSuf[suf]) c.cliente_nome_crm = porSuf[suf];
+        }
+      } catch (_e) { /* ignora */ }
     };
 
     // Quem está chamando? (usuário logado no Pingolead)
@@ -121,22 +142,32 @@ Deno.serve(async (req) => {
         const status = String(payload.status ?? "open");
         // O Chatwoot pagina de 25 em 25. A lista normal (poll) pega só a 1ª página (leve, não
         // sobrecarrega o Chatwoot); a BUSCA (status="todas") varre várias páginas p/ achar antigas.
-        const maxPag = status === "todas" ? 8 : 1;
-        const todas: any[] = [];
-        for (let p = 1; p <= maxPag; p++) {
-          let arr: any[] = [];
-          try {
-            const raw = await cw(`/conversations?status=all&page=${p}`, { method: "GET" });
-            const d = raw?.data ?? raw;
-            arr = d?.payload ?? [];
-          } catch (e) {
-            if (p === 1) throw e; // 1ª página falhando = Chatwoot fora; avisa. Demais: usa o que veio.
-            break;
+        // "todas" (busca) varre TODAS as paginas, guiada pelo all_count do Chatwoot,
+        // e re-tenta cada pagina que falhar (dedupe por id). O poll pega so a 1a pagina.
+        // "open" (poll a cada 6s) pega só a 1ª página (leve). "resolved" e "todas"
+        // varrem TODAS as páginas — resolvidas antigas ficam nas páginas seguintes.
+        const soUmaPagina = status === "open";
+        const porId = new Map<number, any>();
+        let allCount = Infinity;
+        for (let p = 1; p <= 12 && (p - 1) * 25 < allCount; p++) {
+          let arr: any[] | null = null;
+          for (let tent = 0; tent < 2 && arr === null; tent++) {
+            try {
+              const raw = await cw(`/conversations?status=all&page=${p}`, { method: "GET" });
+              const d = raw?.data ?? raw;
+              arr = Array.isArray(d?.payload) ? d.payload : [];
+              if (p === 1 && typeof d?.meta?.all_count === "number") allCount = d.meta.all_count;
+            } catch (e) {
+              if (soUmaPagina || p === 1) throw e; // poll/1a pagina falhando = Chatwoot fora; avisa.
+              arr = null; // paginas seguintes: re-tenta e, se nao vier, usa o que ja tem
+              await new Promise((r) => setTimeout(r, 400 * (tent + 1)));
+            }
           }
-          todas.push(...arr);
-          if (arr.length < 25) break;
+          if (arr === null) break;
+          for (const c of arr) porId.set((c as any).id, c);
+          if (soUmaPagina || arr.length < 25) break;
         }
-        const data: any = { payload: todas };
+        const data: any = { payload: [...porId.values()] };
         // Aba "Abertas" = open + pending (conversa a atender); "Resolvidas" = resolved.
         if (status !== "todas") {
           data.payload = data.payload.filter((c: any) =>
