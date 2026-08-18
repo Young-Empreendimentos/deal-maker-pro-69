@@ -18,16 +18,17 @@ const EVO_URL = (Deno.env.get("EVOLUTION_URL") ?? "").trim().replace(/\/+$/, "")
 const EVO_KEY = (Deno.env.get("EVOLUTION_API_KEY") ?? "").trim();
 
 // Chama a Application API do Chatwoot já com o account e o token.
+// Reenvia até 3x se der ERRO DE REDE (ex.: connection reset do Chatwoot no Railway).
 async function cw(path: string, init?: RequestInit) {
   const url = `${CHATWOOT_URL}/api/v1/accounts/${CHATWOOT_ACCOUNT_ID}${path}`;
-  const res = await fetch(url, {
-    ...init,
-    headers: {
-      "Content-Type": "application/json",
-      "api_access_token": CHATWOOT_TOKEN,
-      ...(init?.headers ?? {}),
-    },
-  });
+  const headers = { "Content-Type": "application/json", "api_access_token": CHATWOOT_TOKEN, ...(init?.headers ?? {}) };
+  let res: Response | undefined;
+  let netErr: unknown;
+  for (let tent = 0; tent < 3; tent++) {
+    try { res = await fetch(url, { ...init, headers }); netErr = undefined; break; }
+    catch (e) { netErr = e; await new Promise((r) => setTimeout(r, 300 * (tent + 1))); }
+  }
+  if (netErr || !res) throw (netErr instanceof Error ? netErr : new Error("Sem resposta do Chatwoot"));
   const text = await res.text();
   let body: any;
   try { body = text ? JSON.parse(text) : null; } catch { body = text; }
@@ -118,12 +119,20 @@ Deno.serve(async (req) => {
       // Lista conversas. status: open|resolved|pending|todas ; "todas" = tudo (usado na busca).
       case "list_conversations": {
         const status = String(payload.status ?? "open");
-        // O Chatwoot pagina de 25 em 25 — busca várias páginas pra não perder conversas antigas.
+        // O Chatwoot pagina de 25 em 25. A lista normal (poll) pega só a 1ª página (leve, não
+        // sobrecarrega o Chatwoot); a BUSCA (status="todas") varre várias páginas p/ achar antigas.
+        const maxPag = status === "todas" ? 8 : 1;
         const todas: any[] = [];
-        for (let p = 1; p <= 8; p++) {
-          const raw = await cw(`/conversations?status=all&page=${p}`, { method: "GET" });
-          const d = raw?.data ?? raw;
-          const arr = d?.payload ?? [];
+        for (let p = 1; p <= maxPag; p++) {
+          let arr: any[] = [];
+          try {
+            const raw = await cw(`/conversations?status=all&page=${p}`, { method: "GET" });
+            const d = raw?.data ?? raw;
+            arr = d?.payload ?? [];
+          } catch (e) {
+            if (p === 1) throw e; // 1ª página falhando = Chatwoot fora; avisa. Demais: usa o que veio.
+            break;
+          }
           todas.push(...arr);
           if (arr.length < 25) break;
         }
