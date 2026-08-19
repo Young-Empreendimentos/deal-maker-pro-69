@@ -221,8 +221,10 @@ export default function Atendimento() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  // Veio de "Conversar no WhatsApp" numa negociação: ABRE direto a conversa
-  // existente (find_only acha inclusive as RESOLVIDAS) — não depende da busca.
+  // Veio de "Conversar no WhatsApp" numa negociação: tenta ABRIR a conversa
+  // existente (find_only acha inclusive as RESOLVIDAS). Se NÃO houver conversa
+  // (ou der qualquer erro), cai na BUSCA — que mostra o "iniciar nova conversa".
+  // Assim resolve o 2º contato SEM travar as negociações antigas/sem conversa.
   useEffect(() => {
     const tel = sp.get("tel");
     if (!tel) return;
@@ -230,8 +232,17 @@ export default function Atendimento() {
     setNomeInicial(nome);
     let d = tel.replace(/[^0-9]/g, "");
     if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // cliente é do Brasil
-    if (d.length >= 12) abrirConversa("+" + d, nome);
-    else setBusca(tel); // número curto/estranho: cai na busca pra resolver na mão
+    if (d.length < 12) { setBusca(tel); return; } // número curto/estranho: busca
+    (async () => {
+      try {
+        const r = await chatwoot.startConversation("+" + d, nome || undefined, undefined, true);
+        const id = (r as any)?.conversation_id;
+        if (id) { setSelId(id); await loadMsgs(id, true); loadConvs(true); }
+        else setBusca(tel); // sem conversa existente → busca (mostra "iniciar nova conversa")
+      } catch {
+        setBusca(tel); // qualquer erro no lookup → não trava a tela, cai na busca
+      }
+    })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
