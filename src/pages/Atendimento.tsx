@@ -221,10 +221,17 @@ export default function Atendimento() {
     return () => clearTimeout(t);
   }, [busca]);
 
-  // Veio de "Conversar no WhatsApp" numa negociação: já busca o número.
+  // Veio de "Conversar no WhatsApp" numa negociação: ABRE direto a conversa
+  // existente (find_only acha inclusive as RESOLVIDAS) — não depende da busca.
   useEffect(() => {
     const tel = sp.get("tel");
-    if (tel) { setBusca(tel); setNomeInicial(sp.get("nome") ?? ""); }
+    if (!tel) return;
+    const nome = sp.get("nome") ?? "";
+    setNomeInicial(nome);
+    let d = tel.replace(/[^0-9]/g, "");
+    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // cliente é do Brasil
+    if (d.length >= 12) abrirConversa("+" + d, nome);
+    else setBusca(tel); // número curto/estranho: cai na busca pra resolver na mão
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
