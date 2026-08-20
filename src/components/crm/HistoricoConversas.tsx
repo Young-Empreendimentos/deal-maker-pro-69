@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { crmDb } from "@/integrations/supabase/client";
+import { chatwoot } from "@/integrations/chatwoot";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MessageCircle, Loader2, Mic, Image as ImageIcon, Video, FileText, Lock } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -67,8 +68,11 @@ function Anexo({ a }: { a: Anexo }) {
 }
 
 /**
- * Histórico das conversas de WhatsApp vinculadas à negociação (crm_atendimento_mensagens).
- * Só leitura — o consultor não edita nem apaga; o registro é preenchido pelo webhook do Chatwoot.
+ * Histórico das conversas de WhatsApp da negociação. Puxa a conversa AO VIVO do Chatwoot
+ * pelo TELEFONE do lead (mostra tudo, mesmo mensagens antigas de antes do espelho, e resolve
+ * o caso de o cliente ter MAIS DE UMA negociação com o mesmo número — a conversa é a mesma).
+ * Fallback pro espelho salvo (crm_atendimento_mensagens por deal_id) se o ao vivo falhar/vier vazio.
+ * Só leitura — o consultor não edita nem apaga.
  */
 export function HistoricoConversas({ dealId }: { dealId: string }) {
   const [msgs, setMsgs] = useState<Msg[]>([]);
@@ -78,6 +82,44 @@ export function HistoricoConversas({ dealId }: { dealId: string }) {
     let vivo = true;
     (async () => {
       setLoading(true);
+
+      // 1) AO VIVO: acha a conversa pelo telefone do lead e traz TODAS as mensagens (proxy pagina).
+      let live: Msg[] | null = null;
+      try {
+        const { data: fones } = await (crmDb as any)
+          .from("crm_deal_phones").select("telefone").eq("deal_id", dealId);
+        const tel = (((fones as any[]) ?? []).map((r) => String(r.telefone ?? "")))
+          .find((t) => t.replace(/\D/g, "").length >= 8);
+        if (tel) {
+          let d = tel.replace(/\D/g, "");
+          if (d.length === 10 || d.length === 11) d = "55" + d; // sem código do país -> Brasil
+          if (d.length >= 12) {
+            const r = await chatwoot.startConversation("+" + d, undefined, undefined, true); // find_only
+            const cid = (r as any)?.conversation_id;
+            if (cid) {
+              const mr = await chatwoot.getMessages(cid);
+              live = (mr.data?.payload ?? [])
+                // 0 = recebida (cliente) · 1 = enviada · 3 = template; 2 = atividade/sistema (fora).
+                .filter((m) => m.message_type === 0 || m.message_type === 1 || m.message_type === 3)
+                .map((m) => ({
+                  id: String(m.id),
+                  direcao: (m.message_type === 0 ? "in" : "out") as "in" | "out",
+                  conteudo: m.content ?? null,
+                  autor_nome: m.sender?.name ?? null,
+                  msg_em: m.created_at ? new Date(m.created_at * 1000).toISOString() : null,
+                  anexos: (m.attachments ?? []).map((a) => ({
+                    file_type: a.file_type, data_url: a.data_url, extension: a.extension ?? null,
+                  })),
+                }));
+            }
+          }
+        }
+      } catch { live = null; }
+
+      if (!vivo) return;
+      if (live && live.length) { setMsgs(live); setLoading(false); return; }
+
+      // 2) FALLBACK: o espelho salvo (por deal_id), se o ao vivo falhar ou vier vazio.
       const { data } = await (crmDb as any)
         .from("crm_atendimento_mensagens")
         .select("id, direcao, conteudo, autor_nome, msg_em, anexos")
