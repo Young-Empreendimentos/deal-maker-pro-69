@@ -849,7 +849,7 @@ export default function Atendimento() {
 
               {/* Mensagens */}
               <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-muted/20">
-                {msgs.filter((m) => m.message_type !== 2).map((m) => {
+                {msgs.filter((m) => m.message_type !== 2 && !m.private).map((m) => {
                   const mine = m.message_type === 1;
                   return (
                     <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>

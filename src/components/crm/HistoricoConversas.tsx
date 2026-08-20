@@ -100,7 +100,8 @@ export function HistoricoConversas({ dealId }: { dealId: string }) {
               const mr = await chatwoot.getMessages(cid);
               live = (mr.data?.payload ?? [])
                 // 0 = recebida (cliente) · 1 = enviada · 3 = template; 2 = atividade/sistema (fora).
-                .filter((m) => m.message_type === 0 || m.message_type === 1 || m.message_type === 3)
+                // `!m.private` = não mostra nota interna do time (não é mensagem pro cliente).
+                .filter((m) => (m.message_type === 0 || m.message_type === 1 || m.message_type === 3) && !m.private)
                 .map((m) => ({
                   id: String(m.id),
                   direcao: (m.message_type === 0 ? "in" : "out") as "in" | "out",
