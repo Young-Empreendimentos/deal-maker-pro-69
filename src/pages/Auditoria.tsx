@@ -24,6 +24,7 @@ type LogRow = { id: string; deal_id: string; status_anterior: string | null; sta
 type ConsComissao = { responsavel_id: string; nome: string; faturamento: number; vendas: number; fat_externo: number; vendas_externas: number; bate_externo: boolean; positivas: number; atingiu_min: boolean; faixa_de: number | null; pct_base: number | null; pct_max: number | null; pct_final: number; valor: number };
 type Imob = { nome: string; faturamento: number; vendas: number };
 type Aviso = { deal_id: string; cliente: string; empreendimento: string | null; lote: string | null; valor: number | null; corretor: string | null; dono: string | null };
+type BonusGestora = { responsavel_id: string; nome: string; fat_externo: number; fat_time: number; base: number; pct: number; valor: number; membros: { nome: string; faturamento: number }[] };
 
 function cicloInicio(ref: Date) {
   const d = new Date(ref);
@@ -62,6 +63,7 @@ export default function Auditoria() {
   const [comissaoMap, setComissaoMap] = useState<Record<string, ConsComissao>>({});
   const [imobiliarias, setImobiliarias] = useState<Imob[]>([]);
   const [avisos, setAvisos] = useState<Aviso[]>([]);
+  const [bonusGestora, setBonusGestora] = useState<BonusGestora | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -90,6 +92,7 @@ export default function Auditoria() {
       ((cd.consultores as ConsComissao[]) ?? []).forEach((c) => { cmap[c.responsavel_id] = c; });
       setComissaoMap(cmap);
       setImobiliarias((cd.imobiliarias as Imob[]) ?? []);
+      setBonusGestora((cd.bonus_gestora as BonusGestora) ?? null);
       setAvisos((av.data as Aviso[]) ?? []);
       setLoading(false);
     });
@@ -177,6 +180,7 @@ export default function Auditoria() {
                   const totOut = semanas.reduce((a, w) => a + w.outbound, 0);
                   const sla = slaMap[cons.id];
                   const com = comissaoMap[cons.id];
+                  const bg = bonusGestora && com && com.responsavel_id === bonusGestora.responsavel_id ? bonusGestora : null;
                   const pct = sla && sla.sla_total ? Math.round((sla.sla_conforme / sla.sla_total) * 100) : null;
                   const slaCls = pct === null ? "" : pct >= 90
                     ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
@@ -234,13 +238,18 @@ export default function Auditoria() {
                               <span className="shrink-0 rounded-full bg-amber-100 px-2.5 py-1 text-xs font-medium text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">abaixo do mínimo</span>
                             </div>
                           )}
-                          {com.fat_externo > 0 && (
-                            <div className="mt-2 flex items-center justify-between gap-2 border-t border-dashed pt-2 text-xs">
-                              <span className="text-muted-foreground">Via corretores <span className="font-medium tabular-nums text-foreground">{fmtBRL(com.fat_externo)}</span></span>
-                              {com.bate_externo ? (
-                                <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">bateu 500k</span>
-                              ) : (
-                                <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">meta 500k</span>
+                          {(bg ? bg.base > 0 : com.fat_externo > 0) && (
+                            <div className="mt-2 border-t border-dashed pt-2 text-xs">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="text-muted-foreground">Via corretores <span className="font-medium tabular-nums text-foreground">{fmtBRL(bg ? bg.base : com.fat_externo)}</span></span>
+                                {(bg ? bg.pct > 0 : com.bate_externo) ? (
+                                  <span className="shrink-0 rounded-full bg-emerald-100 px-2 py-0.5 font-medium text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300">bateu 500k{bg ? ` · ${fmtBRL(bg.valor, 2)}` : ""}</span>
+                                ) : (
+                                  <span className="shrink-0 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">meta 500k</span>
+                                )}
+                              </div>
+                              {bg && (
+                                <p className="mt-1 text-[11px] text-muted-foreground">gestora · externas {fmtBRL(bg.fat_externo)} + time {fmtBRL(bg.fat_time)} (Murilo + Joana)</p>
                               )}
                             </div>
                           )}
