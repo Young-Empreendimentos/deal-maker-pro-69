@@ -109,6 +109,8 @@ export default function Atendimento() {
   const enviarAoPararRef = useRef(false);
   const ocupadoRef = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const msgsBoxRef = useRef<HTMLDivElement>(null);
+  const grudarRef = useRef(true); // rolar pro fim SÓ quando o usuário está no fim (ou abriu/enviou agora)
 
   const loadConvs = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
@@ -173,7 +175,11 @@ export default function Atendimento() {
     return () => clearInterval(t);
   }, [loadConvs, loadMsgs, selId]);
 
-  useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
+  // Ao abrir/trocar de conversa, "cola" no fim (mostra as últimas mensagens).
+  useEffect(() => { grudarRef.current = true; }, [selId]);
+  // Rola pro fim SÓ se estiver colado no fim — assim, subir pra ler o histórico não é mais
+  // puxado de volta pro fim a cada atualização (o poll de 6s recarrega as mensagens).
+  useEffect(() => { if (grudarRef.current) endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
   // Números (caixas) pelos quais dá pra iniciar conversa.
   useEffect(() => {
@@ -317,6 +323,7 @@ export default function Atendimento() {
       if (!alvo) return;
       await chatwoot.sendMessage(alvo.id, texto, nome || undefined, alvo.phone ?? undefined);
       setReply("");
+      grudarRef.current = true; // acabei de enviar → rola pro fim pra ver a mensagem
       await loadMsgs(alvo.id, true);
     } catch (e) {
       toast({ title: "Não consegui enviar", description: (e as Error).message, variant: "destructive" });
@@ -396,6 +403,7 @@ export default function Atendimento() {
           if (!alvo) return;
           const b64 = await blobParaBase64(blob);
           await chatwoot.sendAudio(alvo.id, b64, tipo, nome || undefined);
+          grudarRef.current = true; // acabei de enviar → rola pro fim
           await loadMsgs(alvo.id, true);
         } catch (e) {
           toast({ title: "Não consegui enviar o áudio", description: (e as Error).message, variant: "destructive" });
@@ -848,7 +856,11 @@ export default function Atendimento() {
               </div>
 
               {/* Mensagens */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-muted/20">
+              <div
+                ref={msgsBoxRef}
+                onScroll={() => { const el = msgsBoxRef.current; if (el) grudarRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}
+                className="flex-1 overflow-y-auto p-3 space-y-2 bg-muted/20"
+              >
                 {msgs.filter((m) => m.message_type !== 2 && !m.private).map((m) => {
                   const mine = m.message_type === 1;
                   return (
