@@ -103,7 +103,9 @@ function loadDashFilters(): DashPersist {
 const GATILHO_PCT = 0.10;
 
 function entradaDeal(d: Deal): number {
-  return ((d as any).valor_entrada ?? (d as any).auto_valor_entrada ?? 0) as number;
+  // SÓ o "Valor de Entrada (R$)" que o CONSULTOR preenche. NÃO usa o auto_valor_entrada
+  // (o "Quanto pode pagar de entrada" da qualificação/automação) — decisão Elen 2026-08-20.
+  return ((d as any).valor_entrada ?? 0) as number;
 }
 
 function atingiuGatilho(d: Deal): boolean {
