@@ -65,7 +65,7 @@ type DealDetail = {
   interesses_pessoais: string[] | null;
   auto_interesse: string | null;
   auto_renda_familiar: string | null;
-  auto_valor_entrada: number | null;
+  auto_valor_entrada: string | null;
 };
 
 type DealPhone  = { id: string; telefone: string };
@@ -678,7 +678,7 @@ export default function NegociacaoDetalhes() {
             satisfacao_produto: deal.satisfacao_produto,
             responsavel_venda_user_id: deal.responsavel_venda_user_id,
             responsavel_venda_corretor_id: deal.responsavel_venda_corretor_id,
-            valor_entrada: deal.valor_entrada ?? deal.auto_valor_entrada,
+            valor_entrada: deal.valor_entrada,
             data_nascimento: deal.data_nascimento,
             escolaridade: deal.escolaridade,
             estado_civil: deal.estado_civil,

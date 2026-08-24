@@ -33,7 +33,7 @@ interface Props {
   phones: DealPhone[];
   autoInteresse: string | null;
   autoRendaFamiliar: string | null;
-  autoValorEntrada: number | null;
+  autoValorEntrada: string | null;
   onSave: () => void;
 }
 

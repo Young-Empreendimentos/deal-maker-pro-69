@@ -29,7 +29,7 @@ type Props = {
   dealId: string;
   interesse: string | null;
   rendaFamiliar: string | null;
-  valorEntrada: number | null;
+  valorEntrada: string | null;
   nomeAnuncio: string | null;
   onSave: () => void;
 };
@@ -39,7 +39,7 @@ export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valor
   const [localNomeAnuncio, setLocalNomeAnuncio] = useState(nomeAnuncio ?? "");
   const [localInteresse, setLocalInteresse] = useState(matchOption(interesse, INTERESSES_AUTO));
   const [localRenda, setLocalRenda] = useState(matchOption(rendaFamiliar, RENDAS_AUTO));
-  const [localValor, setLocalValor] = useState(valorEntrada?.toString() ?? "");
+  const [localValor, setLocalValor] = useState(valorEntrada ?? "");
   const [saving, setSaving] = useState(false);
 
   const handleSave = async () => {
@@ -48,7 +48,7 @@ export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valor
       nome_anuncio: localNomeAnuncio.trim() || null,
       auto_interesse: localInteresse || null,
       auto_renda_familiar: localRenda || null,
-      auto_valor_entrada: localValor ? parseFloat(localValor) : null,
+      auto_valor_entrada: localValor.trim() || null,
     } as any).eq("id", dealId);
 
     if (error) {
@@ -101,13 +101,12 @@ export function QualificacaoAutomatica({ dealId, interesse, rendaFamiliar, valor
           </Select>
         </div>
         <div className="space-y-1.5">
-          <Label className="text-xs">Quanto pode pagar de entrada (R$)</Label>
+          <Label className="text-xs">Quanto pode pagar de entrada</Label>
           <Input
-            type="number"
-            step="0.01"
+            type="text"
             value={localValor}
             onChange={(e) => setLocalValor(e.target.value)}
-            placeholder="0,00"
+            placeholder={'Ex.: 5.000  ·  ou "só a cota", "nada", etc.'}
             className="text-sm"
           />
         </div>
