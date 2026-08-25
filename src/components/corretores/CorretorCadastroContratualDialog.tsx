@@ -131,8 +131,8 @@ export function CorretorCadastroContratualDialog({ corretor, open, onOpenChange,
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5"><Label>Banco</Label><Input placeholder="Ex: Itaú, Bradesco" {...field("banco_nome")} /></div>
                 <div className="space-y-1.5"><Label>Tipo</Label><Select {...selectField("banco_tipo")}><SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger><SelectContent><SelectItem value="corrente">Corrente</SelectItem><SelectItem value="poupanca">Poupança</SelectItem></SelectContent></Select></div>
-                <div className="space-y-1.5"><Label>Agência <span className="text-destructive text-xs">*</span></Label><Input placeholder="0000" {...field("banco_agencia")} /></div>
-                <div className="space-y-1.5"><Label>Conta <span className="text-destructive text-xs">*</span></Label><Input placeholder="00000-0" {...field("banco_conta")} /></div>
+                <div className="space-y-1.5"><Label>Agência</Label><Input placeholder="0000" {...field("banco_agencia")} /></div>
+                <div className="space-y-1.5"><Label>Conta</Label><Input placeholder="00000-0" {...field("banco_conta")} /></div>
               </div>
             </div>
           </TabsContent>
