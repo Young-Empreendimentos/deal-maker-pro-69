@@ -79,7 +79,9 @@ export function CorretorCadastroContratualDialog({ corretor, open, onOpenChange,
         description: ok ? "Campos obrigatórios preenchidos." : `Faltam: ${faltando.join(", ")}.` });
       onSaved?.(); onOpenChange(false);
     } catch (err: unknown) {
-      toast({ title: "Erro ao salvar", description: err instanceof Error ? err.message : "Erro desconhecido", variant: "destructive" });
+      const e = err as { message?: string; hint?: string; details?: string } | null;
+      const msg = e?.message || e?.hint || e?.details || (err instanceof Error ? err.message : "") || "Erro desconhecido";
+      toast({ title: "Erro ao salvar", description: msg, variant: "destructive" });
     } finally { setIsSaving(false); }
   }
   return (
