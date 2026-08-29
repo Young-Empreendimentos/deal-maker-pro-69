@@ -202,29 +202,48 @@ export default function Relatorios() {
     [empMap],
   );
 
+  const respInfo = (d: Deal): { key: string; label: string } | null => {
+    if (d.responsavel_venda_user_id) {
+      return {
+        key: "u:" + d.responsavel_venda_user_id,
+        label: userMap[d.responsavel_venda_user_id] || d.responsavel_venda_original || "Usuário interno",
+      };
+    }
+    if (d.responsavel_venda_corretor_id) {
+      return {
+        key: "c:" + d.responsavel_venda_corretor_id,
+        label: corretorMap[d.responsavel_venda_corretor_id] || d.responsavel_venda_original || "Imobiliária / corretor",
+      };
+    }
+    if (d.responsavel_venda_original) {
+      return { key: "o:" + d.responsavel_venda_original, label: d.responsavel_venda_original };
+    }
+    // Registros antigos ainda não têm o campo de responsável pela venda.
+    // Neles, preservamos o responsável/dono original do negócio.
+    if (d.responsavel_id) {
+      return {
+        key: "l:" + d.responsavel_id,
+        label: userMap[d.responsavel_id] || "Usuário",
+      };
+    }
+    return null;
+  };
+
   const respOptions = useMemo(() => {
-    // Lista baseada no "Dono do negócio" (responsavel_id) das vendas.
+    // Lista baseada no responsável efetivo pela venda, não em quem criou o negócio.
     const set = new Map<string, string>();
     for (const d of deals) {
       if (d.status !== "vendido") continue;
-      if (!d.responsavel_id) continue;
-      if (!isVisibleUser(d.responsavel_id)) continue;
-      set.set("u:" + d.responsavel_id, userMap[d.responsavel_id] || "Usuário");
+      const responsavel = respInfo(d);
+      if (responsavel) set.set(responsavel.key, responsavel.label);
     }
     return Array.from(set.entries())
       .map(([value, label]) => ({ value, label }))
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [deals, userMap, corretorMap]);
 
-  const respKey = (d: Deal): string | null => {
-    if (d.responsavel_id) return "u:" + d.responsavel_id;
-    return null;
-  };
-
-  const respLabel = (d: Deal) => {
-    if (d.responsavel_id && userMap[d.responsavel_id]) return userMap[d.responsavel_id];
-    return "—";
-  };
+  const respKey = (d: Deal) => respInfo(d)?.key ?? null;
+  const respLabel = (d: Deal) => respInfo(d)?.label ?? "—";
 
   // Filtrar deals
   const filtered = useMemo(() => {
@@ -334,7 +353,7 @@ export default function Relatorios() {
       { key: "valor", label: "Valor" },
       { key: "entrada", label: "Entrada" },
       { key: "pagamento", label: "Pagamento" },
-      { key: "responsavel", label: "Responsável" },
+      { key: "responsavel", label: "Responsável pela venda" },
       { key: "origem", label: "Origem" },
       { key: "campanha", label: "Campanha" },
     ]);
@@ -450,7 +469,7 @@ export default function Relatorios() {
                         <TableHead>Empreendimento</TableHead>
                         <TableHead>Lote</TableHead>
                         <TableHead className="text-right">Valor</TableHead>
-                        <TableHead>Responsável</TableHead>
+                        <TableHead>Responsável pela venda</TableHead>
                         <TableHead>Criada em</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -551,7 +570,7 @@ export default function Relatorios() {
                     <TableHead>Lote</TableHead>
                     <TableHead className="text-right">Valor</TableHead>
                     <TableHead>Pagamento</TableHead>
-                    <TableHead>Responsável</TableHead>
+                    <TableHead>Responsável pela venda</TableHead>
                     <TableHead>Origem</TableHead>
                   </TableRow>
                 </TableHeader>
