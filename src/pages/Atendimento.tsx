@@ -25,6 +25,21 @@ function hora(ts?: number) {
   if (!ts) return "";
   return new Date(ts * 1000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
+function chaveDia(ts?: number) {
+  if (!ts) return "";
+  const d = new Date(ts * 1000);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+}
+function rotuloDia(ts?: number) {
+  if (!ts) return "";
+  const data = new Date(ts * 1000);
+  const hoje = new Date();
+  const inicioDoDia = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  const diferencaEmDias = Math.round((inicioDoDia(hoje) - inicioDoDia(data)) / 86_400_000);
+  if (diferencaEmDias === 0) return "Hoje";
+  if (diferencaEmDias === 1) return "Ontem";
+  return data.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+}
 function iniciais(nome?: string) {
   const n = (nome || "?").trim();
   const p = n.split(/\s+/);
@@ -692,6 +707,7 @@ export default function Atendimento() {
                             <span className="text-[10px] text-muted-foreground shrink-0">{hora(c.timestamp)}</span>
                           </div>
                           <p className="text-xs text-muted-foreground truncate">{last || "—"}</p>
+                          {c.atendente_nome && <p className="text-[10px] text-muted-foreground truncate">Atendente: {c.atendente_nome}</p>}
                         </div>
                         {!!c.unread_count && <span className="self-center h-2 w-2 rounded-full bg-primary shrink-0" />}
                       </button>
@@ -861,18 +877,28 @@ export default function Atendimento() {
                 onScroll={() => { const el = msgsBoxRef.current; if (el) grudarRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}
                 className="flex-1 overflow-y-auto p-3 space-y-2 bg-muted/20"
               >
-                {msgs.filter((m) => m.message_type !== 2 && !m.private).map((m) => {
+                {msgs.filter((m) => m.message_type !== 2 && !m.private).map((m, index, visiveis) => {
                   const mine = m.message_type === 1;
+                  const novoDia = index === 0 || chaveDia(m.created_at) !== chaveDia(visiveis[index - 1].created_at);
                   return (
-                    <div key={m.id} className={cn("flex", mine ? "justify-end" : "justify-start")}>
-                      <div className={cn(
-                        "max-w-[78%] rounded-2xl px-3 py-1.5 text-sm break-words",
-                        mine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border rounded-bl-sm",
-                      )}>
-                        {(m.attachments ?? []).map((a) => <Anexo key={a.id} att={a} mine={mine} />)}
-                        {m.content && <div className="whitespace-pre-wrap">{limpaAssinatura(m.content)}</div>}
-                        {!m.content && !(m.attachments?.length) && <span className="italic opacity-60">(sem texto)</span>}
-                        <div className={cn("text-[10px] mt-0.5 text-right", mine ? "text-primary-foreground/70" : "text-muted-foreground")}>{hora(m.created_at)}</div>
+                    <div key={m.id}>
+                      {novoDia && (
+                        <div className="flex justify-center py-2">
+                          <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-medium text-muted-foreground shadow-sm">
+                            {rotuloDia(m.created_at)}
+                          </span>
+                        </div>
+                      )}
+                      <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+                        <div className={cn(
+                          "max-w-[78%] rounded-2xl px-3 py-1.5 text-sm break-words",
+                          mine ? "bg-primary text-primary-foreground rounded-br-sm" : "bg-card border rounded-bl-sm",
+                        )}>
+                          {(m.attachments ?? []).map((a) => <Anexo key={a.id} att={a} mine={mine} />)}
+                          {m.content && <div className="whitespace-pre-wrap">{limpaAssinatura(m.content)}</div>}
+                          {!m.content && !(m.attachments?.length) && <span className="italic opacity-60">(sem texto)</span>}
+                          <div className={cn("text-[10px] mt-0.5 text-right", mine ? "text-primary-foreground/70" : "text-muted-foreground")}>{hora(m.created_at)}</div>
+                        </div>
                       </div>
                     </div>
                   );

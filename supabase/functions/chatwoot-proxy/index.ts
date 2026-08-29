@@ -361,11 +361,13 @@ Deno.serve(async (req) => {
         if (hit) {
           contactId = hit.id;
           sourceId = hit.contact_inboxes?.find((ci: any) => ci?.inbox?.id === wa.id)?.source_id ?? hit.contact_inboxes?.[0]?.source_id;
-          // Já tem conversa com esse contato? Reaproveita (preferindo a do inbox de WhatsApp).
+          // Reaproveita SOMENTE a conversa deste inbox. O mesmo contato pode falar com
+          // atendentes diferentes, cada um pelo próprio número/caixa; nesse caso, as
+          // conversas precisam continuar separadas e aparecer individualmente na tela.
           const ccResp = await cw(`/contacts/${contactId}/conversations`, { method: "GET" }).catch(() => null);
           const convs = ((ccResp?.payload ?? ccResp?.data?.payload ?? ccResp) ?? []);
           const arr = Array.isArray(convs) ? convs : [];
-          const existing = arr.find((c: any) => c.inbox_id === wa.id) ?? arr[0];
+          const existing = arr.find((c: any) => Number(c.inbox_id) === Number(wa.id));
           if (existing?.id) return J({ ok: true, conversation_id: existing.id, reused: true, inbox_id: existing.inbox_id ?? wa.id, phone });
         }
 
