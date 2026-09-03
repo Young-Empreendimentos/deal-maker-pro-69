@@ -47,7 +47,8 @@ export function CorretorCadastroContratualDialog({ corretor, open, onOpenChange,
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [form, setForm] = useState<Partial<CorretorCadastro>>({});
-  useEffect(() => { if (corretor) setForm({ ...corretor }); }, [corretor]);
+  const [conflito, setConflito] = useState<{ nome: string; documento: string; tipo_doc: string; origem: string } | null>(null);
+  useEffect(() => { if (corretor) setForm({ ...corretor }); setConflito(null); }, [corretor, open]);
   if (!corretor) return null;
   const { completo, faltando } = avaliarCompletude(form);
   const field = (name: keyof CorretorCadastro) => ({
@@ -58,25 +59,42 @@ export function CorretorCadastroContratualDialog({ corretor, open, onOpenChange,
     value: (form[name] as string) ?? "",
     onValueChange: (val: string) => setForm((p) => ({ ...p, [name]: val || null })),
   });
-  async function handleSave() {
+  async function handleSave(unir = false) {
     if (!corretor?.id) return;
     setIsSaving(true);
+    if (!unir) setConflito(null);
+    // Mesmos campos servem para salvar OU para unir (a RPC de união aplica os dados na ficha que fica).
+    const params = {
+      p_id: corretor.id, p_nome_exibicao: form.nome_exibicao ?? null,
+      p_tipo: form.tipo ?? null, p_razao_social: form.razao_social ?? null,
+      p_cpf: form.cpf ?? null, p_cnpj: form.cnpj ?? null, p_creci: form.creci ?? null,
+      p_email: form.email ?? null, p_email_secundario: form.email_secundario ?? null,
+      p_telefone: form.telefone ?? null, p_endereco: form.endereco ?? null,
+      p_bairro: form.bairro ?? null, p_cidade: form.cidade ?? null,
+      p_uf: form.uf ?? null, p_cep: form.cep ?? null, p_banco_nome: form.banco_nome ?? null,
+      p_banco_agencia: form.banco_agencia ?? null, p_banco_conta: form.banco_conta ?? null,
+      p_banco_tipo: form.banco_tipo ?? null, p_banco_chave_pix: form.banco_chave_pix ?? null,
+    };
     try {
-      const { data, error } = await supabase.rpc("update_corretor_cadastro_completo", {
-        p_id: corretor.id, p_nome_exibicao: form.nome_exibicao ?? null,
-        p_tipo: form.tipo ?? null, p_razao_social: form.razao_social ?? null,
-        p_cpf: form.cpf ?? null, p_cnpj: form.cnpj ?? null, p_creci: form.creci ?? null,
-        p_email: form.email ?? null, p_email_secundario: form.email_secundario ?? null,
-        p_telefone: form.telefone ?? null, p_endereco: form.endereco ?? null,
-        p_bairro: form.bairro ?? null, p_cidade: form.cidade ?? null,
-        p_uf: form.uf ?? null, p_cep: form.cep ?? null, p_banco_nome: form.banco_nome ?? null,
-        p_banco_agencia: form.banco_agencia ?? null, p_banco_conta: form.banco_conta ?? null,
-        p_banco_tipo: form.banco_tipo ?? null, p_banco_chave_pix: form.banco_chave_pix ?? null,
-      });
+      const fn = unir ? "crm_corretor_unir_documento" : "update_corretor_cadastro_completo";
+      const { data, error } = await supabase.rpc(fn, params);
       if (error) throw error;
-      const ok = (data as { is_cadastro_completo: boolean })?.is_cadastro_completo ?? false;
-      toast({ title: ok ? "✅ Cadastro contratual completo!" : "Cadastro salvo",
-        description: ok ? "Campos obrigatórios preenchidos." : `Faltam: ${faltando.join(", ")}.` });
+      const d = data as {
+        motivo?: string; unido?: boolean; is_cadastro_completo?: boolean;
+        deals_reapontados?: number; conflito?: { nome: string; documento: string; tipo_doc: string; origem: string };
+      } | null;
+      // Documento já cadastrado em OUTRA ficha -> mostra o convite para unir (não fecha o modal).
+      if (!unir && d?.motivo === "documento_duplicado" && d.conflito) {
+        setConflito(d.conflito);
+        return;
+      }
+      if (d?.unido) {
+        toast({ title: "✅ Fichas unidas!", description: `As vendas foram transferidas (${d?.deals_reapontados ?? 0}) e o cadastro salvo nesta ficha.` });
+      } else {
+        const ok = d?.is_cadastro_completo ?? false;
+        toast({ title: ok ? "✅ Cadastro contratual completo!" : "Cadastro salvo",
+          description: ok ? "Campos obrigatórios preenchidos." : `Faltam: ${faltando.join(", ")}.` });
+      }
       onSaved?.(); onOpenChange(false);
     } catch (err: unknown) {
       const e = err as { message?: string; hint?: string; details?: string } | null;
@@ -140,9 +158,25 @@ export function CorretorCadastroContratualDialog({ corretor, open, onOpenChange,
         <div className={`rounded-lg border px-4 py-3 text-sm flex items-center gap-3 ${completo ? "border-emerald-200 bg-emerald-50 text-emerald-800" : "border-muted bg-muted/40 text-muted-foreground"}`}>
           {completo ? (<><BadgeCheck className="h-4 w-4 shrink-0" /><span>Ao salvar, <strong>is_cadastro_completo</strong> será <strong>verdadeiro</strong>.</span></>) : (<><Clock className="h-4 w-4 shrink-0" /><span>Ao salvar, <strong>is_cadastro_completo</strong> permanecerá <strong>falso</strong> (faltam {faltando.length} campo{faltando.length !== 1 ? "s" : ""}).</span></>)}
         </div>
+        {conflito && (
+          <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 space-y-1.5">
+            <p className="font-medium flex items-center gap-1.5"><Building2 className="h-4 w-4" />Esse {conflito.tipo_doc} já está em outra ficha{conflito.origem === "sienge" ? " (vinda do Sienge)" : ""}:</p>
+            <p className="pl-5"><strong>{conflito.nome}</strong> — {conflito.documento}</p>
+            <p className="pl-5 text-amber-800">Ao <strong>unir</strong>: as vendas deste corretor passam para essa ficha, os dados que você preencheu são salvos nela, e o cadastro duplicado é desativado.</p>
+          </div>
+        )}
         <DialogFooter className="gap-2">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleSave} disabled={isSaving}>{isSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : "Salvar cadastro"}</Button>
+          {conflito ? (
+            <>
+              <Button variant="outline" onClick={() => setConflito(null)} disabled={isSaving}>Voltar</Button>
+              <Button onClick={() => handleSave(true)} disabled={isSaving} className="bg-amber-600 hover:bg-amber-700 text-white">{isSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Unindo...</> : "Unir e salvar"}</Button>
+            </>
+          ) : (
+            <>
+              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
+              <Button onClick={() => handleSave(false)} disabled={isSaving}>{isSaving ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Salvando...</> : "Salvar cadastro"}</Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>
