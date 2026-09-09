@@ -37,7 +37,7 @@ type Props = {
   /** Alternativa: cria um client só p/ o Realtime (chave anon). */
   url?: string;
   anonKey?: string;
-  /** Quantos segundos o cartão fica na tela. Padrão 9. */
+  /** Quantos segundos o cartão fica na tela. Padrão 3 (mesma duração da fanfarra). */
   duracaoSegundos?: number;
   /** Nome do sistema, só p/ o rótulo do cartão. */
   sistema?: string;
@@ -249,7 +249,7 @@ function reivindicarSom(id: number) {
 }
 
 // ---------- Componente ----------
-export default function CelebracaoVenda({ supabase, url, anonKey, duracaoSegundos = 9, sistema, somUrl, volume = 1 }: Props) {
+export default function CelebracaoVenda({ supabase, url, anonKey, duracaoSegundos = 3, sistema, somUrl, volume = 1 }: Props) {
   const [venda, setVenda] = useState<VendaCelebracao | null>(null);
   const [mudo, setMudo] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
