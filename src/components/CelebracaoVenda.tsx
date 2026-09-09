@@ -37,7 +37,12 @@ type Props = {
   /** Alternativa: cria um client só p/ o Realtime (chave anon). */
   url?: string;
   anonKey?: string;
-  /** Quantos segundos o cartão fica na tela. Padrão 3 (mesma duração da fanfarra). */
+  /** Modo SEM chave no front: função que consulta vendas novas (ex.: Edge Function
+   *  autenticada). Quando passada, é usada no lugar do Realtime/anon. */
+  poll?: (sinceId: number | null) => Promise<{ latestId: number; novas: VendaCelebracao[] }>;
+  /** Intervalo do poll em ms (só no modo poll). Padrão 12000. */
+  intervaloMs?: number;
+  /** Quantos segundos o cartão fica na tela. Padrão 10 (decisão Elen 2026-09-09). */
   duracaoSegundos?: number;
   /** Nome do sistema, só p/ o rótulo do cartão. */
   sistema?: string;
@@ -45,6 +50,8 @@ type Props = {
   somUrl?: string;
   /** Volume do arquivo de áudio, 0 a 1. Padrão 1. */
   volume?: number;
+  /** Quantas vezes o arquivo de áudio toca em sequência. Padrão 2. */
+  repeticoesSom?: number;
 };
 
 const MUTE_KEY = "celebracao_venda_mudo";
@@ -165,11 +172,13 @@ function tocarFanfarra() {
 }
 
 // Toca o arquivo de áudio se houver; senão, o som sintetizado.
-function tocarSom(somUrl?: string, volume = 1) {
+function tocarSom(somUrl?: string, volume = 1, repeticoes = 2) {
   if (!somUrl) return tocarFanfarra();
   try {
     const a = new Audio(somUrl);
     a.volume = Math.max(0, Math.min(1, volume));
+    let restantes = Math.max(1, repeticoes) - 1;
+    a.addEventListener("ended", () => { if (restantes-- > 0) { a.currentTime = 0; a.play().catch(() => {}); } });
     a.play().catch(() => tocarFanfarra());
   } catch {
     tocarFanfarra();
@@ -249,7 +258,7 @@ function reivindicarSom(id: number) {
 }
 
 // ---------- Componente ----------
-export default function CelebracaoVenda({ supabase, url, anonKey, duracaoSegundos = 3, sistema, somUrl, volume = 1 }: Props) {
+export default function CelebracaoVenda({ supabase, url, anonKey, poll, intervaloMs = 12000, duracaoSegundos = 10, sistema, somUrl, volume = 1, repeticoesSom = 2 }: Props) {
   const [venda, setVenda] = useState<VendaCelebracao | null>(null);
   const [mudo, setMudo] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -260,30 +269,57 @@ export default function CelebracaoVenda({ supabase, url, anonKey, duracaoSegundo
 
   useEffect(() => { setMudo(lerMudo()); return armarDesbloqueio(); }, []);
 
-  // Assinatura Realtime
+  // Fonte dos eventos: modo `poll` (sem chave no front) OU Realtime (com Supabase/anon).
   useEffect(() => {
+    const vistos = new Set<number>(); // dedupe por id
+    const emitir = (v: VendaCelebracao) => {
+      if (v == null || vistos.has(v.id)) return;
+      vistos.add(v.id);
+      fila.current.push(v);
+      proxima();
+    };
+
+    // --- Modo POLL: pergunta a uma função (ex.: Edge Function). Nenhuma chave no navegador. ---
+    if (poll) {
+      let ativo = true;
+      let lastSeen: number | null = null;
+      const tick = async () => {
+        try {
+          const { latestId, novas } = await poll(lastSeen);
+          if (!ativo) return;
+          if (lastSeen === null) {
+            lastSeen = latestId; // baseline: não celebra vendas que já existiam ao abrir
+          } else {
+            for (const v of novas) emitir(v);
+            if (latestId > lastSeen) lastSeen = latestId;
+          }
+        } catch {
+          /* silencioso: a celebração não é crítica */
+        }
+      };
+      tick();
+      const iv = setInterval(tick, intervaloMs);
+      return () => { ativo = false; clearInterval(iv); };
+    }
+
+    // --- Modo Realtime (com Supabase/anon) ---
     let client: Pick<SupabaseClient<any, any, any>, "channel" | "removeChannel"> | null = supabase ?? null;
     if (!client && url && anonKey) {
       client = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
     }
     if (!client) {
-      console.warn("[CelebracaoVenda] passe `supabase` ou `url` + `anonKey`.");
+      console.warn("[CelebracaoVenda] passe `poll`, `supabase` ou `url` + `anonKey`.");
       return;
     }
-    const vistos = new Set<number>(); // dedupe por id (o Realtime não reentrega eventos antigos; evita depender do relógio do PC)
     const canal = client
       .channel("vendas-celebracao-" + Math.random().toString(36).slice(2, 8))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "vendas_celebracao" }, (payload) => {
-        const v = payload.new as VendaCelebracao;
-        if (vistos.has(v.id)) return;
-        vistos.add(v.id);
-        fila.current.push(v);
-        proxima();
+        emitir(payload.new as VendaCelebracao);
       })
       .subscribe();
     return () => { client!.removeChannel(canal); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supabase, url, anonKey]);
+  }, [supabase, url, anonKey, poll, intervaloMs]);
 
   function proxima() {
     if (mostrando.current) return;
@@ -291,7 +327,7 @@ export default function CelebracaoVenda({ supabase, url, anonKey, duracaoSegundo
     if (!v) return;
     mostrando.current = true;
     setVenda(v);
-    if (!lerMudo() && reivindicarSom(v.id)) tocarSom(somUrl, volume);
+    if (!lerMudo() && reivindicarSom(v.id)) tocarSom(somUrl, volume, repeticoesSom);
     requestAnimationFrame(() => {
       if (canvasRef.current) pararConfete.current = soltarConfete(canvasRef.current, duracaoSegundos * 1000 - 1500);
     });
