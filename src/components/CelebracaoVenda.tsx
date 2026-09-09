@@ -270,13 +270,13 @@ export default function CelebracaoVenda({ supabase, url, anonKey, duracaoSegundo
       console.warn("[CelebracaoVenda] passe `supabase` ou `url` + `anonKey`.");
       return;
     }
-    const inicio = Date.now();
+    const vistos = new Set<number>(); // dedupe por id (o Realtime não reentrega eventos antigos; evita depender do relógio do PC)
     const canal = client
       .channel("vendas-celebracao-" + Math.random().toString(36).slice(2, 8))
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "vendas_celebracao" }, (payload) => {
         const v = payload.new as VendaCelebracao;
-        // ignora eventos antigos reentregues (reconexão) — só celebra o que aconteceu depois de abrir
-        if (new Date(v.created_at).getTime() < inicio - 60_000) return;
+        if (vistos.has(v.id)) return;
+        vistos.add(v.id);
         fila.current.push(v);
         proxima();
       })
