@@ -76,6 +76,7 @@ export default function Tarefas() {
   const [showForm, setShowForm] = useState(false);
   const [filter, setFilter] = useState<"todas" | "pendentes" | "concluidas" | "deletadas">("pendentes");
   const [fDataVenc, setFDataVenc] = useState<DateRange>({ from: "", to: "" });
+  const [limite, setLimite] = useState(500); // teto das abas concluídas/todas; "Carregar mais" sobe de 500 em 500
 
   // Form state
   const [form, setForm] = useState({ titulo: "", descricao: "", deal_id: "", data_vencimento: "", hora_vencimento: "", tipo: "" });
@@ -154,14 +155,14 @@ export default function Tarefas() {
     // (responsavel_id). O nome do cliente vem EMBUTIDO pela FK numa query só —
     // sem seed de 1000 deals nem resolução de nomes em lotes (era o gargalo).
     // Pendentes: baixa todas (são poucas e é o que precisa estar completo). Concluídas/
-    // deletadas/todas: só as 500 mais recentes — há milhares de concluídas e baixar tudo travava.
-    const LIM = 500;
+    // deletadas/todas: começa nas `limite` (500) mais recentes e o botão "Carregar mais" aumenta
+    // de 500 em 500 — há milhares de concluídas e baixar/renderizar tudo de uma vez travava.
     const base = () => crmDb.from("crm_tasks").select("*, crm_deals(cliente_nome)").order("created_at", { ascending: false });
     let rawTasksData: any[];
     if (filter === "pendentes") {
       rawTasksData = await fetchAllPaged<any>((from, to) => base().eq("concluida", false).is("deleted_at", null).range(from, to));
     } else {
-      let q = base().limit(LIM);
+      let q = base().limit(limite);
       if (filter === "concluidas") q = q.eq("concluida", true).is("deleted_at", null);
       else if (filter === "deletadas") q = q.not("deleted_at", "is", null);
       else q = q.is("deleted_at", null); // "todas" (somente ativas)
@@ -187,7 +188,7 @@ export default function Tarefas() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchTasks(); }, [isAdmin, user?.id, filter]);
+  useEffect(() => { fetchTasks(); }, [isAdmin, user?.id, filter, limite]);
 
   // Busca de clientes no servidor (debounce) — visibilidade: comum só os seus, admin todos
   useEffect(() => {
@@ -378,7 +379,7 @@ export default function Tarefas() {
             <div className="w-[190px]">
               <DateRangeFilter label="Vencimento" value={fDataVenc} onChange={setFDataVenc} />
             </div>
-            <Select value={filter} onValueChange={(v: any) => setFilter(v)}>
+            <Select value={filter} onValueChange={(v: any) => { setFilter(v); setLimite(500); }}>
               <SelectTrigger className="w-[140px]">
                 <SelectValue />
               </SelectTrigger>
@@ -399,8 +400,8 @@ export default function Tarefas() {
           <div className="text-center text-muted-foreground py-12">Carregando...</div>
         ) : (
           <div className="space-y-2">
-            {filter !== "pendentes" && tasks.length >= 500 && (
-              <p className="pb-1 text-xs text-muted-foreground">Mostrando as 500 mais recentes desta aba.</p>
+            {filter !== "pendentes" && tasks.length >= limite && (
+              <p className="pb-1 text-xs text-muted-foreground">Mostrando as {limite.toLocaleString("pt-BR")} mais recentes desta aba.</p>
             )}
             {filtered.map((task) => (
               <Card key={task.id} className={cn("border transition-colors", task.concluida && "opacity-60", task.fixado && "ring-1 ring-primary/40 border-primary/30")}>
@@ -500,6 +501,13 @@ export default function Tarefas() {
                 </CardContent>
               </Card>
             ))}
+            {filter !== "pendentes" && tasks.length >= limite && (
+              <div className="flex justify-center pt-2">
+                <Button variant="outline" size="sm" onClick={() => setLimite((l) => l + 500)}>
+                  Carregar mais 500
+                </Button>
+              </div>
+            )}
             {filtered.length === 0 && (
               <div className="text-center text-muted-foreground py-12 border border-dashed rounded-lg">
                 {tasks.length === 0
