@@ -624,7 +624,7 @@ export default function Atendimento() {
 
       <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr_300px] gap-3 h-[calc(100vh-11rem)]">
         {/* Coluna 1 — lista de conversas */}
-        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", selId && "hidden lg:flex")}>
+        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", (sel || compose) && "hidden lg:flex")}>
           {/* Busca de conversas (inclui antigas/resolvidas) */}
           <div className="p-2 border-b">
             <div className="relative">
@@ -776,7 +776,7 @@ export default function Atendimento() {
         </div>
 
         {/* Coluna 2 — conversa + resposta */}
-        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", (!selId && !compose) && "hidden lg:flex")}>
+        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", (!sel && !compose) && "hidden lg:flex")}>
           {emCompose ? (
             <>
               {/* Modo escrever — nova conversa (ainda não criada) */}
