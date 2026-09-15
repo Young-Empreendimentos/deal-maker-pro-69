@@ -127,16 +127,33 @@ export default function Atendimento() {
   const msgsBoxRef = useRef<HTMLDivElement>(null);
   const grudarRef = useRef(true); // rolar pro fim SÓ quando o usuário está no fim (ou abriu/enviou agora)
 
+  const loadSeq = useRef(0); // ordena os loads (troca de aba / polling) p/ o mais novo vencer
   const loadConvs = useCallback(async (silent = false) => {
+    const seq = ++loadSeq.current;
     if (!silent) setLoading(true);
+    let fullChegou = false;
     try {
+      // Paint rápido: pinta as ~25 conversas MAIS RECENTES em ~0,5s (max_pages=1) e já libera a
+      // tela; o load completo abaixo (todas as páginas) chega logo e substitui. Sem isso, abrir a
+      // aba "Abertas" esperava baixar 200+ conversas de 25 em 25 (~vários segundos).
+      if (!silent) {
+        chatwoot.listConversations(statusTab, "all", 1)
+          .then((r) => {
+            if (seq === loadSeq.current && !fullChegou) {
+              setConvs(r.data?.payload ?? []);
+              setErro(null);
+              setLoading(false);
+            }
+          })
+          .catch(() => { /* ignora: o load completo resolve */ });
+      }
       const r = await chatwoot.listConversations(statusTab, "all");
-      setConvs(r.data?.payload ?? []);
-      setErro(null);
+      fullChegou = true;
+      if (seq === loadSeq.current) { setConvs(r.data?.payload ?? []); setErro(null); }
     } catch (e) {
-      setErro((e as Error).message);
+      if (seq === loadSeq.current) setErro((e as Error).message);
     } finally {
-      if (!silent) setLoading(false);
+      if (!silent && seq === loadSeq.current) setLoading(false);
     }
   }, [statusTab]);
 

@@ -62,8 +62,8 @@ export const chatwoot = {
   /** Diagnóstico: confirma secrets + Chatwoot no ar. */
   health: () => call<{ ok: boolean; chatwoot_url: string; account_id: string; inboxes: number }>("health"),
 
-  listConversations: (status: string, assignee_type: string = "all") =>
-    call<{ ok: boolean; data: { meta?: any; payload?: CwConversation[] } }>("list_conversations", { status, assignee_type }),
+  listConversations: (status: string, assignee_type: string = "all", max_pages?: number) =>
+    call<{ ok: boolean; data: { meta?: any; payload?: CwConversation[] } }>("list_conversations", { status, assignee_type, max_pages }),
 
   /** Busca conversas (inclui antigas/resolvidas) por nome, telefone ou conteúdo. */
   searchConversations: (q: string) =>
