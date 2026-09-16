@@ -12,11 +12,19 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import {
   Headset, Send, CheckCheck, UserPlus, RotateCcw, Loader2,
-  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip, Pencil, Check, Mic, Trash2,
+  ArrowLeft, AlertTriangle, Search, X, Plus, Paperclip, Pencil, Check, Mic, Trash2, Smile,
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
 const POLL_MS = 6000;
+
+// Emojis mais usados no atendimento. Seletor leve, sem dependência externa.
+const EMOJIS = [
+  "😀","😃","😄","😁","😆","😅","😂","🤣","🙂","😊","😇","🙃","😉","😌","😍","🥰","😘","😜","😎","🤩",
+  "🥳","🤔","🤝","👍","👎","👌","🙏","👏","🙌","💪","👋","🤙","☝️","✅","❌","⚠️","❤️","🧡","💛","💚",
+  "💙","💜","🔥","⭐","🎉","🎊","💯","👀","😢","😭","😳","🥲","😴","🙄","🏠","🏡","🏢","🔑","📄",
+  "📍","📅","💰","💵","📞","📱","✍️","🕐","👇","🤗",
+];
 
 type StatusTab = "open" | "resolved";
 type AssigneeTab = "me" | "unassigned" | "all";
@@ -88,11 +96,15 @@ export default function Atendimento() {
   const [filtroAtendente, setFiltroAtendente] = useState("");
   const [convs, setConvs] = useState<CwConversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [carregandoMais, setCarregandoMais] = useState(false); // ainda baixando as demais páginas (nada é escondido)
   const [erro, setErro] = useState<string | null>(null);
   const [selId, setSelId] = useState<number | null>(() => {
     try { const s = sessionStorage.getItem("atendimento_sel"); return s ? Number(s) : null; } catch { return null; }
   });
   const [msgs, setMsgs] = useState<CwMessage[]>([]);
+  // Conversa aberta via "Conversar" (negociação) antes da lista chegar: um objeto provisório
+  // (nome/telefone do CRM) p/ o painel renderizar NA HORA, sem esperar baixar a lista inteira.
+  const [selProvisorio, setSelProvisorio] = useState<CwConversation | null>(null);
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [agents, setAgents] = useState<CwAgent[]>([]);
@@ -125,6 +137,21 @@ export default function Atendimento() {
   const ocupadoRef = useRef(false);
   const endRef = useRef<HTMLDivElement>(null);
   const msgsBoxRef = useRef<HTMLDivElement>(null);
+  const replyRef = useRef<HTMLTextAreaElement>(null); // p/ inserir emoji na posição do cursor
+  // Insere o emoji onde está o cursor (ou no fim) e mantém o foco no campo.
+  const inserirEmoji = useCallback((emoji: string) => {
+    const el = replyRef.current;
+    setReply((atual) => {
+      const ini = el?.selectionStart ?? atual.length;
+      const fim = el?.selectionEnd ?? atual.length;
+      const novo = atual.slice(0, ini) + emoji + atual.slice(fim);
+      // reposiciona o cursor logo após o emoji (depois do re-render)
+      requestAnimationFrame(() => {
+        if (el) { const p = ini + emoji.length; el.focus(); el.setSelectionRange(p, p); }
+      });
+      return novo;
+    });
+  }, []);
   const grudarRef = useRef(true); // rolar pro fim SÓ quando o usuário está no fim (ou abriu/enviou agora)
 
   const loadSeq = useRef(0); // ordena os loads (troca de aba / polling) p/ o mais novo vencer
@@ -133,10 +160,11 @@ export default function Atendimento() {
     if (!silent) setLoading(true);
     let fullChegou = false;
     try {
-      // Paint rápido: pinta as ~25 conversas MAIS RECENTES em ~0,5s (max_pages=1) e já libera a
-      // tela; o load completo abaixo (todas as páginas) chega logo e substitui. Sem isso, abrir a
-      // aba "Abertas" esperava baixar 200+ conversas de 25 em 25 (~vários segundos).
+      // Abertura rápida SEM esconder nada: pinta as ~25 conversas MAIS RECENTES em ~0,5s
+      // (max_pages=1), marca "carregandoMais" e, em seguida, o load COMPLETO (todas as páginas)
+      // substitui pela lista inteira. O aviso "carregando as demais" mostra que ainda vem mais.
       if (!silent) {
+        setCarregandoMais(true);
         chatwoot.listConversations(statusTab, "all", 1)
           .then((r) => {
             if (seq === loadSeq.current && !fullChegou) {
@@ -153,7 +181,7 @@ export default function Atendimento() {
     } catch (e) {
       if (seq === loadSeq.current) setErro((e as Error).message);
     } finally {
-      if (!silent && seq === loadSeq.current) setLoading(false);
+      if (seq === loadSeq.current) { if (!silent) setLoading(false); setCarregandoMais(false); }
     }
   }, [statusTab]);
 
@@ -166,7 +194,9 @@ export default function Atendimento() {
     }
   }, [toast]);
 
-  useEffect(() => { loadConvs(); }, [loadConvs]);
+  // Sem "tel" na URL: carrega a lista já. Com "tel" (veio de "Conversar"), o efeito do tel
+  // abre a conversa PRIMEIRO e só depois carrega a lista — pra não travar a abertura.
+  useEffect(() => { if (!sp.get("tel")) loadConvs(); }, [loadConvs, sp]);
   useEffect(() => { chatwoot.listAgents().then((r) => setAgents(r.data ?? [])).catch(() => {}); }, []);
   useEffect(() => {
     if (selId) {
@@ -270,15 +300,22 @@ export default function Atendimento() {
     setNomeInicial(nome);
     let d = tel.replace(/[^0-9]/g, "");
     if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // cliente é do Brasil
-    if (d.length < 12) { setBusca(tel); return; } // número curto/estranho: busca
+    if (d.length < 12) { setBusca(tel); loadConvs(); return; } // número curto/estranho: busca
     (async () => {
       try {
         const r = await chatwoot.startConversation("+" + d, nome || undefined, undefined, true);
         const id = (r as any)?.conversation_id;
-        if (id) { setSelId(id); await loadMsgs(id, true); loadConvs(true); }
-        else setBusca(tel); // sem conversa existente → busca (mostra "iniciar nova conversa")
+        if (id) {
+          // Painel abre NA HORA com o nome/telefone da negociação; as mensagens entram logo abaixo.
+          // Não espera a lista inteira — por isso o "Conversar" não trava mais.
+          setSelProvisorio({ id, status: "open", meta: { sender: { id: 0, name: nome || "", phone_number: "+" + d } } } as unknown as CwConversation);
+          setSelId(id);
+          await loadMsgs(id, true);
+        } else setBusca(tel); // sem conversa existente → busca (mostra "iniciar nova conversa")
       } catch {
         setBusca(tel); // qualquer erro no lookup → não trava a tela, cai na busca
+      } finally {
+        loadConvs(true); // completa a lista DEPOIS de abrir a conversa (não a trava)
       }
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -342,8 +379,10 @@ export default function Atendimento() {
   }, [buscaAtiva, filtered, busca, convsTodas, nomesManuais, agendaMap]);
 
   const sel = useMemo(
-    () => convs.find((c) => c.id === selId) ?? convsTodas.find((c) => c.id === selId) ?? null,
-    [convs, convsTodas, selId],
+    () => convs.find((c) => c.id === selId)
+      ?? convsTodas.find((c) => c.id === selId)
+      ?? (selProvisorio && selProvisorio.id === selId ? selProvisorio : null),
+    [convs, convsTodas, selId, selProvisorio],
   );
 
   async function enviar() {
@@ -532,7 +571,7 @@ export default function Atendimento() {
     return null;
   }
 
-  function fecharConversa() { setSelId(null); setCompose(null); }
+  function fecharConversa() { setSelId(null); setCompose(null); setSelProvisorio(null); }
 
   // Botão "Iniciar conversa com o número digitado" — exige o código do país.
   function iniciarConversa() {
@@ -603,7 +642,29 @@ export default function Atendimento() {
     </div>
   ) : (
     <div className="border-t p-2 flex items-end gap-2">
+      <Popover>
+        <PopoverTrigger asChild>
+          <Button variant="ghost" size="icon" title="Emoji" className="h-[42px] w-[42px] shrink-0 text-muted-foreground">
+            <Smile className="h-5 w-5" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent align="start" side="top" className="w-64 p-2">
+          <div className="grid grid-cols-8 gap-0.5 max-h-52 overflow-y-auto">
+            {EMOJIS.map((e, i) => (
+              <button
+                key={`${e}-${i}`}
+                type="button"
+                onClick={() => inserirEmoji(e)}
+                className="h-8 w-8 rounded hover:bg-muted text-xl leading-none flex items-center justify-center"
+              >
+                {e}
+              </button>
+            ))}
+          </div>
+        </PopoverContent>
+      </Popover>
       <Textarea
+        ref={replyRef}
         value={reply}
         onChange={(e) => setReply(e.target.value)}
         onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); enviar(); } }}
@@ -730,6 +791,12 @@ export default function Atendimento() {
                       </button>
                     );
                   })
+                )}
+                {/* Nada é escondido: enquanto o resto das páginas carrega, avisa (não some conversa). */}
+                {!buscaAtiva && carregandoMais && listaExibida.length > 0 && (
+                  <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando as demais conversas…
+                  </div>
                 )}
                 {/* Buscar por nome: primeiro as conversas (acima); aqui embaixo, iniciar nova a partir do CRM. */}
                 {buscaAtiva && (contatos.length > 0 || agendaMatches.length > 0 || pareceNumero(busca)) && (
