@@ -268,8 +268,10 @@ export default function Atendimento() {
     })();
   }, [busca, inboxesEnvio, agendaLoaded]);
 
-  // Busca: carrega TODAS as conversas (abertas + resolvidas) p/ filtrar localmente pelo nome
-  // resolvido (CRM/agenda/lápis) — mais confiável que a busca do Chatwoot — + contatos do CRM.
+  // Busca: usa a BUSCA DO SERVIDOR do Chatwoot (rápida, indexada) + contatos do CRM.
+  // ⚠️ Antes baixava TODAS as conversas (abertas + resolvidas = milhares) só pra filtrar local —
+  //    isso levava MINUTOS e travava a tela. Agora é uma busca leve; as conversas abertas já
+  //    carregadas são filtradas localmente e mescladas (ver listaExibida).
   useEffect(() => {
     const q = busca.trim();
     if (q.length < 2) { setConvsTodas([]); setContatos([]); setBuscando(false); return; }
@@ -277,7 +279,7 @@ export default function Atendimento() {
     const t = setTimeout(async () => {
       try {
         const [tc, rk] = await Promise.all([
-          chatwoot.listConversations("todas").catch(() => ({ data: { payload: [] } } as any)),
+          chatwoot.searchConversations(q).catch(() => ({ data: { payload: [] } } as any)),
           chatwoot.searchContacts(q).catch(() => ({ data: [] } as any)),
         ]);
         setConvsTodas(tc.data?.payload ?? []);
@@ -371,12 +373,26 @@ export default function Atendimento() {
   const listaExibida = useMemo(() => {
     if (!buscaAtiva) return filtered;
     const q = busca.trim().toLowerCase();
+    const qDig = q.replace(/[^0-9]/g, ""); // dígitos digitados (p/ casar telefone em qualquer formato)
     const nomeDe = (c: any) => {
       const suf = String(c?.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "").slice(-8);
       return String(nomesManuais[c?.id] || c?.cliente_nome_crm || (suf && agendaMap[suf]) || c?.meta?.sender?.name || "").toLowerCase();
     };
-    return convsTodas.filter((c: any) => nomeDe(c).includes(q) || String(c?.meta?.sender?.phone_number ?? "").includes(q));
-  }, [buscaAtiva, filtered, busca, convsTodas, nomesManuais, agendaMap]);
+    const bate = (c: any) => {
+      if (nomeDe(c).includes(q)) return true;
+      if (qDig.length >= 4) {
+        const cd = String(c?.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "");
+        if (cd.includes(qDig)) return true;
+      }
+      return false;
+    };
+    // (1) conversas ABERTAS já carregadas que batem (instantâneo) + (2) resultado da busca do
+    // servidor (traz antigas/resolvidas). Dedup por id; as já carregadas primeiro.
+    const m = new Map<number, CwConversation>();
+    for (const c of convs) if (bate(c)) m.set(c.id, c);
+    for (const c of convsTodas) if (!m.has(c.id)) m.set(c.id, c);
+    return [...m.values()];
+  }, [buscaAtiva, filtered, busca, convs, convsTodas, nomesManuais, agendaMap]);
 
   const sel = useMemo(
     () => convs.find((c) => c.id === selId)
@@ -757,14 +773,23 @@ export default function Atendimento() {
           )}
 
           <div className="flex-1 overflow-y-auto">
-            {(buscaAtiva ? buscando : loading) ? (
+            {(!buscaAtiva && loading) ? (
               <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
             ) : (
               <>
+                {/* Buscando: aviso pequeno (NÃO cobre a tela). A opção "iniciar nova conversa"
+                    logo abaixo aparece na hora, sem esperar a busca terminar. */}
+                {buscaAtiva && buscando && (
+                  <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
+                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Buscando conversas…
+                  </div>
+                )}
                 {listaExibida.length === 0 ? (
-                  <p className="text-center text-sm text-muted-foreground py-8 px-4">
-                    {buscaAtiva ? "Nenhuma conversa com esse nome." : `Nenhuma conversa ${statusTab === "open" ? "aberta" : "resolvida"} aqui.`}
-                  </p>
+                  (!buscaAtiva || !buscando) && (
+                    <p className="text-center text-sm text-muted-foreground py-8 px-4">
+                      {buscaAtiva ? "Nenhuma conversa com esse nome." : `Nenhuma conversa ${statusTab === "open" ? "aberta" : "resolvida"} aqui.`}
+                    </p>
+                  )
                 ) : (
                   listaExibida.map((c) => {
                     const s = c.meta?.sender;
