@@ -59,6 +59,18 @@ function fonePretty(f?: string | null) {
 function pareceNumero(s: string) {
   return s.replace(/[^0-9]/g, "").length >= 6;
 }
+// Normaliza um telefone p/ dígitos COM código do país.
+// - Começa com "+": internacional (ex.: Uruguai +598…) — confia, NÃO prefixa 55.
+// - Sem "+": assume Brasil — completa o 55 se vier só DDD+número.
+// Devolve null se ficar curto demais pra ser um número válido.
+function normalizaTelefone(raw?: string | null): string | null {
+  const bruto = (raw ?? "").trim();
+  let d = bruto.replace(/[^0-9]/g, "");
+  if (!bruto.startsWith("+")) {
+    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // só DDD+número → Brasil
+  }
+  return d.length >= 10 ? d : null;
+}
 function limpaAssinatura(s: string) {
   // No WhatsApp a assinatura do atendente vira negrito (*Nome:*); no painel, mostra sem os asteriscos.
   return s.replace(/^\*([^\n*]+):\*/, "$1:");
@@ -307,9 +319,8 @@ export default function Atendimento() {
     if (!tel) return;
     const nome = sp.get("nome") ?? "";
     setNomeInicial(nome);
-    let d = tel.replace(/[^0-9]/g, "");
-    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // cliente é do Brasil
-    if (d.length < 12) { setBusca(tel); loadConvs(); return; } // número curto/estranho: busca
+    const d = normalizaTelefone(tel); // respeita o "+" (internacional) — não força 55 no uruguaio
+    if (!d) { setBusca(tel); loadConvs(); return; } // número curto/estranho: busca
     // Abre o painel IMEDIATAMENTE (nome/telefone da negociação) — não fica em branco esperando.
     setAbrindoTel({ nome, phone: "+" + d });
     (async () => {
@@ -600,19 +611,8 @@ export default function Atendimento() {
   // - Começa com "+": número internacional completo (ex.: Uruguai +598…). Confia, NÃO força o 55.
   // - Sem "+": assume Brasil — completa o 55 se vier só DDD+número; senão pede o código do país.
   function iniciarConversa() {
-    const bruto = busca.trim();
-    const digits = bruto.replace(/[^0-9]/g, "");
-    if (bruto.startsWith("+")) {
-      if (digits.length < 10) {
-        toast({ title: "Número incompleto", description: "Confira o número com o código do país (ex.: +598 99 123 456 para o Uruguai).", variant: "destructive" });
-        return;
-      }
-      abrirConversa("+" + digits, nomeInicial);
-      return;
-    }
-    let d = digits;
-    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // só DDD+número → assume Brasil
-    if (d.length < 12) {
+    const d = normalizaTelefone(busca);
+    if (!d) {
       toast({
         title: "Inclua o código do país",
         description: "Brasil: 55 51 99999-9999. Outro país: digite com + e o código (ex.: +598 para o Uruguai).",
@@ -623,11 +623,10 @@ export default function Atendimento() {
     abrirConversa("+" + d, nomeInicial);
   }
 
-  // Clique num contato do CRM (cliente é do Brasil — completa o 55 se faltar).
+  // Clique num contato do CRM (respeita o "+" internacional; sem "+" assume Brasil e completa o 55).
   function abrirContatoCrm(c: { cliente_nome: string; telefone: string }) {
-    let d = (c.telefone || "").replace(/[^0-9]/g, "");
-    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d;
-    if (d.length < 12) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
+    const d = normalizaTelefone(c.telefone);
+    if (!d) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
     abrirConversa("+" + d, c.cliente_nome);
   }
 
