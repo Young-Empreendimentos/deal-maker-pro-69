@@ -105,6 +105,9 @@ export default function Atendimento() {
   // Conversa aberta via "Conversar" (negociação) antes da lista chegar: um objeto provisório
   // (nome/telefone do CRM) p/ o painel renderizar NA HORA, sem esperar baixar a lista inteira.
   const [selProvisorio, setSelProvisorio] = useState<CwConversation | null>(null);
+  // "Abrindo…" via Conversar: mostra o painel IMEDIATAMENTE (nome/telefone) enquanto acha a conversa.
+  const [abrindoTel, setAbrindoTel] = useState<{ nome: string; phone: string } | null>(null);
+  const [carregandoMsgs, setCarregandoMsgs] = useState(false); // buscando as mensagens da conversa aberta
   const [reply, setReply] = useState("");
   const [sending, setSending] = useState(false);
   const [agents, setAgents] = useState<CwAgent[]>([]);
@@ -186,11 +189,14 @@ export default function Atendimento() {
   }, [statusTab]);
 
   const loadMsgs = useCallback(async (id: number, silent = false) => {
+    if (!silent) setCarregandoMsgs(true);
     try {
       const r = await chatwoot.getMessages(id);
       setMsgs(r.data?.payload ?? []);
     } catch {
       if (!silent) toast({ title: "Não consegui carregar as mensagens", variant: "destructive" });
+    } finally {
+      if (!silent) setCarregandoMsgs(false);
     }
   }, [toast]);
 
@@ -200,6 +206,7 @@ export default function Atendimento() {
   useEffect(() => { chatwoot.listAgents().then((r) => setAgents(r.data ?? [])).catch(() => {}); }, []);
   useEffect(() => {
     if (selId) {
+      setAbrindoTel(null); // a conversa real resolveu — troca o placeholder "abrindo" pelo painel
       loadMsgs(selId);
       // Marca como lida no Chatwoot (some a bolinha) e limpa localmente na hora.
       chatwoot.markRead(selId).catch(() => {});
@@ -303,19 +310,19 @@ export default function Atendimento() {
     let d = tel.replace(/[^0-9]/g, "");
     if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // cliente é do Brasil
     if (d.length < 12) { setBusca(tel); loadConvs(); return; } // número curto/estranho: busca
+    // Abre o painel IMEDIATAMENTE (nome/telefone da negociação) — não fica em branco esperando.
+    setAbrindoTel({ nome, phone: "+" + d });
     (async () => {
       try {
         const r = await chatwoot.startConversation("+" + d, nome || undefined, undefined, true);
         const id = (r as any)?.conversation_id;
         if (id) {
-          // Painel abre NA HORA com o nome/telefone da negociação; as mensagens entram logo abaixo.
-          // Não espera a lista inteira — por isso o "Conversar" não trava mais.
+          // Objeto provisório p/ o painel virar a conversa real; as mensagens carregam pelo efeito de selId.
           setSelProvisorio({ id, status: "open", meta: { sender: { id: 0, name: nome || "", phone_number: "+" + d } } } as unknown as CwConversation);
           setSelId(id);
-          await loadMsgs(id, true);
-        } else setBusca(tel); // sem conversa existente → busca (mostra "iniciar nova conversa")
+        } else { setAbrindoTel(null); setBusca(tel); } // sem conversa existente → busca (iniciar nova)
       } catch {
-        setBusca(tel); // qualquer erro no lookup → não trava a tela, cai na busca
+        setAbrindoTel(null); setBusca(tel); // qualquer erro no lookup → cai na busca
       } finally {
         loadConvs(true); // completa a lista DEPOIS de abrir a conversa (não a trava)
       }
@@ -587,7 +594,7 @@ export default function Atendimento() {
     return null;
   }
 
-  function fecharConversa() { setSelId(null); setCompose(null); setSelProvisorio(null); }
+  function fecharConversa() { setSelId(null); setCompose(null); setSelProvisorio(null); setAbrindoTel(null); }
 
   // Botão "Iniciar conversa com o número digitado".
   // - Começa com "+": número internacional completo (ex.: Uruguai +598…). Confia, NÃO força o 55.
@@ -899,7 +906,7 @@ export default function Atendimento() {
         </div>
 
         {/* Coluna 2 — conversa + resposta */}
-        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", (!sel && !compose) && "hidden lg:flex")}>
+        <div className={cn("flex flex-col rounded-xl border bg-card overflow-hidden", (!sel && !compose && !abrindoTel) && "hidden lg:flex")}>
           {emCompose ? (
             <>
               {/* Modo escrever — nova conversa (ainda não criada) */}
@@ -918,6 +925,22 @@ export default function Atendimento() {
                 <p className="text-xs">A conversa só é criada quando você enviar.</p>
               </div>
               {caixaResposta}
+            </>
+          ) : (!sel && abrindoTel) ? (
+            <>
+              {/* Abrindo via "Conversar": painel aparece NA HORA com o nome/telefone da negociação. */}
+              <div className="flex items-center gap-2 px-3 py-2 border-b">
+                <button className="lg:hidden p-1" onClick={fecharConversa}><ArrowLeft className="h-4 w-4" /></button>
+                <Avatar nome={abrindoTel.nome || fonePretty(abrindoTel.phone)} className="h-8 w-8 text-xs" />
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{abrindoTel.nome || fonePretty(abrindoTel.phone)}</p>
+                  <p className="text-[11px] text-muted-foreground truncate">{fonePretty(abrindoTel.phone)}</p>
+                </div>
+              </div>
+              <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
+                <Loader2 className="h-5 w-5 animate-spin" />
+                <p className="text-sm">Abrindo conversa…</p>
+              </div>
             </>
           ) : !sel ? (
             <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-2">
@@ -1000,6 +1023,11 @@ export default function Atendimento() {
                 onScroll={() => { const el = msgsBoxRef.current; if (el) grudarRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 80; }}
                 className="flex-1 overflow-y-auto p-3 space-y-2 bg-muted/20"
               >
+                {carregandoMsgs && msgs.length === 0 && (
+                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando mensagens…
+                  </div>
+                )}
                 {msgs.filter((m) => m.message_type !== 2 && !m.private).map((m, index, visiveis) => {
                   const mine = m.message_type === 1;
                   const novoDia = index === 0 || chaveDia(m.created_at) !== chaveDia(visiveis[index - 1].created_at);
