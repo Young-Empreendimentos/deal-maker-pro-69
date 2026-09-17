@@ -589,18 +589,31 @@ export default function Atendimento() {
 
   function fecharConversa() { setSelId(null); setCompose(null); setSelProvisorio(null); }
 
-  // Botão "Iniciar conversa com o número digitado" — exige o código do país.
+  // Botão "Iniciar conversa com o número digitado".
+  // - Começa com "+": número internacional completo (ex.: Uruguai +598…). Confia, NÃO força o 55.
+  // - Sem "+": assume Brasil — completa o 55 se vier só DDD+número; senão pede o código do país.
   function iniciarConversa() {
-    const tel = busca.trim();
-    if (tel.replace(/[^0-9]/g, "").length < 12) {
+    const bruto = busca.trim();
+    const digits = bruto.replace(/[^0-9]/g, "");
+    if (bruto.startsWith("+")) {
+      if (digits.length < 10) {
+        toast({ title: "Número incompleto", description: "Confira o número com o código do país (ex.: +598 99 123 456 para o Uruguai).", variant: "destructive" });
+        return;
+      }
+      abrirConversa("+" + digits, nomeInicial);
+      return;
+    }
+    let d = digits;
+    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d; // só DDD+número → assume Brasil
+    if (d.length < 12) {
       toast({
         title: "Inclua o código do país",
-        description: "Ex.: 55 51 99999-9999 (55 = Brasil). Sem o código do país, o WhatsApp pode entender o número errado.",
+        description: "Brasil: 55 51 99999-9999. Outro país: digite com + e o código (ex.: +598 para o Uruguai).",
         variant: "destructive",
       });
       return;
     }
-    abrirConversa(tel, nomeInicial);
+    abrirConversa("+" + d, nomeInicial);
   }
 
   // Clique num contato do CRM (cliente é do Brasil — completa o 55 se faltar).
@@ -612,10 +625,11 @@ export default function Atendimento() {
   }
 
   // Clique num contato da AGENDA do WhatsApp (abre pelo número dono daquela agenda).
+  // O número vem do WhatsApp (jid) já COM o código do país — não prefixa 55 (senão quebra
+  // números internacionais, ex.: Uruguai +598).
   function abrirAgenda(a: { nome: string; telefone: string; inbox_id: number }) {
-    let d = (a.telefone || "").replace(/[^0-9]/g, "");
-    if (d.length <= 11 && !d.startsWith("55")) d = "55" + d;
-    if (d.length < 12) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
+    const d = (a.telefone || "").replace(/[^0-9]/g, "");
+    if (d.length < 10) { toast({ title: "Telefone do contato incompleto", variant: "destructive" }); return; }
     abrirConversa("+" + d, a.nome, a.inbox_id);
   }
 
