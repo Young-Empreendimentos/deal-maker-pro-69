@@ -206,16 +206,9 @@ export default function NegociacaoDetalhes() {
     }
     await handleStatusChange("vendido");
     toast({ title: "Negociação marcada como vendida! 🎉" });
-    // Notifica o n8n diretamente — mais confiável que webhook do banco
-    try {
-      fetch("https://primary-production-ee65.up.railway.app/webhook/young-leads-ganhos", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ record: { id } }),
-      });
-    } catch {
-      // silencioso — não bloqueia a marcação como vendido
-    }
+    // O n8n (relatório + e-mails) é disparado pelo GATILHO do banco em crm_deals (só quando vira
+    // vendido), que manda o pacote completo (record + old_record) que o filtro do n8n exige.
+    // A chamada direta daqui foi removida: mandava só o id, que o filtro descartava (execução inútil).
   };
 
   const openLossDialog = async () => {
