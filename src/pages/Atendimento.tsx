@@ -248,13 +248,16 @@ export default function Atendimento() {
   }, []);
 
   // Atualização automática (sem realtime): repuxa a lista e a conversa aberta.
+  // ⚠️ Só re-puxa a LISTA na aba "Abertas" (onde chega mensagem nova). A aba "Resolvidas" é
+  // histórico — re-baixá-la a cada 6s martelava o Chatwoot e travava. A conversa aberta (msgs)
+  // continua atualizando nas duas abas.
   useEffect(() => {
     const t = setInterval(() => {
-      loadConvs(true);
+      if (statusTab === "open") loadConvs(true);
       if (selId) loadMsgs(selId, true);
     }, POLL_MS);
     return () => clearInterval(t);
-  }, [loadConvs, loadMsgs, selId]);
+  }, [loadConvs, loadMsgs, selId, statusTab]);
 
   // Ao abrir/trocar de conversa, "cola" no fim (mostra as últimas mensagens).
   useEffect(() => { grudarRef.current = true; }, [selId]);
