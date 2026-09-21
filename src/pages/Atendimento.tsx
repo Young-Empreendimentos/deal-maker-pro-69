@@ -577,10 +577,15 @@ export default function Atendimento() {
       const id = (r as any)?.conversation_id;
       if (id) {
         setCompose(null);
+        // Objeto PROVISÓRIO: a conversa achada pode não estar na lista atual (ex.: resolvida, ou de
+        // outra aba) — sem isto o painel ficava vazio ("a conversa não aparece"). status:"open" deixa
+        // a caixa de resposta disponível pra já responder/reabrir. O objeto real assume quando a lista carrega.
+        setSelProvisorio({ id, status: "open", meta: { sender: { id: 0, name: nomeContato || "", phone_number: "+" + digits } } } as unknown as CwConversation);
         setSelId(id);
         await loadMsgs(id, true);
         loadConvs(true);
       } else {
+        setSelProvisorio(null);
         setSelId(null);
         setCompose({ phone: "+" + digits, nome: nomeContato || "", inboxId: inbox ?? null });
       }
