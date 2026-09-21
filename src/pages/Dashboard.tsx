@@ -89,7 +89,7 @@ function fmtDate(d: Date) { return format(d, "dd/MM/yyyy", { locale: ptBR }); }
 
 // Persistência dos filtros do Dashboard entre navegações (sessão do navegador)
 const DASH_FILTERS_KEY = "pingolead:dashboard:filtros:v2";
-type DashPersist = { datePreset?: DatePreset; customFrom?: string; customTo?: string; filterUsers?: string[]; filterEmp?: string };
+type DashPersist = { datePreset?: DatePreset; customFrom?: string; customTo?: string; filterUsers?: string[]; filterEmps?: string[] };
 function loadDashFilters(): DashPersist {
   try { const raw = sessionStorage.getItem(DASH_FILTERS_KEY); return raw ? (JSON.parse(raw) as DashPersist) : {}; }
   catch { return {}; }
@@ -169,7 +169,7 @@ export default function Dashboard() {
     to:   dashInit.customTo   ? new Date(dashInit.customTo)   : undefined,
   }));
   const [filterUsers,  setFilterUsers]  = useState<string[]>(dashInit.filterUsers ?? []);
-  const [filterEmp,    setFilterEmp]    = useState(dashInit.filterEmp ?? "todos");
+  const [filterEmps,   setFilterEmps]   = useState<string[]>(dashInit.filterEmps ?? []);
 
   // Salva os filtros na sessão para sobreviver à navegação (voltar pra página)
   useEffect(() => {
@@ -179,10 +179,10 @@ export default function Dashboard() {
         customFrom: customRange.from ? customRange.from.toISOString() : undefined,
         customTo:   customRange.to   ? customRange.to.toISOString()   : undefined,
         filterUsers,
-        filterEmp,
+        filterEmps,
       } as DashPersist));
     } catch { /* ignora quota/serialização */ }
-  }, [datePreset, customRange, filterUsers, filterEmp]);
+  }, [datePreset, customRange, filterUsers, filterEmps]);
 
   // ── Pending (inside popover before saving) ────────────────────────────────
   const [dateOpen,       setDateOpen]       = useState(false);
@@ -221,7 +221,7 @@ export default function Dashboard() {
     const responsavelScope: string | string[] | null = !veTodosLeads
       ? user.id
       : (filterUsers.length > 0 ? filterUsers : null);
-    const empScope = filterEmp !== "todos" ? filterEmp : null;
+    const empScope = filterEmps.length ? filterEmps : null;
 
     (async () => {
       try {
@@ -234,7 +234,7 @@ export default function Dashboard() {
               .order("created_at", { ascending: false })
               .range(from, to);
             if (responsavelScope) q = Array.isArray(responsavelScope) ? q.in("responsavel_id", responsavelScope) : q.eq("responsavel_id", responsavelScope);
-            if (empScope)         q = q.eq("empreendimento_id", empScope);
+            if (empScope)         q = q.in("empreendimento_id", empScope);
             return q;
           }),
           // Vendas do período — pela 1ª data de venda VÁLIDA (a RPC aplica a regra:
@@ -242,7 +242,7 @@ export default function Dashboard() {
           (supabase as any).rpc("crm_vendas_periodo", {
             p_from: fromIso, p_to: toIso,
             p_users: responsavelScope ? (Array.isArray(responsavelScope) ? responsavelScope : [responsavelScope]) : null,
-            p_emp: empScope,
+            p_emps: empScope,
           }).then((r: any) => (r.data as Deal[]) ?? []),
           // Perdas + tarefas concluídas: só a CONTAGEM no servidor (evita baixar milhares
           // de linhas só p/ contar). As linhas em si só são buscadas ao abrir o drill-down.
@@ -250,7 +250,7 @@ export default function Dashboard() {
             p_from: fromIso,
             p_to: toIso,
             p_users: (veTodosLeads && filterUsers.length > 0) ? filterUsers : null,
-            p_emp: empScope,
+            p_emps: empScope,
           }).then((r: any) => (r.data as { perdas: number; atividades: Record<string, number> } | null)),
         ]);
 
@@ -265,7 +265,7 @@ export default function Dashboard() {
         setLoading(false);
       }
     })();
-  }, [user?.id, veTodosLeads, dateFrom, dateTo, filterUsers, filterEmp]);
+  }, [user?.id, veTodosLeads, dateFrom, dateTo, filterUsers, filterEmps]);
 
   // ── Date button label ─────────────────────────────────────────────────────
   const dateBtnLabel = useMemo(() => {
@@ -293,13 +293,13 @@ export default function Dashboard() {
   const filteredDeals = useMemo(() => deals.filter((d) => {
     if (!veTodosLeads && d.responsavel_id !== user?.id) return false;
     if (veTodosLeads && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
-    if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
+    if (filterEmps.length && !filterEmps.includes(d.empreendimento_id as string)) return false;
     if (dateFrom && dateTo) {
       const dt = new Date(d.created_at);
       if (dt < dateFrom || dt > dateTo) return false;
     }
     return true;
-  }), [deals, veTodosLeads, user, filterUsers, filterEmp, dateFrom, dateTo]);
+  }), [deals, veTodosLeads, user, filterUsers, filterEmps, dateFrom, dateTo]);
 
   // Perdas e tarefas concluídas: os NÚMEROS vêm de dashCounts (contados no servidor).
   // As linhas só são buscadas ao abrir o drill-down (lazy) — mantém a lista sem
@@ -315,7 +315,7 @@ export default function Dashboard() {
       .order("data_perdido", { ascending: false }).limit(500);
     const s = scopeUsers();
     if (s) q = q.in("responsavel_id", s);
-    if (filterEmp !== "todos") q = q.eq("empreendimento_id", filterEmp);
+    if (filterEmps.length) q = q.in("empreendimento_id", filterEmps);
     const { data } = await q;
     setDrillDown({ kind: "deals", label: "Perdidas", items: (data as Deal[]) ?? [] });
   };
@@ -352,9 +352,9 @@ export default function Dashboard() {
   const filteredVendas = useMemo(() => vendasDeals.filter((d) => {
     if (!veTodosLeads && d.responsavel_id !== user?.id) return false;
     if (veTodosLeads && filterUsers.length > 0 && !filterUsers.includes(d.responsavel_id)) return false;
-    if (filterEmp !== "todos" && d.empreendimento_id !== filterEmp) return false;
+    if (filterEmps.length && !filterEmps.includes(d.empreendimento_id as string)) return false;
     return true;
-  }), [vendasDeals, veTodosLeads, user, filterUsers, filterEmp]);
+  }), [vendasDeals, veTodosLeads, user, filterUsers, filterEmps]);
 
   const vendasCount  = filteredVendas.length;
   // Interna = sem corretor/imobiliária (conta pro dono do negócio) · Externa = tem responsavel_venda_corretor_id
@@ -534,19 +534,15 @@ export default function Dashboard() {
               </PopoverContent>
             </Popover>
 
-            {/* Empreendimento -------------------------------------------- */}
-            <Select value={filterEmp} onValueChange={setFilterEmp}>
-              <SelectTrigger className="h-9 text-sm w-[180px]">
-                <SlidersHorizontal className="h-3.5 w-3.5 mr-1.5 text-muted-foreground flex-shrink-0" />
-                <SelectValue placeholder="Empreendimento" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="todos">Todos os empreendimentos</SelectItem>
-                {emps.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>{e.nome}{e.cidade ? ` (${e.cidade})` : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {/* Empreendimento (multi-seleção) ---------------------------- */}
+            <div className="w-[190px]">
+              <MultiSelectFilter
+                label="Empreendimento"
+                options={emps.map((e) => ({ value: e.id, label: `${e.nome}${e.cidade ? ` (${e.cidade})` : ""}` }))}
+                selected={filterEmps}
+                onChange={setFilterEmps}
+              />
+            </div>
 
             {/* Consultor (admin + gestor) --------------------------------- */}
             {veTodosLeads && (
