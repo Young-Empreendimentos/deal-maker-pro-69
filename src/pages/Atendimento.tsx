@@ -805,7 +805,9 @@ export default function Atendimento() {
                   </div>
                 )}
                 {listaExibida.length === 0 ? (
-                  (!buscaAtiva || !buscando) && (
+                  // Só diz "Nenhuma" quando REALMENTE terminou de carregar (senão a aba Resolvidas,
+                  // cuja 1ª página é quase toda Financeiro/filtrada, mostrava "Nenhuma" no meio do load).
+                  (buscaAtiva ? !buscando : !carregandoMais) && (
                     <p className="text-center text-sm text-muted-foreground py-8 px-4">
                       {buscaAtiva ? "Nenhuma conversa com esse nome." : `Nenhuma conversa ${statusTab === "open" ? "aberta" : "resolvida"} aqui.`}
                     </p>
@@ -837,10 +839,11 @@ export default function Atendimento() {
                     );
                   })
                 )}
-                {/* Nada é escondido: enquanto o resto das páginas carrega, avisa (não some conversa). */}
-                {!buscaAtiva && carregandoMais && listaExibida.length > 0 && (
-                  <div className="flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground">
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" /> Carregando as demais conversas…
+                {/* Nada é escondido: enquanto o resto das páginas carrega, avisa (mesmo com a lista ainda
+                    vazia — ex.: Resolvidas, cuja 1ª página é quase toda Financeiro/filtrada). */}
+                {!buscaAtiva && carregandoMais && (
+                  <div className="flex items-center justify-center gap-2 py-6 text-xs text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Carregando as demais conversas…
                   </div>
                 )}
                 {/* Buscar por nome: primeiro as conversas (acima); aqui embaixo, iniciar nova a partir do CRM. */}
