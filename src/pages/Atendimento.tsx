@@ -550,16 +550,20 @@ export default function Atendimento() {
   async function resolverOuReabrir() {
     if (!sel) return;
     const novo = sel.status === "resolved" ? "open" : "resolved";
-    setBusy(true);
+    const alvoId = sel.id;
+    // OTIMISTA: tira da lista e fecha o painel NA HORA — o toggle_status e a recarga rodam em
+    // 2º plano. Antes o botão esperava `await loadConvs` (baixava a lista inteira) → "lento pra resolver".
+    setConvs((cs) => cs.filter((c) => c.id !== alvoId));
+    setConvsTodas((cs) => cs.filter((c) => c.id !== alvoId));
+    setSelId(null);
+    setSelProvisorio(null);
+    toast({ title: novo === "resolved" ? "Conversa resolvida" : "Conversa reaberta" });
     try {
-      await chatwoot.toggleStatus(sel.id, novo);
-      toast({ title: novo === "resolved" ? "Conversa resolvida" : "Conversa reaberta" });
-      setSelId(null);
-      await loadConvs(true);
+      await chatwoot.toggleStatus(alvoId, novo);
+      loadConvs(true); // sincroniza a lista em 2º plano (não trava o botão)
     } catch (e) {
       toast({ title: "Não consegui atualizar", description: (e as Error).message, variant: "destructive" });
-    } finally {
-      setBusy(false);
+      loadConvs(true); // falhou → recarrega pra trazer a conversa de volta
     }
   }
 
