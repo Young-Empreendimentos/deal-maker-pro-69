@@ -337,7 +337,7 @@ export default function Dashboard() {
   // Apenas os estágios que não se sobrepõem com tipos de tarefa
   const KPI_STAGES = [
     "lead_recebido", "contato_feito", "visita_agendada",
-    "visita_realizada", "ficha_assinada", "proposta_recebida",
+    "visita_realizada", "ficha_assinada", "proposta_recebida", "sinal_pago_contrato_assinado",
   ] as const;
 
   const statusData = useMemo(

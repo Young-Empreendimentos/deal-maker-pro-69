@@ -31,6 +31,10 @@ interface AuthContextType {
   veTodosLeads: boolean;
   /** Papel de recuperação: vê os próprios leads + os PERDIDOS de todos (assume ao reativar). */
   isRecuperacao: boolean;
+  /** Permissão FINANCEIRO (flag crm_user_roles.financeiro, independe do papel; hoje = Laís): única que
+   *  pode "Marcar como Vendido" — vincula ao contrato do Sienge e a data da venda vira a do contrato.
+   *  O banco também trava (trigger trg_crm_so_financeiro_vende); aqui é só UX. */
+  isFinanceiro: boolean;
   authStatus: AuthStatus;
   authorized: boolean;
   clearAuthError: () => void;
@@ -52,16 +56,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState<AuthStatus>(null);
   const [podeAtender, setPodeAtender] = useState(false);
+  const [isFinanceiro, setIsFinanceiro] = useState(false);
 
   const fetchUserMeta = async (userId: string) => {
     const [roleRes, profileRes, atendRes] = await Promise.all([
-      crmDb.from("crm_user_roles").select("role, ativo").eq("user_id", userId).maybeSingle(),
+      crmDb.from("crm_user_roles").select("role, ativo, financeiro").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
       crmDb.from("crm_atendimento_habilitado").select("user_id").eq("user_id", userId).maybeSingle(),
     ]);
     setNome(profileRes.data?.nome ?? "");
     setRole((roleRes.data?.role as UserRole) ?? "user");
     setPodeAtender(roleRes.data?.role === "admin" || !!atendRes.data);
+    setIsFinanceiro(!!(roleRes.data as any)?.financeiro && roleRes.data?.ativo !== false);
     // Define a situação de acesso ao CRM (a UI decide o que mostrar; o RLS já bloqueia no banco)
     if (!roleRes.data)                     setAuthStatus("pending");
     else if (roleRes.data.ativo === false) setAuthStatus("inactive");
@@ -105,6 +111,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setNome("");
         setAuthStatus(null);
         setPodeAtender(false);
+        setIsFinanceiro(false);
       }
     });
 
@@ -142,6 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       podeAtender,
       veTodosLeads: role === "admin" || role === "gestor",
       isRecuperacao: role === "recuperacao",
+      isFinanceiro,
       authStatus,
       authorized: authStatus === "authorized",
       clearAuthError,

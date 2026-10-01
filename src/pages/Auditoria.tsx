@@ -14,6 +14,7 @@ import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, Building2, AlertTria
 const STATUS_LABELS: Record<string, string> = {
   lead_recebido: "Lead Recebido", contato_feito: "Contato Feito", visita_agendada: "Visita Agendada",
   visita_realizada: "Visita Realizada", ficha_assinada: "Ficha Assinada", proposta_recebida: "Proposta Recebida",
+  sinal_pago_contrato_assinado: "Sinal pago e contrato assinado",
   vendido: "Vendido", perdido: "Perdido",
 };
 const statusLabel = (s: string | null) => (s ? STATUS_LABELS[s] ?? s : "—");

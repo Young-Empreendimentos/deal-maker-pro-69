@@ -95,8 +95,15 @@ function formatDuracao(ms: number): string {
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin, isRecuperacao, podeAtender } = useAuth();
+  const { user, isAdmin, isRecuperacao, podeAtender, isFinanceiro } = useAuth();
   const { toast } = useToast();
+
+  // Aprovação da venda (FINANCEIRO): escolhe o contrato do Sienge → vincula → data_vendido = data do contrato.
+  type ContratoCand = { contrato_id: number; numero: string; empreendimento: string; lote: string | null; contract_date: string | null; situation: string; valor: number | null; casa_lote: boolean; vinculado_a: string | null };
+  const [showAprovar, setShowAprovar] = useState(false);
+  const [candidatos, setCandidatos] = useState<ContratoCand[]>([]);
+  const [candLoading, setCandLoading] = useState(false);
+  const [aprovando, setAprovando] = useState<number | null>(null);
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [phones, setPhones] = useState<DealPhone[]>([]);
@@ -180,8 +187,11 @@ export default function NegociacaoDetalhes() {
 
   const handleStatusChange = async (newStatus: string) => {
     if (!id || !deal) return;
-    // Confirma antes de marcar como vendido (evita marcação por engano).
-    if (newStatus === "vendido" && deal.status !== "vendido" && !window.confirm("Tem certeza que deseja marcar como VENDIDO?")) return;
+    // Vendido só pelo FINANCEIRO, e sempre pelo fluxo de aprovação (vincular contrato do Sienge). O banco também trava.
+    if (newStatus === "vendido" && deal.status !== "vendido") {
+      if (!isFinanceiro) { toast({ title: "Só o financeiro marca como vendido", description: "Leve até \"Sinal pago e contrato assinado\"; o financeiro aprova após lançar o contrato no Sienge.", variant: "destructive" }); return; }
+      await handleMarkSold(); return;
+    }
     // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
     const assumir = isRecuperacao && !!user && deal.status === "perdido" && newStatus !== "perdido";
     const payload: any = { status: newStatus };
@@ -204,11 +214,33 @@ export default function NegociacaoDetalhes() {
       });
       return;
     }
-    await handleStatusChange("vendido");
-    toast({ title: "Negociação marcada como vendida! 🎉" });
-    // O n8n (relatório + e-mails) é disparado pelo GATILHO do banco em crm_deals (só quando vira
-    // vendido), que manda o pacote completo (record + old_record) que o filtro do n8n exige.
-    // A chamada direta daqui foi removida: mandava só o id, que o filtro descartava (execução inútil).
+    if (!isFinanceiro) {
+      toast({ title: "Só o financeiro marca como vendido", description: "Leve até \"Sinal pago e contrato assinado\"; o financeiro aprova após lançar o contrato no Sienge.", variant: "destructive" });
+      return;
+    }
+    // FINANCEIRO: abre a lista de contratos do Sienge do empreendimento (lote igual primeiro).
+    setShowAprovar(true);
+    setCandLoading(true);
+    const { data, error } = await (supabase as any).rpc("crm_contratos_candidatos", { p_deal_id: id });
+    setCandLoading(false);
+    if (error) { toast({ title: "Não consegui buscar os contratos do Sienge", description: error.message, variant: "destructive" }); return; }
+    setCandidatos((data as ContratoCand[]) ?? []);
+  };
+
+  // Vincula o contrato escolhido e vira Vendido com a data do contrato (RPC crm_aprovar_venda).
+  // O n8n (e-mails + planilha) e a celebração disparam pelos GATILHOS do banco quando vira vendido.
+  const aprovarComContrato = async (c: ContratoCand) => {
+    if (!id) return;
+    if (c.vinculado_a && c.vinculado_a !== id) { toast({ title: "Contrato já vinculado a outro negócio", variant: "destructive" }); return; }
+    if (!c.casa_lote && !window.confirm(`O lote do contrato (${c.lote ?? "?"}) não bate com o do negócio (${deal?.numero_lote ?? "?"}). Vincular mesmo assim?`)) return;
+    setAprovando(c.contrato_id);
+    const { data, error } = await (supabase as any).rpc("crm_aprovar_venda", { p_deal_id: id, p_contrato_id: c.contrato_id });
+    setAprovando(null);
+    if (error) { toast({ title: "Não consegui aprovar", description: error.message, variant: "destructive" }); return; }
+    setShowAprovar(false);
+    const dt = data?.data_vendido ? new Date(data.data_vendido).toLocaleDateString("pt-BR") : "";
+    toast({ title: "Venda aprovada! 🎉", description: `Contrato ${data?.numero_contrato ?? c.numero} vinculado · data da venda ${dt}${data?.aviso ? ` · ${data.aviso}` : ""}` });
+    fetchAll();
   };
 
   const openLossDialog = async () => {
@@ -595,13 +627,63 @@ export default function NegociacaoDetalhes() {
                   >
                     <XCircle className="h-4 w-4 mr-1" /> Perda
                   </Button>
-                  <Button
-                    size="sm"
-                    onClick={handleMarkSold}
-                    className="bg-gradient-ember hover:opacity-95 text-white shadow-ember border-0"
-                  >
-                    <Trophy className="h-4 w-4 mr-1" /> Marcar como vendido
-                  </Button>
+                  {isFinanceiro ? (
+                    <Button
+                      size="sm"
+                      onClick={handleMarkSold}
+                      className="bg-gradient-ember hover:opacity-95 text-white shadow-ember border-0"
+                    >
+                      <Trophy className="h-4 w-4 mr-1" /> Marcar como vendido
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-white/60 max-w-[260px] leading-tight" title="Só o financeiro marca como vendido, após lançar o contrato no Sienge.">
+                      {deal.status === "sinal_pago_contrato_assinado" ? "Aguardando o financeiro lançar o contrato e aprovar a venda." : "Vendido: leve até \"Sinal pago e contrato assinado\" — o financeiro aprova."}
+                    </span>
+                  )}
+                  {/* Aprovação (FINANCEIRO): escolher o contrato do Sienge → vincula + data do contrato */}
+                  <Dialog open={showAprovar} onOpenChange={setShowAprovar}>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle>Aprovar venda — vincular ao contrato do Sienge</DialogTitle>
+                      </DialogHeader>
+                      <p className="text-sm text-muted-foreground">
+                        Escolha o contrato lançado no Sienge. A <strong>data da venda</strong> será a <strong>data do contrato</strong>.
+                        Negócio: <strong>{deal.cliente_nome}</strong>{deal.numero_lote ? <> · lote <strong>{deal.numero_lote}</strong></> : null}
+                      </p>
+                      {candLoading ? (
+                        <p className="text-sm text-muted-foreground py-6 text-center">Buscando contratos no Sienge…</p>
+                      ) : candidatos.length === 0 ? (
+                        <p className="text-sm py-6 text-center">
+                          Nenhum contrato <em>Emitido</em> desse empreendimento no espelho do Sienge ainda.<br />
+                          <span className="text-muted-foreground">Confirme que o contrato foi lançado no Sienge e tente de novo após o sync.</span>
+                        </p>
+                      ) : (
+                        <div className="max-h-[52vh] overflow-y-auto divide-y rounded-md border">
+                          {candidatos.map((c) => {
+                            const outro = !!c.vinculado_a && c.vinculado_a !== id;
+                            return (
+                              <div key={c.contrato_id} className={cn("flex items-center gap-3 px-3 py-2 text-sm", outro && "opacity-50")}>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <span className="font-semibold">Contrato {c.numero}</span>
+                                    {c.lote && <Badge variant={c.casa_lote ? "default" : "outline"}>lote {c.lote}{c.casa_lote ? " ✓" : ""}</Badge>}
+                                    {outro && <Badge variant="destructive">já vinculado a outro negócio</Badge>}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {c.contract_date ? new Date(c.contract_date + "T12:00:00").toLocaleDateString("pt-BR") : "sem data"} · {c.empreendimento}
+                                    {c.valor != null ? ` · R$ ${Number(c.valor).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : ""}
+                                  </div>
+                                </div>
+                                <Button size="sm" disabled={outro || aprovando !== null} onClick={() => aprovarComContrato(c)}>
+                                  {aprovando === c.contrato_id ? "Aprovando…" : "Vincular e vender"}
+                                </Button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </DialogContent>
+                  </Dialog>
                 </>
               )}
               {isFinal && (

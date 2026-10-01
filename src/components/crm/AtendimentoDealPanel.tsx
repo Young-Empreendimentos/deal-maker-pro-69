@@ -25,6 +25,7 @@ const STATUS_LABEL: Record<string, string> = {
   visita_realizada: "Visita Realizada",
   ficha_assinada: "Ficha Assinada",
   proposta_recebida: "Proposta Recebida",
+  sinal_pago_contrato_assinado: "Sinal pago e contrato assinado",
   vendido: "Vendido",
   perdido: "Perdido",
 };

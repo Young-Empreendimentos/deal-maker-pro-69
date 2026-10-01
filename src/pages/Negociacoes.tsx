@@ -27,6 +27,9 @@ export const KANBAN_COLUMNS = [
   { value: "visita_realizada", label: "Visita Realizada" },
   { value: "ficha_assinada", label: "Ficha Assinada" },
   { value: "proposta_recebida", label: "Proposta Recebida" },
+  // Etapa MÁXIMA do consultor (01/10/2026): daqui só o FINANCEIRO (Laís) leva pra Vendido, depois de
+  // lançar o contrato no Sienge — a data da venda passa a ser a do contrato. Entrar aqui avisa a Laís (gatilho n8n).
+  { value: "sinal_pago_contrato_assinado", label: "Sinal pago e contrato assinado" },
 ] as const;
 
 export const QUAL_COLORS: Record<string, string> = {
@@ -502,8 +505,11 @@ export default function Negociacoes() {
     if (!destination) return;
     if (destination.droppableId === source.droppableId && destination.index === source.index) return;
     const newStatus = destination.droppableId;
-    // Confirma antes de marcar como vendido (evita marcação por engano).
-    if (newStatus === "vendido" && source.droppableId !== "vendido" && !window.confirm("Tem certeza que deseja marcar como VENDIDO?")) { fetchDeals(); return; }
+    // Vendido só pelo financeiro (pela tela de detalhes, vinculando o contrato do Sienge). O banco também trava.
+    if (newStatus === "vendido" && source.droppableId !== "vendido") {
+      toast({ title: "Só o financeiro marca como vendido", description: "Leve até \"Sinal pago e contrato assinado\". O financeiro aprova na tela da negociação após lançar o contrato no Sienge.", variant: "destructive" });
+      fetchDeals(); return;
+    }
     // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
     const assumir = isRecuperacao && !!user && source.droppableId === "perdido" && newStatus !== "perdido";
     setDeals((prev) => prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index, ...(assumir ? { responsavel_id: user!.id } : {}) } : d)));
@@ -743,7 +749,7 @@ export default function Negociacoes() {
           );
         })() : view === "kanban" ? (
           <DragDropContext onDragEnd={onDragEnd}>
-            <div className="flex lg:grid lg:grid-cols-6 gap-2 overflow-x-auto lg:overflow-visible pb-4">
+            <div className="flex lg:grid lg:grid-cols-7 gap-2 overflow-x-auto lg:overflow-visible pb-4">
               {KANBAN_COLUMNS.map((col, i) => {
                 const colDeals = filtered.filter((d) => d.status === col.value);
                 const clr = FUNNEL_STAGE_COLORS[i % FUNNEL_STAGE_COLORS.length];
