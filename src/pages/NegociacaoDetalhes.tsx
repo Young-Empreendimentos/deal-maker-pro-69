@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin, AlertTriangle, MessageCircle } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin, MessageCircle } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -262,35 +262,24 @@ export default function NegociacaoDetalhes() {
 
   const handleUndoFinal = async () => {
     if (!deal || !id) return;
-    // Desfazer é TEMPORÁRIO (ex.: corrigir contrato no Sienge e remarcar depois). Só troca
-    // o status — NÃO mexe na 1ª data de venda, que fica no histórico; ao remarcar, a regra
-    // da 1ª venda reaproveita a data original. Pra remover a venda de vez use "Tirar resquício".
-    // recuperacao assume o lead ao tirar do perdido (passa a ser o responsável).
+    // Desfazer é TEMPORÁRIO: só troca o status — NÃO mexe na 1ª data de venda (fica no histórico).
+    // Venda: só o FINANCEIRO desfaz (foi ele que aprovou) e o negócio volta pra "Sinal pago e contrato
+    // assinado" (o vínculo com o contrato do Sienge permanece; re-aprovar é idempotente).
+    // Perda: volta pra "Ficha Assinada"; recuperacao assume o lead ao tirar do perdido.
+    // "Tirar resquício" foi REMOVIDO (01/10/2026): venda agora só nasce pela aprovação do financeiro
+    // com contrato do Sienge — não existe mais marcação por engano do consultor.
+    const eraVenda = deal.status === "vendido";
+    if (eraVenda && !isFinanceiro) { toast({ title: "Só o financeiro desfaz uma venda", variant: "destructive" }); return; }
+    if (eraVenda && !window.confirm("Desfazer esta venda? O negócio volta para \"Sinal pago e contrato assinado\".")) return;
     const assumir = isRecuperacao && !!user && deal.status === "perdido";
-    // Retorna para "ficha_assinada" e limpa motivo_perda se existir
-    const payload: any = { status: "ficha_assinada", motivo_perda_id: null };
+    const destino = eraVenda ? "sinal_pago_contrato_assinado" : "ficha_assinada";
+    const payload: any = { status: destino, motivo_perda_id: null };
     if (assumir) payload.responsavel_id = user!.id;
-    await crmDb.from("crm_deals").update(payload).eq("id", id);
-    setDeal((prev) => prev ? { ...prev, status: "ficha_assinada", motivo_perda_id: null, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
+    const { error } = await crmDb.from("crm_deals").update(payload).eq("id", id);
+    if (error) { toast({ title: "Não consegui desfazer", description: error.message, variant: "destructive" }); return; }
+    setDeal((prev) => prev ? { ...prev, status: destino, motivo_perda_id: null, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
     setMotivoPerdaNome(null);
-    toast({ title: `Negociação retornada para "Ficha Assinada"` });
-  };
-
-  // Só admin: a venda foi ENGANO (não foi vendido de verdade). Invalida a 1ª data de venda
-  // e volta o card pra negociação em aberto, SEM disparar webhooks (Make/n8n) — sai do
-  // fechamento (auditoria, vendas, dashboard, relatórios). Diferente de "Desfazer venda".
-  const handleTirarResquicio = async () => {
-    if (!deal || !id) return;
-    if (!window.confirm("Tirar o resquício desta venda?\n\nUse APENAS se não foi vendido de verdade. Apaga a 1ª data de venda e tira do fechamento (auditoria, vendas, relatórios). A negociação volta para \"Proposta Recebida\".")) return;
-    const { data, error } = await (supabase as any).rpc("crm_tirar_resquicio_venda", { p_deal_id: id });
-    const res: any = data;
-    if (error || !res?.ok) {
-      toast({ title: "Não foi possível tirar o resquício", description: error?.message ?? res?.erro ?? "Tente novamente.", variant: "destructive" });
-      return;
-    }
-    const novo: string = res.status_resultante ?? "proposta_recebida";
-    setDeal((prev) => prev ? { ...prev, status: novo, data_vendido: novo === "vendido" ? prev.data_vendido : null } : prev);
-    toast({ title: novo === "vendido" ? "Resquício removido — havia outra data de venda válida" : "Resquício removido — voltou para Proposta Recebida" });
+    toast({ title: eraVenda ? `Venda desfeita — voltou para "Sinal pago e contrato assinado"` : `Negociação retornada para "Ficha Assinada"` });
   };
 
   const toggleTask = async (task: Task) => {
@@ -619,14 +608,17 @@ export default function NegociacaoDetalhes() {
                     </Select>
                   </div>
                   <div className="flex-1" />
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={openLossDialog}
-                    className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
-                  >
-                    <XCircle className="h-4 w-4 mr-1" /> Perda
-                  </Button>
+                  {/* Sem "Perda" depois do sinal pago + contrato assinado: daqui é venda (financeiro) ou distrato — não perda de lead. */}
+                  {deal.status !== "sinal_pago_contrato_assinado" && (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={openLossDialog}
+                      className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
+                    >
+                      <XCircle className="h-4 w-4 mr-1" /> Perda
+                    </Button>
+                  )}
                   {isFinanceiro ? (
                     <Button
                       size="sm"
@@ -700,26 +692,17 @@ export default function NegociacaoDetalhes() {
                     </div>
                   )}
                   <div className="flex-1" />
-                  {isAdmin && deal.status === "vendido" && (
+                  {(deal.status !== "vendido" || isFinanceiro) && (
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={handleTirarResquicio}
-                      title="Use se a venda foi engano (não foi vendido). Apaga a 1ª data de venda e tira do fechamento."
-                      className="text-amber-200/90 hover:text-white hover:bg-amber-500/20 border border-amber-300/30"
+                      onClick={handleUndoFinal}
+                      title={deal.status === "vendido" ? "Só financeiro. Volta para \"Sinal pago e contrato assinado\"; mantém a 1ª data de venda." : undefined}
+                      className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
                     >
-                      <AlertTriangle className="h-4 w-4 mr-1" /> Tirar resquício
+                      <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
                     </Button>
                   )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={handleUndoFinal}
-                    title={deal.status === "vendido" ? "Desfazer temporário (ex.: corrigir contrato e remarcar). Mantém a 1ª data de venda." : undefined}
-                    className="text-white/80 hover:text-white hover:bg-white/10 border border-white/15"
-                  >
-                    <RotateCcw className="h-4 w-4 mr-1" /> Desfazer {deal.status === "vendido" ? "venda" : "perda"}
-                  </Button>
                 </>
               )}
             </div>
