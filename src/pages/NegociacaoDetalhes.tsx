@@ -23,6 +23,7 @@ import { DealProposalForm, isProposalComplete } from "@/components/crm/DealPropo
 import { DealBasicEditor } from "@/components/crm/DealBasicEditor";
 import { HistoricoConversas } from "@/components/crm/HistoricoConversas";
 import { DealGallery } from "@/components/crm/DealGallery";
+import { ContratoAssinado } from "@/components/crm/ContratoAssinado";
 
 type DealDetail = {
   id: string;
@@ -719,6 +720,9 @@ export default function NegociacaoDetalhes() {
           autoValorEntrada={deal.auto_valor_entrada}
           onSave={fetchAll}
         />
+
+        {/* Contrato ASSINADO (campo próprio): anexar → etapa "Sinal pago e contrato assinado" + avisa o financeiro */}
+        <ContratoAssinado key={`contrato-${deal.id}`} dealId={deal.id} status={deal.status} onChanged={fetchAll} />
 
         {/* Proposal Form - always visible */}
         <DealProposalForm
