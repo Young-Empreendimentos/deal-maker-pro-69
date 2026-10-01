@@ -105,6 +105,7 @@ export default function NegociacaoDetalhes() {
   const [candidatos, setCandidatos] = useState<ContratoCand[]>([]);
   const [candLoading, setCandLoading] = useState(false);
   const [aprovando, setAprovando] = useState<number | null>(null);
+  const [candErro, setCandErro] = useState<string | null>(null);
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [phones, setPhones] = useState<DealPhone[]>([]);
@@ -197,7 +198,8 @@ export default function NegociacaoDetalhes() {
     const assumir = isRecuperacao && !!user && deal.status === "perdido" && newStatus !== "perdido";
     const payload: any = { status: newStatus };
     if (assumir) payload.responsavel_id = user!.id;
-    await crmDb.from("crm_deals").update(payload).eq("id", id);
+    const { error } = await crmDb.from("crm_deals").update(payload).eq("id", id);
+    if (error) { toast({ title: "Não consegui mudar a etapa", description: error.message, variant: "destructive" }); return; }
     setDeal((prev) => prev ? { ...prev, status: newStatus, ...(assumir ? { responsavel_id: user!.id } : {}) } : prev);
   };
 
@@ -220,11 +222,12 @@ export default function NegociacaoDetalhes() {
       return;
     }
     // FINANCEIRO: abre a lista de contratos do Sienge do empreendimento (lote igual primeiro).
+    setCandidatos([]); setCandErro(null);
     setShowAprovar(true);
     setCandLoading(true);
     const { data, error } = await (supabase as any).rpc("crm_contratos_candidatos", { p_deal_id: id });
     setCandLoading(false);
-    if (error) { toast({ title: "Não consegui buscar os contratos do Sienge", description: error.message, variant: "destructive" }); return; }
+    if (error) { setCandErro(error.message); toast({ title: "Não consegui buscar os contratos do Sienge", description: error.message, variant: "destructive" }); return; }
     setCandidatos((data as ContratoCand[]) ?? []);
   };
 
@@ -645,6 +648,11 @@ export default function NegociacaoDetalhes() {
                       </p>
                       {candLoading ? (
                         <p className="text-sm text-muted-foreground py-6 text-center">Buscando contratos no Sienge…</p>
+                      ) : candErro ? (
+                        <p className="text-sm py-6 text-center">
+                          Não consegui buscar os contratos: <span className="text-destructive">{candErro}</span><br />
+                          <Button size="sm" variant="outline" className="mt-2" onClick={handleMarkSold}>Tentar de novo</Button>
+                        </p>
                       ) : candidatos.length === 0 ? (
                         <p className="text-sm py-6 text-center">
                           Nenhum contrato <em>Emitido</em> desse empreendimento no espelho do Sienge ainda.<br />
@@ -722,7 +730,7 @@ export default function NegociacaoDetalhes() {
         />
 
         {/* Contrato ASSINADO (campo próprio): anexar → etapa "Sinal pago e contrato assinado" + avisa o financeiro */}
-        <ContratoAssinado key={`contrato-${deal.id}`} dealId={deal.id} status={deal.status} onChanged={fetchAll} />
+        <ContratoAssinado key={`contrato-${deal.id}`} dealId={deal.id} status={deal.status} responsavelId={deal.responsavel_id} onChanged={fetchAll} />
 
         {/* Proposal Form - always visible */}
         <DealProposalForm

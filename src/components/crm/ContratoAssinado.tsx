@@ -20,12 +20,14 @@ const MAX_MB = 25;
 interface Props {
   dealId: string;
   status: string;
+  /** Dono do negócio — só dono/admin/gestor/financeiro podem anexar (mesma regra da RPC). */
+  responsavelId: string | null;
   /** Chamado após anexar (o status do negócio pode ter mudado). */
   onChanged: () => void;
 }
 
-export function ContratoAssinado({ dealId, status, onChanged }: Props) {
-  const { user } = useAuth();
+export function ContratoAssinado({ dealId, status, responsavelId, onChanged }: Props) {
+  const { user, isAdmin, veTodosLeads, isFinanceiro } = useAuth();
   const { toast } = useToast();
   const [rows, setRows] = useState<ContratoRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,7 +61,11 @@ export function ContratoAssinado({ dealId, status, onChanged }: Props) {
       const { data, error } = await (supabase as any).rpc("crm_registrar_contrato_assinado", {
         p_deal_id: dealId, p_storage_path: path, p_nome_arquivo: file.name, p_tamanho: file.size,
       });
-      if (error) throw error;
+      if (error) {
+        // RPC negou/falhou depois do upload → não deixa arquivo órfão no bucket (best-effort).
+        await supabase.storage.from(BUCKET).remove([path]).catch(() => { /* ignora */ });
+        throw error;
+      }
       const moveu = !!data?.status_novo;
       toast({
         title: "Contrato assinado anexado ✓",
@@ -76,7 +82,7 @@ export function ContratoAssinado({ dealId, status, onChanged }: Props) {
     }
   };
 
-  const podeAnexar = status !== "perdido";
+  const podeAnexar = status !== "perdido" && (isAdmin || veTodosLeads || isFinanceiro || (!!user && user.id === responsavelId));
   const fmtTam = (n: number | null) => (n == null ? "" : n > 1024 * 1024 ? `${(n / 1024 / 1024).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
   return (
