@@ -89,7 +89,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // Restrição de domínio apenas para Google OAuth
         if (provider === "google" && !ALLOWED_DOMAINS.some((d) => email.endsWith(d))) {
-          await supabase.auth.signOut();
+          await supabase.auth.signOut({ scope: "local" });
           setSession(null);
           setUser(null);
           setRole("user");
@@ -136,7 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    await supabase.auth.signOut({ scope: "local" });
   };
 
   const clearAuthError = () => setAuthError(null);
