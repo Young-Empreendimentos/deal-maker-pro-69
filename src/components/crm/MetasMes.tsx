@@ -8,7 +8,8 @@ import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 type Item = { id: string; nome: string };
-type Prog = { escopo: string; ref_id: string; nome: string; meta_vendas: number; realizado: number };
+type Prog = { escopo: string; ref_id: string; nome: string; meta_minima: number; meta_super: number; realizado: number };
+type MetaPar = { min: number; sup: number };
 
 const MESES = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
 
@@ -33,9 +34,9 @@ const EMPREENDIMENTOS_SEM_META = new Set([
 
 /**
  * Quadro de metas mensais (nº de vendas) por empreendimento e por consultor.
- * - Progresso (meta × realizado) vem da RPC crm_metas_progresso (1ª venda válida).
- * - Admin edita a meta de cada linha (RPC crm_meta_set, upsert).
- * O mesmo número aparece no relatório diário das 8h no grupo de vendas.
+ * - DOIS níveis: Meta mínima e Super meta (a Direção edita; RPC crm_meta_set).
+ * - Progresso (realizado) vem da RPC crm_metas_progresso (1ª venda válida / data do contrato).
+ * - Quando um consultor bate a mínima ou a super, um parabéns é postado no grupo (gatilho na venda).
  */
 export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Item[]; users: Item[] }) {
   const { toast } = useToast();
@@ -43,8 +44,8 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
   const [ano, setAno] = useState(hoje.getFullYear());
   const [mes, setMes] = useState(hoje.getMonth()); // 0-11
   const [realizadoMap, setRealizadoMap] = useState<Record<string, number>>({});
-  const [metaMap, setMetaMap] = useState<Record<string, number>>({}); // metas salvas no banco
-  const [draft, setDraft] = useState<Record<string, string>>({}); // valores em edição
+  const [metaMap, setMetaMap] = useState<Record<string, MetaPar>>({}); // metas salvas no banco
+  const [draft, setDraft] = useState<Record<string, { min: string; sup: string }>>({}); // em edição
   const [saving, setSaving] = useState(false);
   const [aba, setAba] = useState<"empreendimento" | "consultor">("empreendimento");
 
@@ -57,14 +58,14 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
       if (!vivo) return;
       const prog = (data as Prog[]) ?? [];
       const rMap: Record<string, number> = {};
-      const mMap: Record<string, number> = {};
+      const mMap: Record<string, MetaPar> = {};
       for (const p of prog) {
         rMap[p.ref_id] = p.realizado;
-        if (p.meta_vendas > 0) mMap[p.ref_id] = p.meta_vendas;
+        if ((p.meta_minima ?? 0) > 0 || (p.meta_super ?? 0) > 0) mMap[p.ref_id] = { min: p.meta_minima ?? 0, sup: p.meta_super ?? 0 };
       }
       setRealizadoMap(rMap);
       setMetaMap(mMap);
-      setDraft(Object.fromEntries(Object.entries(mMap).map(([k, v]) => [k, String(v)])));
+      setDraft(Object.fromEntries(Object.entries(mMap).map(([k, v]) => [k, { min: v.min ? String(v.min) : "", sup: v.sup ? String(v.sup) : "" }])));
     })();
     return () => { vivo = false; };
   }, [mesISO]);
@@ -76,26 +77,31 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
   function prevMes() { if (mes === 0) { setMes(11); setAno((a) => a - 1); } else setMes((m) => m - 1); }
   function nextMes() { if (mes === 11) { setMes(0); setAno((a) => a + 1); } else setMes((m) => m + 1); }
 
-  const metaOrig = (id: string) => (metaMap[id] != null ? String(metaMap[id]) : "");
-  const temMudanca = lista.some((it) => (draft[it.id] ?? "") !== metaOrig(it.id));
+  const origMin = (id: string) => (metaMap[id]?.min ? String(metaMap[id].min) : "");
+  const origSup = (id: string) => (metaMap[id]?.sup ? String(metaMap[id].sup) : "");
+  const mudou = (it: Item) => (draft[it.id]?.min ?? "") !== origMin(it.id) || (draft[it.id]?.sup ?? "") !== origSup(it.id);
+  const temMudanca = lista.some(mudou);
+  const setCampo = (id: string, campo: "min" | "sup", val: string) =>
+    setDraft((d) => ({ ...d, [id]: { min: d[id]?.min ?? "", sup: d[id]?.sup ?? "", [campo]: val } }));
 
   async function salvar() {
     setSaving(true);
     try {
-      const alterados = lista.filter((it) => (draft[it.id] ?? "") !== metaOrig(it.id));
+      const alterados = lista.filter(mudou);
       for (const it of alterados) {
-        const val = parseInt(draft[it.id] || "0", 10) || 0;
+        const vmin = parseInt(draft[it.id]?.min || "0", 10) || 0;
+        const vsup = parseInt(draft[it.id]?.sup || "0", 10) || 0;
         const { error } = await (supabase as any).rpc("crm_meta_set", {
-          p_mes: mesISO, p_escopo: aba, p_ref: it.id, p_meta: val,
+          p_mes: mesISO, p_escopo: aba, p_ref: it.id, p_meta_minima: vmin, p_meta_super: vsup,
         });
         if (error) throw error;
       }
-      // atualiza a base local de comparação
       setMetaMap((prev) => {
         const next = { ...prev };
         for (const it of alterados) {
-          const val = parseInt(draft[it.id] || "0", 10) || 0;
-          if (val > 0) next[it.id] = val; else delete next[it.id];
+          const vmin = parseInt(draft[it.id]?.min || "0", 10) || 0;
+          const vsup = parseInt(draft[it.id]?.sup || "0", 10) || 0;
+          if (vmin > 0 || vsup > 0) next[it.id] = { min: vmin, sup: vsup }; else delete next[it.id];
         }
         return next;
       });
@@ -128,45 +134,51 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
         {/* Cabeçalho das colunas */}
         <div className="flex items-center gap-2 pb-1.5 border-b text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
           <span className="flex-1">{aba === "empreendimento" ? "Empreendimento" : "Consultor"}</span>
-          <span className="w-14 text-center">Vendas</span>
-          <span className="w-16 text-center">Meta</span>
+          <span className="w-12 text-center">Vendas</span>
+          <span className="w-16 text-center">Mínima</span>
+          <span className="w-16 text-center">Super</span>
           <span className="w-24 text-center hidden sm:block">Progresso</span>
         </div>
 
         <div className="divide-y">
           {lista.map((it) => {
             const realizado = realizadoMap[it.id] ?? 0;
-            const meta = parseInt(draft[it.id] || "0", 10) || 0;
-            const pct = meta > 0 ? Math.min(100, Math.round((100 * realizado) / meta)) : 0;
-            const bateu = meta > 0 && realizado >= meta;
+            const vmin = parseInt(draft[it.id]?.min || "0", 10) || 0;
+            const vsup = parseInt(draft[it.id]?.sup || "0", 10) || 0;
+            const bateuMin = vmin > 0 && realizado >= vmin;
+            const bateuSup = vsup > 0 && realizado >= vsup;
+            const pct = vsup > 0 ? Math.min(100, Math.round((100 * realizado) / vsup)) : 0;
             return (
               <div key={it.id} className="flex items-center gap-2 py-1.5">
                 <span className="flex-1 text-sm truncate" title={it.nome}>{it.nome}</span>
-                {/* Vendas realizadas (automático) */}
-                <span className="w-14 text-center text-sm tabular-nums font-semibold">{realizado}</span>
-                {/* Meta (manual) */}
+                <span className="w-12 text-center text-sm tabular-nums font-semibold">{realizado}</span>
+                {/* Mínima */}
                 <div className="w-16 flex justify-center">
                   {isAdmin ? (
-                    <Input
-                      type="number"
-                      min={0}
-                      inputMode="numeric"
-                      className="h-8 w-16 text-center tabular-nums px-1"
-                      value={draft[it.id] ?? ""}
-                      placeholder="—"
-                      onChange={(e) => setDraft((d) => ({ ...d, [it.id]: e.target.value }))}
-                    />
+                    <Input type="number" min={0} inputMode="numeric" className="h-8 w-16 text-center tabular-nums px-1"
+                      value={draft[it.id]?.min ?? ""} placeholder="—"
+                      onChange={(e) => setCampo(it.id, "min", e.target.value)} />
                   ) : (
-                    <span className="text-sm tabular-nums text-muted-foreground">{meta > 0 ? meta : "—"}</span>
+                    <span className={cn("text-sm tabular-nums", bateuMin ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground")}>{vmin > 0 ? vmin : "—"}</span>
                   )}
                 </div>
-                {/* Progresso */}
+                {/* Super */}
+                <div className="w-16 flex justify-center">
+                  {isAdmin ? (
+                    <Input type="number" min={0} inputMode="numeric" className="h-8 w-16 text-center tabular-nums px-1"
+                      value={draft[it.id]?.sup ?? ""} placeholder="—"
+                      onChange={(e) => setCampo(it.id, "sup", e.target.value)} />
+                  ) : (
+                    <span className={cn("text-sm tabular-nums", bateuSup ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground")}>{vsup > 0 ? vsup : "—"}</span>
+                  )}
+                </div>
+                {/* Progresso (até a super) + marca da mínima */}
                 <div className="w-24 items-center gap-1.5 hidden sm:flex">
-                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                    <div className={cn("h-full rounded-full transition-all", bateu ? "bg-green-500" : "bg-primary")} style={{ width: `${pct}%` }} />
+                  <div className="flex-1 h-1.5 rounded-full bg-muted overflow-hidden" title={bateuMin ? "Mínima batida" : "Mínima ainda não batida"}>
+                    <div className={cn("h-full rounded-full transition-all", bateuSup ? "bg-green-500" : bateuMin ? "bg-emerald-400" : "bg-primary")} style={{ width: `${pct}%` }} />
                   </div>
-                  <span className={cn("w-11 text-right text-xs tabular-nums shrink-0", bateu ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground")}>
-                    {meta > 0 ? `${pct}%` : "—"}
+                  <span className={cn("w-10 text-right text-xs tabular-nums shrink-0", bateuSup ? "text-green-600 dark:text-green-400 font-semibold" : "text-muted-foreground")}>
+                    {vsup > 0 ? `${pct}%` : bateuMin ? "✅" : "—"}
                   </span>
                 </div>
               </div>
@@ -176,7 +188,8 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
         </div>
 
         {isAdmin && (
-          <div className="flex justify-end mt-3">
+          <div className="flex items-center justify-between mt-3 gap-2">
+            <p className="text-[11px] text-muted-foreground">Ao bater a mínima ou a super, um parabéns é postado no grupo de vendas.</p>
             <Button size="sm" onClick={salvar} disabled={!temMudanca || saving}>{saving ? "Salvando…" : "Salvar metas"}</Button>
           </div>
         )}
