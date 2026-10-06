@@ -239,24 +239,34 @@ export default function Atendimento() {
   useEffect(() => {
     try { if (selId) sessionStorage.setItem("atendimento_sel", String(selId)); else sessionStorage.removeItem("atendimento_sel"); } catch { /* ignora */ }
   }, [selId]);
-  // Rede de segurança: recarrega a página a cada 5 min (caso o polling trave e pare de
-  // trazer conversas novas) — mas NUNCA no meio de digitar / gravar / enviar.
   useEffect(() => { ocupadoRef.current = !!(reply.trim() || gravando || enviandoAudio || sending); }, [reply, gravando, enviandoAudio, sending]);
-  useEffect(() => {
-    const t = setInterval(() => { if (!ocupadoRef.current) window.location.reload(); }, 5 * 60 * 1000);
-    return () => clearInterval(t);
-  }, []);
 
-  // Atualização automática (sem realtime): repuxa a lista e a conversa aberta.
-  // ⚠️ Só re-puxa a LISTA na aba "Abertas" (onde chega mensagem nova). A aba "Resolvidas" é
-  // histórico — re-baixá-la a cada 6s martelava o Chatwoot e travava. A conversa aberta (msgs)
-  // continua atualizando nas duas abas.
+  // Atualização automática (sem realtime), ENXUTA p/ não travar em tablet:
+  // • Mensagens da conversa aberta: a cada 6s (leve — 1 conversa).
+  // • Lista de "Abertas": a cada 25s (pesado — baixa TODAS as abertas) e só nessa aba.
+  // • Ao voltar o foco pra tela (trocar de aba / destravar o tablet): 1 atualização na hora.
+  // (Antes a lista repuxava a cada 6s + um window.location.reload() a cada 5 min recarregava o
+  //  app inteiro — travava o tablet. Removido o reload; lista 6s→25s.)
   useEffect(() => {
-    const t = setInterval(() => {
+    if (!selId) return;
+    const t = setInterval(() => loadMsgs(selId, true), POLL_MS);
+    return () => clearInterval(t);
+  }, [loadMsgs, selId]);
+
+  useEffect(() => {
+    if (statusTab !== "open") return;
+    const t = setInterval(() => { if (!ocupadoRef.current) loadConvs(true); }, 25000);
+    return () => clearInterval(t);
+  }, [loadConvs, statusTab]);
+
+  useEffect(() => {
+    const onVis = () => {
+      if (document.visibilityState !== "visible" || ocupadoRef.current) return;
       if (statusTab === "open") loadConvs(true);
       if (selId) loadMsgs(selId, true);
-    }, POLL_MS);
-    return () => clearInterval(t);
+    };
+    document.addEventListener("visibilitychange", onVis);
+    return () => document.removeEventListener("visibilitychange", onVis);
   }, [loadConvs, loadMsgs, selId, statusTab]);
 
   // Ao abrir/trocar de conversa, "cola" no fim (mostra as últimas mensagens).
