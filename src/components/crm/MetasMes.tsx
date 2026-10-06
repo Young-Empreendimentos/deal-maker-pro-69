@@ -188,8 +188,7 @@ export function MetasMes({ isAdmin, emps, users }: { isAdmin: boolean; emps: Ite
         </div>
 
         {isAdmin && (
-          <div className="flex items-center justify-between mt-3 gap-2">
-            <p className="text-[11px] text-muted-foreground">Ao bater a mínima ou a super, um parabéns é postado no grupo de vendas.</p>
+          <div className="flex justify-end mt-3">
             <Button size="sm" onClick={salvar} disabled={!temMudanca || saving}>{saving ? "Salvando…" : "Salvar metas"}</Button>
           </div>
         )}
