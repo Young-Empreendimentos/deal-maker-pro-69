@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState, ReactNode } from "react";
 import { Session, User } from "@supabase/supabase-js";
 import { supabase, crmDb } from "@/integrations/supabase/client";
 
@@ -57,6 +57,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authStatus, setAuthStatus] = useState<AuthStatus>(null);
   const [podeAtender, setPodeAtender] = useState(false);
   const [isFinanceiro, setIsFinanceiro] = useState(false);
+  // Último usuário cujo acesso já foi carregado. O supabase-js RE-EMITE SIGNED_IN/TOKEN_REFRESHED
+  // toda vez que a aba volta ao foco (abrir WhatsApp, trocar de aba) — sem este guard, o app
+  // re-rodava 3 consultas de permissão + re-render do app inteiro a cada foco (sensação de "travado").
+  const lastUserId = useRef<string | null>(null);
 
   const fetchUserMeta = async (userId: string) => {
     const [roleRes, profileRes, atendRes] = await Promise.all([
@@ -78,7 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
-      if (session?.user) fetchUserMeta(session.user.id);
+      if (session?.user) { lastUserId.current = session.user.id; fetchUserMeta(session.user.id); }
       setLoading(false);
     });
 
@@ -90,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Restrição de domínio apenas para Google OAuth
         if (provider === "google" && !ALLOWED_DOMAINS.some((d) => email.endsWith(d))) {
           await supabase.auth.signOut({ scope: "local" });
+          lastUserId.current = null;
           setSession(null);
           setUser(null);
           setRole("user");
@@ -101,10 +106,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           return;
         }
 
+        // Mesmo usuário (re-emit por foco de aba / refresh de token): NÃO recarregar acesso
+        // nem trocar user/session — evita re-render do app e perda de estado (forms, scroll).
+        // O supabase-js já mantém o token renovado internamente.
+        if (lastUserId.current === session.user.id) return;
+
+        lastUserId.current = session.user.id;
         setSession(session);
         setUser(session.user);
         fetchUserMeta(session.user.id);
       } else {
+        lastUserId.current = null;
         setSession(null);
         setUser(null);
         setRole("user");
@@ -141,22 +153,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const clearAuthError = () => setAuthError(null);
 
-  return (
-    <AuthContext.Provider value={{
-      session, user, role, nome, loading, authError,
-      signIn, signInWithGoogle, signOut,
-      isAdmin: role === "admin",
-      podeAtender,
-      veTodosLeads: role === "admin" || role === "gestor",
-      isRecuperacao: role === "recuperacao",
-      isFinanceiro,
-      authStatus,
-      authorized: authStatus === "authorized",
-      clearAuthError,
-    }}>
-      {children}
-    </AuthContext.Provider>
-  );
+  // Memoiza o valor do contexto: sem isto, cada render do provider cria um objeto novo e
+  // TODOS os consumidores re-renderizam à toa. Só muda quando algo relevante muda.
+  const value = useMemo(() => ({
+    session, user, role, nome, loading, authError,
+    signIn, signInWithGoogle, signOut,
+    isAdmin: role === "admin",
+    podeAtender,
+    veTodosLeads: role === "admin" || role === "gestor",
+    isRecuperacao: role === "recuperacao",
+    isFinanceiro,
+    authStatus,
+    authorized: authStatus === "authorized",
+    clearAuthError,
+  }), [session, user, role, nome, loading, authError, podeAtender, isFinanceiro, authStatus]);
+
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {
