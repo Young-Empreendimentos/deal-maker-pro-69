@@ -538,7 +538,7 @@ export default function NegociacaoDetalhes() {
                 <p className="text-xs text-white/60 mt-1">
                   Criado em {new Date(deal.created_at).toLocaleDateString("pt-BR")}
                   {isFinal && (deal.data_vendido || deal.data_perdido) && (
-                    <span> · finalizado em {new Date((deal.data_vendido ?? deal.data_perdido)!).toLocaleDateString("pt-BR")}</span>
+                    <span> · {deal.status === "vendido" ? "vendido" : "perdido"} em {new Date((deal.data_vendido ?? deal.data_perdido)!).toLocaleDateString("pt-BR")}</span>
                   )}
                 </p>
               </div>
@@ -689,6 +689,12 @@ export default function NegociacaoDetalhes() {
               )}
               {isFinal && (
                 <>
+                  {deal.status === "vendido" && deal.data_vendido && (
+                    <div className="flex items-center gap-1.5 text-[13px] text-white">
+                      <Trophy className="h-4 w-4 text-emerald-300 flex-shrink-0" />
+                      <span><span className="text-white/60">Data da venda:</span> <strong>{new Date(deal.data_vendido).toLocaleDateString("pt-BR")}</strong> <span className="text-white/50">(data do contrato no Sienge)</span></span>
+                    </div>
+                  )}
                   {deal.status === "perdido" && motivoPerdaNome && (
                     <div className="flex items-center gap-1.5 text-[13px] text-white/85">
                       <XCircle className="h-4 w-4 text-red-300 flex-shrink-0" />
