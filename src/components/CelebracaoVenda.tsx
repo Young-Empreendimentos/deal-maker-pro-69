@@ -56,6 +56,15 @@ type Props = {
 
 const MUTE_KEY = "celebracao_venda_mudo";
 const CLAIM_PREFIX = "celebracao_venda_claim_";
+// A celebração é AO VIVO: só aparece no momento da venda. Evento que chega atrasado — aba em 2º
+// plano, device acordando do sleep, reconexão do Realtime, poll com baseline velho — é DESCARTADO,
+// nunca "guardado" pra aparecer horas depois. (decisão Elen 2026-10-07)
+const MAX_IDADE_MS = 3 * 60 * 1000; // 3 min
+function venceu(v: { created_at?: string } | null | undefined): boolean {
+  if (!v?.created_at) return false; // sem data → não dá pra julgar, deixa passar
+  const t = Date.parse(v.created_at);
+  return Number.isFinite(t) && Date.now() - t > MAX_IDADE_MS;
+}
 
 // ---------- Som (Web Audio, sintetizado) ----------
 let audioCtx: AudioContext | null = null;
@@ -275,6 +284,7 @@ export default function CelebracaoVenda({ supabase, url, anonKey, poll, interval
     const emitir = (v: VendaCelebracao) => {
       if (v == null || vistos.has(v.id)) return;
       vistos.add(v.id);
+      if (venceu(v)) return; // momento já passou → não celebra
       fila.current.push(v);
       proxima();
     };
@@ -323,7 +333,9 @@ export default function CelebracaoVenda({ supabase, url, anonKey, poll, interval
 
   function proxima() {
     if (mostrando.current) return;
-    const v = fila.current.shift();
+    // Descarta itens que envelheceram na fila (a aba ficou em 2º plano e o timer congelou).
+    let v = fila.current.shift();
+    while (v && venceu(v)) v = fila.current.shift();
     if (!v) return;
     mostrando.current = true;
     setVenda(v);
