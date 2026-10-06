@@ -133,14 +133,15 @@ export const chatwoot = {
   sendMessage: (conversation_id: number, content: string, signature_name?: string, phone?: string) =>
     call("send_message", { conversation_id, content, signature_name, phone }),
 
+  // Idempotentes (atribuir/resolver/ler o mesmo valor = no-op) → PODEM re-tentar na rede ruim.
   assign: (conversation_id: number, assignee_id: number | null) =>
-    call("assign_conversation", { conversation_id, assignee_id }),
+    call("assign_conversation", { conversation_id, assignee_id }, true),
 
   toggleStatus: (conversation_id: number, status: "resolved" | "open" | "pending") =>
-    call("toggle_status", { conversation_id, status }),
+    call("toggle_status", { conversation_id, status }, true),
 
   /** Marca a conversa como lida no Chatwoot (some a bolinha de não-lida). */
-  markRead: (conversation_id: number) => call("mark_read", { conversation_id }),
+  markRead: (conversation_id: number) => call("mark_read", { conversation_id }, true),
 
   /** Define/edita o nome do contato no Chatwoot (para números que aparecem sem nome). */
   renameContact: (contact_id: number, name: string) =>
