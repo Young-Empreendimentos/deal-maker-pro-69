@@ -19,6 +19,7 @@ const CORTE_DEALS = "2026-05-30T00:00:00-03:00";
 
 type DealRow = {
   created_at: string;
+  data_vendido: string | null;
   cliente_nome: string | null;
   cliente_email: string | null;
   status: string | null;
@@ -462,7 +463,6 @@ export default function PublicoAlvo() {
   // Filtros
   const [periodo, setPeriodo] = useState<DateRange>({ from: "", to: "" });
   const [empSel, setEmpSel] = useState<string[]>([]);
-  const [statusSel, setStatusSel] = useState<string[]>([]);
 
   useEffect(() => {
     (async () => {
@@ -472,8 +472,9 @@ export default function PublicoAlvo() {
           fetchAll<HistRow>("crm_formulario_historico_dados", "*"),
           fetchAll<DealRow>(
             "crm_deals",
-            "created_at,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente,data_nascimento",
-            (q) => q.gte("created_at", CORTE_DEALS)
+            "created_at,data_vendido,cliente_nome,cliente_email,status,empreendimento_id,interesse,auto_interesse,fonte_id,fonte_original,escolaridade,estado_civil,sexo,filhos,tipo_residencia,renda_familiar,auto_renda_familiar,interesses_pessoais,cidade_cliente,data_nascimento",
+            // Só vendas. Inclui também deals criados antes do corte mas vendidos depois dele.
+            (q) => q.eq("status", "vendido").or(`created_at.gte.${CORTE_DEALS},data_vendido.gte.${CORTE_DEALS}`)
           ),
           crmDb.from("crm_empreendimentos").select("id,nome").order("nome"),
         ]);
@@ -543,7 +544,9 @@ export default function PublicoAlvo() {
 
     // Deals primeiro — fonte preferencial (mais atual, contém status)
     for (const d of deals) {
-      const dt = parseAny(d.created_at);
+      // Data de referência = data da venda (data do contrato no Sienge). Deals não vendidos ficam sem data
+      // e, portanto, saem quando há filtro de período.
+      const dt = parseAny(d.data_vendido);
       tryAdd({
         nome: norm(d.cliente_nome),
         data: dt,
@@ -625,12 +628,9 @@ export default function PublicoAlvo() {
         if (!r.empreendimento) return false;
         if (!empNomes.has(r.empreendimento.trim().toLowerCase())) return false;
       }
-      if (statusSel.length > 0) {
-        if (!r.status || !statusSel.includes(r.status)) return false;
-      }
       return true;
     });
-  }, [registros, periodo, empSel, statusSel, empById]);
+  }, [registros, periodo, empSel, empById]);
 
   const total = filtrados.length;
 
@@ -655,12 +655,6 @@ export default function PublicoAlvo() {
     ];
   }, [filtrados]);
 
-  const statusOptions = useMemo(() => {
-    const set = new Set<string>();
-    for (const r of registros) if (r.status) set.add(r.status);
-    return Array.from(set).sort().map((s) => ({ value: s, label: s }));
-  }, [registros]);
-
   const empOptions = useMemo(
     () => empreendimentos.map((e) => ({ value: e.id, label: e.nome })),
     [empreendimentos]
@@ -676,7 +670,7 @@ export default function PublicoAlvo() {
           <div>
             <h1 className="text-2xl font-bold tracking-tight">Perfil de Cliente</h1>
             <p className="text-sm text-muted-foreground">
-              Perfil do público — dados unificados do histórico (até 29/05/2026) e das negociações (a partir de 30/05/2026).
+              Perfil de quem comprou — vendas do histórico (até 29/05/2026) e das negociações vendidas (a partir de 30/05/2026).
             </p>
           </div>
         </div>
@@ -684,18 +678,12 @@ export default function PublicoAlvo() {
         {/* Filtros */}
         <Card>
           <CardContent className="p-4 flex flex-wrap items-center gap-3">
-            <DateRangeFilter value={periodo} onChange={setPeriodo} label="Período" />
+            <DateRangeFilter value={periodo} onChange={setPeriodo} label="Data da venda" />
             <MultiSelectFilter
               label="Empreendimento"
               options={empOptions}
               selected={empSel}
               onChange={setEmpSel}
-            />
-            <MultiSelectFilter
-              label="Status"
-              options={statusOptions}
-              selected={statusSel}
-              onChange={setStatusSel}
             />
             <div className="ml-auto flex items-center gap-2">
               {duplicados > 0 && (
@@ -837,9 +825,8 @@ type LinhaPlanilha = {
 
 const COLUNAS: { titulo: string; valor: (r: LinhaPlanilha) => string }[] = [
   { titulo: "Nome", valor: (r) => r.nome ?? "" },
-  { titulo: "Data", valor: (r) => (r.data ? r.data.toLocaleDateString("pt-BR") : "") },
+  { titulo: "Data da venda", valor: (r) => (r.data ? r.data.toLocaleDateString("pt-BR") : "") },
   { titulo: "Empreendimento", valor: (r) => r.empreendimento ?? "" },
-  { titulo: "Status", valor: (r) => r.status ?? "" },
   { titulo: "Faixa etária", valor: (r) => r.faixa_etaria ?? "" },
   { titulo: "Sexo", valor: (r) => r.sexo ?? "" },
   { titulo: "Estado civil", valor: (r) => r.estado_civil ?? "" },
