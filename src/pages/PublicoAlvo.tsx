@@ -5,7 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { DateRangeFilter, type DateRange } from "@/components/crm/DateRangeFilter";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
-import { Users2, ChevronDown } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { TableHeader, TableBody, TableHead, TableRow, TableCell } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Users2, ChevronDown, LayoutDashboard, Sheet, Download, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 type HistRow = Record<string, any>;
@@ -498,6 +502,7 @@ export default function PublicoAlvo() {
 
   // Normaliza histórico → mesma forma de "registro"
   type Registro = {
+    nome: string | null;
     data: Date | null;
     empreendimento: string | null;
     status: string | null;
@@ -540,6 +545,7 @@ export default function PublicoAlvo() {
     for (const d of deals) {
       const dt = parseAny(d.created_at);
       tryAdd({
+        nome: norm(d.cliente_nome),
         data: dt,
         empreendimento: d.empreendimento_id ? empById.get(d.empreendimento_id) ?? null : null,
         status: d.status ?? null,
@@ -570,6 +576,7 @@ export default function PublicoAlvo() {
     for (const r of hist) {
       const dt = parseAny(r["Carimbo de data/hora"]);
       tryAdd({
+        nome: norm(r["Qual o seu nome completo?"]),
         data: dt,
         empreendimento: canonEmpreendimento(
           r["Em qual empreendimento você adquiriu seu terreno?"],
@@ -708,13 +715,28 @@ export default function PublicoAlvo() {
         ) : total === 0 ? (
           <div className="text-center text-muted-foreground py-12">Nenhum registro encontrado para os filtros selecionados.</div>
         ) : (
-          <div className="columns-1 md:columns-2 xl:columns-3 gap-4 [column-fill:_balance]">
-            {blocos.map((b) => (
-              <div key={b.titulo} className="mb-4 break-inside-avoid">
-                <BlocoCard titulo={b.titulo} buckets={b.buckets} total={total} />
+          <Tabs defaultValue="dashboard">
+            <TabsList>
+              <TabsTrigger value="dashboard" className="gap-1.5">
+                <LayoutDashboard className="h-4 w-4" /> Dashboard
+              </TabsTrigger>
+              <TabsTrigger value="planilha" className="gap-1.5">
+                <Sheet className="h-4 w-4" /> Planilha
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="dashboard" className="mt-4">
+              <div className="columns-1 md:columns-2 xl:columns-3 gap-4 [column-fill:_balance]">
+                {blocos.map((b) => (
+                  <div key={b.titulo} className="mb-4 break-inside-avoid">
+                    <BlocoCard titulo={b.titulo} buckets={b.buckets} total={total} />
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </TabsContent>
+            <TabsContent value="planilha" className="mt-4">
+              <PlanilhaClientes registros={filtrados} />
+            </TabsContent>
+          </Tabs>
         )}
       </div>
     </AppLayout>
@@ -786,6 +808,163 @@ function BlocoCard({ titulo, buckets, total }: { titulo: string; buckets: Bucket
               </button>
             )}
           </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+type LinhaPlanilha = {
+  nome: string | null;
+  data: Date | null;
+  empreendimento: string | null;
+  status: string | null;
+  motivos: string[];
+  midias: string[];
+  profissao: string | null;
+  filhos: string | null;
+  interesses: string[];
+  escolaridade: string | null;
+  estado_civil: string | null;
+  sexo: string | null;
+  renda: string | null;
+  cidade: string | null;
+  tipo_residencia: string | null;
+  tempo_residencia: string | null;
+  nacionalidade: string | null;
+  lotes: string | null;
+  faixa_etaria: string | null;
+};
+
+const COLUNAS: { titulo: string; valor: (r: LinhaPlanilha) => string }[] = [
+  { titulo: "Nome", valor: (r) => r.nome ?? "" },
+  { titulo: "Data", valor: (r) => (r.data ? r.data.toLocaleDateString("pt-BR") : "") },
+  { titulo: "Empreendimento", valor: (r) => r.empreendimento ?? "" },
+  { titulo: "Status", valor: (r) => r.status ?? "" },
+  { titulo: "Faixa etária", valor: (r) => r.faixa_etaria ?? "" },
+  { titulo: "Sexo", valor: (r) => r.sexo ?? "" },
+  { titulo: "Estado civil", valor: (r) => r.estado_civil ?? "" },
+  { titulo: "Filhos", valor: (r) => r.filhos ?? "" },
+  { titulo: "Escolaridade", valor: (r) => r.escolaridade ?? "" },
+  { titulo: "Profissão", valor: (r) => r.profissao ?? "" },
+  { titulo: "Renda familiar", valor: (r) => r.renda ?? "" },
+  { titulo: "Cidade", valor: (r) => r.cidade ?? "" },
+  { titulo: "Tipo de residência", valor: (r) => r.tipo_residencia ?? "" },
+  { titulo: "Tempo no endereço", valor: (r) => r.tempo_residencia ?? "" },
+  { titulo: "Nacionalidade", valor: (r) => r.nacionalidade ?? "" },
+  { titulo: "Lotes adquiridos", valor: (r) => r.lotes ?? "" },
+  { titulo: "Motivo de compra", valor: (r) => r.motivos.join(", ") },
+  { titulo: "Mídia motivadora", valor: (r) => r.midias.join(", ") },
+  { titulo: "Interesses pessoais", valor: (r) => r.interesses.join(", ") },
+];
+
+const POR_PAGINA = 100;
+
+function PlanilhaClientes({ registros }: { registros: LinhaPlanilha[] }) {
+  const [busca, setBusca] = useState("");
+  const [pagina, setPagina] = useState(0);
+
+  const linhas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    const base = q ? registros.filter((r) => (r.nome ?? "").toLowerCase().includes(q)) : registros;
+    return [...base].sort((a, b) => (b.data?.getTime() ?? 0) - (a.data?.getTime() ?? 0));
+  }, [registros, busca]);
+
+  useEffect(() => setPagina(0), [registros, busca]);
+
+  const totalPaginas = Math.max(1, Math.ceil(linhas.length / POR_PAGINA));
+  const visiveis = linhas.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+
+  const exportarCsv = () => {
+    const esc = (v: string) => (/[";\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+    const csv = [
+      COLUNAS.map((c) => esc(c.titulo)).join(";"),
+      ...linhas.map((r) => COLUNAS.map((c) => esc(c.valor(r))).join(";")),
+    ].join("\n");
+    const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "perfil-de-clientes.csv";
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <Card>
+      <CardContent className="p-4 space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              placeholder="Buscar cliente pelo nome"
+              className="pl-8 h-9"
+            />
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {linhas.length.toLocaleString("pt-BR")} cliente{linhas.length !== 1 ? "s" : ""}
+          </span>
+          <Button variant="outline" size="sm" className="ml-auto gap-1.5" onClick={exportarCsv}>
+            <Download className="h-4 w-4" /> Exportar CSV
+          </Button>
+        </div>
+
+        <p className="text-xs text-muted-foreground">
+          {COLUNAS.length} colunas — role a tabela para o lado para ver todas.
+        </p>
+        {/* <table> direto (sem o wrapper do ui/table) para a barra de rolagem lateral ficar visível na base da caixa */}
+        <div className="max-h-[65vh] overflow-auto rounded-md border">
+          <table className="w-full caption-bottom text-sm">
+            <TableHeader className="sticky top-0 z-20 bg-muted">
+              <TableRow>
+                {COLUNAS.map((c, j) => (
+                  <TableHead
+                    key={c.titulo}
+                    className={cn("whitespace-nowrap text-xs bg-muted", j === 0 && "sticky left-0 z-30")}
+                  >
+                    {c.titulo}
+                  </TableHead>
+                ))}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {visiveis.map((r, i) => (
+                <TableRow key={pagina * POR_PAGINA + i}>
+                  {COLUNAS.map((c, j) => (
+                    <TableCell
+                      key={c.titulo}
+                      className={cn(
+                        "py-1.5 text-xs whitespace-nowrap",
+                        j === 0 && "font-medium sticky left-0 z-10 bg-background"
+                      )}
+                    >
+                      {c.valor(r) || <span className="text-muted-foreground/50">—</span>}
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))}
+            </TableBody>
+          </table>
+        </div>
+
+        {totalPaginas > 1 && (
+          <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
+            <Button variant="outline" size="sm" disabled={pagina === 0} onClick={() => setPagina((p) => p - 1)}>
+              Anterior
+            </Button>
+            <span>
+              Página {pagina + 1} de {totalPaginas}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={pagina >= totalPaginas - 1}
+              onClick={() => setPagina((p) => p + 1)}
+            >
+              Próxima
+            </Button>
+          </div>
         )}
       </CardContent>
     </Card>
