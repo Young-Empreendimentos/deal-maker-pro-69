@@ -127,9 +127,15 @@ export function AtendimentoDealPanel({ phone, nome }: { phone?: string | null; n
               </div>
             </button>
           ))}
-          <Button variant="ghost" size="sm" className="w-full text-xs text-muted-foreground" onClick={() => setVincOpen((v) => !v)}>
-            <Link2 className="h-3.5 w-3.5 mr-1" /> Vincular a outra negociação
-          </Button>
+          <p className="text-[11px] text-muted-foreground leading-snug">Casado pelo telefone. Se não for esta pessoa, <strong>crie uma nova negociação</strong>.</p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" className="flex-1 text-xs gap-1" onClick={() => setShowCreate(true)}>
+              <MessageSquarePlus className="h-3.5 w-3.5" /> Criar negociação
+            </Button>
+            <Button variant="ghost" size="sm" className="flex-1 text-xs text-muted-foreground gap-1" onClick={() => setVincOpen((v) => !v)}>
+              <Link2 className="h-3.5 w-3.5" /> Vincular a outra
+            </Button>
+          </div>
         </div>
       ) : (
         /* Sem negociação: criar ou vincular */
