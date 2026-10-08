@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin, MessageCircle } from "lucide-react";
+import { ArrowLeft, Plus, CheckCircle2, Circle, Calendar, Upload, XCircle, Trophy, Trash2, Copy, StickyNote, Send, RotateCcw, Pin, MessageCircle, RefreshCw } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
@@ -106,6 +106,7 @@ export default function NegociacaoDetalhes() {
   const [candLoading, setCandLoading] = useState(false);
   const [aprovando, setAprovando] = useState<number | null>(null);
   const [candErro, setCandErro] = useState<string | null>(null);
+  const [sincronizando, setSincronizando] = useState(false);
 
   const [deal, setDeal] = useState<DealDetail | null>(null);
   const [phones, setPhones] = useState<DealPhone[]>([]);
@@ -229,6 +230,34 @@ export default function NegociacaoDetalhes() {
     setCandLoading(false);
     if (error) { setCandErro(error.message); toast({ title: "Não consegui buscar os contratos do Sienge", description: error.message, variant: "destructive" }); return; }
     setCandidatos((data as ContratoCand[]) ?? []);
+  };
+
+  // FINANCEIRO: dispara o sync de contratos do Sienge (edge sienge-sync-contratos) pra puxar
+  // os contratos recém-lançados pela Carol sem esperar o sync diário. Só a flag `financeiro` libera (o banco também checa).
+  const atualizarContratosSienge = async () => {
+    setSincronizando(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("sienge-sync-contratos");
+      if (error) throw error;
+      if ((data as any)?.error) throw new Error((data as any).error);
+      const n = (data as any)?.contratos_sincronizados ?? 0;
+      toast({
+        title: "Contratos atualizados do Sienge ✅",
+        description: n > 0
+          ? `${n} contrato(s) trazido(s). Agora é só marcar como vendido.`
+          : "Nada novo desde o último sync. Se o contrato acabou de ser lançado, espere ~1 min e tente de novo.",
+      });
+      if (showAprovar && id) { // modal aberto: recarrega a lista de contratos
+        setCandLoading(true); setCandErro(null);
+        const { data: cand, error: cErr } = await (supabase as any).rpc("crm_contratos_candidatos", { p_deal_id: id });
+        setCandLoading(false);
+        if (!cErr) setCandidatos((cand as ContratoCand[]) ?? []);
+      }
+    } catch (e: any) {
+      toast({ title: "Não consegui atualizar os contratos", description: e?.message ?? String(e), variant: "destructive" });
+    } finally {
+      setSincronizando(false);
+    }
   };
 
   // Vincula o contrato escolhido e vira Vendido com a data do contrato (RPC crm_aprovar_venda).
@@ -624,13 +653,26 @@ export default function NegociacaoDetalhes() {
                     </Button>
                   )}
                   {isFinanceiro ? (
-                    <Button
-                      size="sm"
-                      onClick={handleMarkSold}
-                      className="bg-gradient-ember hover:opacity-95 text-white shadow-ember border-0"
-                    >
-                      <Trophy className="h-4 w-4 mr-1" /> Marcar como vendido
-                    </Button>
+                    <div className="flex flex-col gap-1 items-stretch">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={sincronizando}
+                        onClick={atualizarContratosSienge}
+                        className="border-white/25 bg-transparent text-white hover:bg-white/10"
+                        title="Puxa os contratos recém-lançados no Sienge pra cá (sem esperar o sync diário)"
+                      >
+                        <RefreshCw className={cn("h-4 w-4 mr-1", sincronizando && "animate-spin")} />
+                        {sincronizando ? "Atualizando…" : "Atualizar contratos do Sienge"}
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={handleMarkSold}
+                        className="bg-gradient-ember hover:opacity-95 text-white shadow-ember border-0"
+                      >
+                        <Trophy className="h-4 w-4 mr-1" /> Marcar como vendido
+                      </Button>
+                    </div>
                   ) : (
                     <span className="text-[11px] text-white/60 max-w-[260px] leading-tight" title="Só o financeiro marca como vendido, após lançar o contrato no Sienge.">
                       {deal.status === "sinal_pago_contrato_assinado" ? "Aguardando o financeiro lançar o contrato e aprovar a venda." : "Vendido: leve até \"Sinal pago e contrato assinado\" — o financeiro aprova."}
@@ -654,10 +696,16 @@ export default function NegociacaoDetalhes() {
                           <Button size="sm" variant="outline" className="mt-2" onClick={handleMarkSold}>Tentar de novo</Button>
                         </p>
                       ) : candidatos.length === 0 ? (
-                        <p className="text-sm py-6 text-center">
-                          Nenhum contrato <em>Emitido</em> desse empreendimento no espelho do Sienge ainda.<br />
-                          <span className="text-muted-foreground">Confirme que o contrato foi lançado no Sienge e tente de novo após o sync.</span>
-                        </p>
+                        <div className="text-sm py-6 text-center space-y-3">
+                          <p>
+                            Nenhum contrato <em>Emitido</em> desse empreendimento no espelho do Sienge ainda.<br />
+                            <span className="text-muted-foreground">Se a Carol acabou de lançar no Sienge, atualize os contratos:</span>
+                          </p>
+                          <Button size="sm" variant="outline" disabled={sincronizando} onClick={atualizarContratosSienge}>
+                            <RefreshCw className={cn("h-4 w-4 mr-1", sincronizando && "animate-spin")} />
+                            {sincronizando ? "Atualizando…" : "Atualizar contratos do Sienge"}
+                          </Button>
+                        </div>
                       ) : (
                         <div className="max-h-[52vh] overflow-y-auto divide-y rounded-md border">
                           {candidatos.map((c) => {
