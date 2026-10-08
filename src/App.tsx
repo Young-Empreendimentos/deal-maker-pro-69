@@ -4,11 +4,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "next-themes";
 import { lazy, Suspense } from "react";
 import { AcessoPendente } from "@/components/crm/AcessoPendente";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Páginas carregadas sob demanda (code-splitting) — reduz o bundle inicial
 const Login = lazy(() => import("./pages/Login"));
@@ -44,10 +45,13 @@ function ProtectedRoute({ children, adminOnly = false, atendimentoOnly = false }
 
 function AppRoutes() {
   const { user, loading } = useAuth();
+  const location = useLocation();
 
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>;
 
   return (
+    // Rede de segurança: um erro numa tela mostra aviso (não deixa branco). Reseta ao trocar de rota.
+    <ErrorBoundary resetKey={location.pathname}>
     <Suspense fallback={<div className="min-h-screen flex items-center justify-center text-muted-foreground">Carregando...</div>}>
     <Routes>
       <Route path="/login" element={user ? <Navigate to="/dashboard" replace /> : <Login />} />
@@ -68,6 +72,7 @@ function AppRoutes() {
       <Route path="*" element={<NotFound />} />
     </Routes>
     </Suspense>
+    </ErrorBoundary>
   );
 }
 
