@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { MultiSelectFilter } from "@/components/crm/MultiSelectFilter";
 import { isVisibleUser } from "@/lib/filteredUsers";
+import { fetchAllPaged } from "@/lib/supabasePagination";
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight, ShieldCheck, GitBranch, Building2, AlertTriangle } from "lucide-react";
 
@@ -101,11 +102,14 @@ export default function Auditoria() {
 
   const carregarTrilha = useCallback(async () => {
     setLoading(true);
-    const { data } = await crmDb.from("crm_deal_status_log")
-      .select("id, deal_id, status_anterior, status_novo, responsavel_id, created_at")
-      .gte("created_at", fromIso).lt("created_at", toIso)
-      .order("created_at", { ascending: false }).limit(500);
-    const rowsLog = (data as LogRow[]) ?? [];
+    // Pagina TUDO (antes cortava em 500): a trilha é pra auditar, não pode esconder evento antigo do ciclo.
+    const rowsLog = await fetchAllPaged<LogRow>((from, to) =>
+      crmDb.from("crm_deal_status_log")
+        .select("id, deal_id, status_anterior, status_novo, responsavel_id, created_at")
+        .gte("created_at", fromIso).lt("created_at", toIso)
+        .order("created_at", { ascending: false })
+        .range(from, to)
+    );
     setLogs(rowsLog);
     const ids = [...new Set(rowsLog.map((r) => r.deal_id))];
     if (ids.length) {

@@ -28,7 +28,7 @@ import {
   format,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight } from "lucide-react";
+import { CalendarIcon, Check, SlidersHorizontal, TrendingUp, TrendingDown, ChevronRight, CircleDashed } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { fetchAllPaged } from "@/lib/supabasePagination";
 import { useToast } from "@/hooks/use-toast";
@@ -324,9 +324,12 @@ export default function Dashboard() {
     if (!dateFrom || !dateTo) return;
     let q = crmDb.from("crm_tasks")
       .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
-      .eq("concluida", true).eq("tipo", tipo)
+      .eq("concluida", true).is("deleted_at", null)
       .gte("updated_at", dateFrom.toISOString()).lte("updated_at", dateTo.toISOString())
       .order("updated_at", { ascending: false }).limit(500);
+    // "Sem tipo" = tarefas sem categoria, menos os logs de transferência (igual a RPC do card).
+    if (tipo === "Sem tipo") q = q.is("tipo", null).not("titulo", "ilike", "Negócio transferido%");
+    else q = q.eq("tipo", tipo);
     const s = scopeUsers();
     if (s) q = q.in("responsavel_id", s);
     const { data } = await q;
@@ -417,14 +420,20 @@ export default function Dashboard() {
     })).sort((a, b) => b.total - a.total);
   }, [filteredDeals, users, veTodosLeads]);
 
-  const activityData = useMemo(
-    () => TASK_TIPOS.map((tipo) => ({
-      tipo,
+  const activityData = useMemo(() => {
+    const linhas = TASK_TIPOS.map((tipo) => ({
+      tipo: tipo as string,
       count: dashCounts.atividades[tipo] ?? 0,
-      cfg: TIPO_CONFIG[tipo],
-    })),
-    [dashCounts],
-  );
+      cfg: TIPO_CONFIG[tipo] as { icon: typeof CircleDashed; color: string },
+    }));
+    // Tarefas reais que a pessoa criou sem escolher o tipo (ex.: "Mensagem", "Ligar").
+    // Entram numa linha "Sem tipo" pro total bater com as linhas (logs de transferência já ficam fora na RPC).
+    const semTipo = dashCounts.atividades["sem_tipo"] ?? 0;
+    if (semTipo > 0) {
+      linhas.push({ tipo: "Sem tipo", count: semTipo, cfg: { icon: CircleDashed, color: "bg-muted text-muted-foreground" } });
+    }
+    return linhas;
+  }, [dashCounts]);
   const atividadesTotal = useMemo(
     () => Object.values(dashCounts.atividades).reduce((a, b) => a + b, 0),
     [dashCounts],
