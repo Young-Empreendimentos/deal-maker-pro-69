@@ -343,23 +343,23 @@ export default function Negociacoes() {
         });
         query = query.or(ors.join(","));
       }
-      if (fDateCriacao.from) query = query.gte("created_at", fDateCriacao.from + "T00:00:00");
-      if (fDateCriacao.to) query = query.lte("created_at", fDateCriacao.to + "T23:59:59");
-      if (fDateContato.from) query = query.gte("updated_at", fDateContato.from + "T00:00:00");
-      if (fDateContato.to) query = query.lte("updated_at", fDateContato.to + "T23:59:59");
+      if (fDateCriacao.from) query = query.gte("created_at", fDateCriacao.from + "T00:00:00-03:00");
+      if (fDateCriacao.to) query = query.lte("created_at", fDateCriacao.to + "T23:59:59-03:00");
+      if (fDateContato.from) query = query.gte("updated_at", fDateContato.from + "T00:00:00-03:00");
+      if (fDateContato.to) query = query.lte("updated_at", fDateContato.to + "T23:59:59-03:00");
       if (hasDateFilter(effectiveDatePerda)) {
         query = query.eq("status", "perdido");
-        if (effectiveDatePerda.from) query = query.gte("data_perdido", effectiveDatePerda.from + "T00:00:00");
-        if (effectiveDatePerda.to) query = query.lte("data_perdido", effectiveDatePerda.to + "T23:59:59");
+        if (effectiveDatePerda.from) query = query.gte("data_perdido", effectiveDatePerda.from + "T00:00:00-03:00");
+        if (effectiveDatePerda.to) query = query.lte("data_perdido", effectiveDatePerda.to + "T23:59:59-03:00");
       }
       if (hasDateFilter(fDateVenda)) {
         query = query.eq("status", "vendido");
       }
       if (fDateVenda.from) {
-        query = query.gte("data_vendido", fDateVenda.from + "T00:00:00");
+        query = query.gte("data_vendido", fDateVenda.from + "T00:00:00-03:00");
       }
       if (fDateVenda.to) {
-        query = query.lte("data_vendido", fDateVenda.to + "T23:59:59");
+        query = query.lte("data_vendido", fDateVenda.to + "T23:59:59-03:00");
       }
       const { data, error } = await query;
       if (seq !== fetchSeq.current) return;
@@ -406,8 +406,8 @@ export default function Negociacoes() {
   const inRange = (iso: string, r: DateRange) => {
     if (!r.from && !r.to) return true;
     const d = new Date(iso);
-    if (r.from && d < new Date(r.from + "T00:00:00")) return false;
-    if (r.to   && d > new Date(r.to   + "T23:59:59")) return false;
+    if (r.from && d < new Date(r.from + "T00:00:00-03:00")) return false;
+    if (r.to   && d > new Date(r.to   + "T23:59:59-03:00")) return false;
     return true;
   };
 
