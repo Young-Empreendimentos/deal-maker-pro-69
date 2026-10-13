@@ -127,6 +127,19 @@ export const chatwoot = {
   whatsappContacts: (inbox_id: number) =>
     call<{ ok: boolean; data: { nome: string; telefone: string }[] }>("whatsapp_contacts", { inbox_id }, true),
 
+  /** Confere se o número existe no WhatsApp ANTES de escrever/enviar. Fail-open: qualquer falha → exists:null
+   *  (não avisa nem bloqueia). exists:false = número sem WhatsApp (avisar). Edge própria (atendimento-wa-check). */
+  checkWhatsapp: async (phone: string, inbox_id?: number): Promise<{ exists: boolean | null; jid?: string | null; numero?: string | null }> => {
+    try {
+      const { data, error } = await supabase.functions.invoke("atendimento-wa-check", { body: { phone, inbox_id } });
+      if (error) return { exists: null };
+      const d = data as { exists?: boolean | null; jid?: string | null; numero?: string | null };
+      return { exists: d?.exists ?? null, jid: d?.jid ?? null, numero: d?.numero ?? null };
+    } catch {
+      return { exists: null };
+    }
+  },
+
   getMessages: (conversation_id: number) =>
     call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }, true),
 

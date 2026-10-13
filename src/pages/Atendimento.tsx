@@ -133,6 +133,8 @@ export default function Atendimento() {
   const [inboxEnvio, setInboxEnvio] = useState<number | null>(null);
   const [contatos, setContatos] = useState<{ deal_id: string; cliente_nome: string; telefone: string; empreendimento_nome?: string }[]>([]);
   const [compose, setCompose] = useState<{ phone: string; nome: string; inboxId: number | null } | null>(null);
+  // Dígitos do número que a checagem do Evolution disse NÃO ter WhatsApp (pra avisar antes de enviar).
+  const [avisoSemWhats, setAvisoSemWhats] = useState<string | null>(null);
   const [agenda, setAgenda] = useState<{ nome: string; telefone: string; inbox_id: number; inboxNome: string }[]>([]);
   const [agendaLoaded, setAgendaLoaded] = useState<number[]>([]);
   const [nomesManuais, setNomesManuais] = useState<Record<number, string>>(() => {
@@ -584,6 +586,15 @@ export default function Atendimento() {
   async function abrirConversa(phoneComPais: string, nomeContato: string, inboxOverride?: number) {
     const digits = phoneComPais.replace(/[^0-9]/g, "");
     const inbox = inboxOverride ?? inboxEnvio ?? undefined;
+    // Checa no Evolution se o número tem WhatsApp — em paralelo, sem travar a abertura.
+    // Se NÃO tiver, avisa (toast + faixa na caixa de resposta) antes de a pessoa escrever.
+    setAvisoSemWhats(null);
+    chatwoot.checkWhatsapp("+" + digits, inbox).then((res) => {
+      if (res.exists === false) {
+        setAvisoSemWhats(digits);
+        toast({ title: "⚠️ Número sem WhatsApp", description: "Esse número não tem WhatsApp — a mensagem não será entregue. Confira o número na negociação.", variant: "destructive" });
+      }
+    }).catch(() => { /* fail-open: não atrapalha o atendimento */ });
     setIniciando(true);
     try {
       const r = await chatwoot.startConversation("+" + digits, nomeContato || undefined, inbox, true);
@@ -627,7 +638,7 @@ export default function Atendimento() {
     return null;
   }
 
-  function fecharConversa() { setSelId(null); setCompose(null); setSelProvisorio(null); setAbrindoTel(null); }
+  function fecharConversa() { setSelId(null); setCompose(null); setSelProvisorio(null); setAbrindoTel(null); setAvisoSemWhats(null); }
 
   // Botão "Iniciar conversa com o número digitado".
   // - Começa com "+": número internacional completo (ex.: Uruguai +598…). Confia, NÃO força o 55.
@@ -677,6 +688,15 @@ export default function Atendimento() {
   // Modo escrever (compose): conversa nova ainda não criada no Chatwoot.
   const emCompose = !sel && !!compose;
   const alvoConv: any = sel ?? (compose ? { id: 0, status: "open", inbox_id: compose.inboxId ?? undefined, meta: { sender: { id: 0, name: compose.nome, phone_number: compose.phone } } } : null);
+  // Aviso "número sem WhatsApp": só pro alvo cujos dígitos batem com o que a checagem reprovou.
+  const telAlvoDigits = String(alvoConv?.meta?.sender?.phone_number ?? "").replace(/[^0-9]/g, "");
+  const avisoWhatsEl = (avisoSemWhats && telAlvoDigits === avisoSemWhats) ? (
+    <div className="border-t bg-destructive/10 px-3 py-2 text-xs text-destructive flex items-start gap-2">
+      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+      <span><strong>Número sem WhatsApp.</strong> A mensagem não vai ser entregue — confira o número na negociação antes de enviar.</span>
+    </div>
+  ) : null;
+
   // Caixa de resposta (texto + microfone/gravação) — usada tanto na conversa quanto no modo escrever.
   const caixaResposta = (gravando || enviandoAudio) ? (
     <div className="border-t p-2 flex items-center gap-2">
@@ -841,7 +861,7 @@ export default function Atendimento() {
                     return (
                       <button
                         key={c.id}
-                        onClick={() => { setCompose(null); setSelId(c.id); }}
+                        onClick={() => { setCompose(null); setAvisoSemWhats(null); setSelId(c.id); }}
                         className={cn(
                           "w-full text-left flex gap-3 px-3 py-2.5 border-b hover:bg-muted/50 transition-colors",
                           selId === c.id && "bg-muted",
@@ -948,6 +968,7 @@ export default function Atendimento() {
                 <p className="text-sm">Escreva a 1ª mensagem para <strong>{compose!.nome || fonePretty(compose!.phone)}</strong>.</p>
                 <p className="text-xs">A conversa só é criada quando você enviar.</p>
               </div>
+              {avisoWhatsEl}
               {caixaResposta}
             </>
           ) : (!sel && abrindoTel) ? (
@@ -1082,6 +1103,7 @@ export default function Atendimento() {
               </div>
 
               {/* Caixa de resposta */}
+              {avisoWhatsEl}
               {sel.status !== "resolved" ? caixaResposta : (
                 <div className="border-t p-3 text-center text-xs text-muted-foreground">
                   Conversa resolvida. Reabra para responder (ou o cliente reabre ao mandar mensagem).
