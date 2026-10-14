@@ -437,7 +437,8 @@ export default function Configuracoes() {
                   <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cidade</TableHead><TableHead>Responsável</TableHead><TableHead className="w-[60px]">Ativo</TableHead><TableHead className="w-[40px]"></TableHead></TableRow></TableHeader>
                   <TableBody>
                     {empreendimentos.map((emp) => (
-                      <EmpreendimentoRow key={emp.id} emp={emp} users={users.map((u) => ({ id: u.id, nome: u.nome }))}
+                      <EmpreendimentoRow key={emp.id} emp={emp}
+                        users={users.filter((u) => profiles.get(u.id)?.ativo).map((u) => ({ id: u.id, nome: u.nome })).sort((a, b) => a.nome.localeCompare(b.nome))}
                         onToggle={async () => { await crmDb.from("crm_empreendimentos").update({ ativo: !emp.ativo }).eq("id", emp.id); fetchEmpreendimentos(); }}
                         onSave={async (nome, cidade, responsavelId) => { await crmDb.from("crm_empreendimentos").update({ nome, cidade, responsavel_user_id: responsavelId }).eq("id", emp.id); fetchEmpreendimentos(); }}
                       />
