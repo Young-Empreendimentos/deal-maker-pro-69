@@ -328,7 +328,7 @@ export default function Auditoria() {
                       <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Carregando…</TableCell></TableRow>
                     ) : logsFiltrados.length === 0 ? (
                       <TableRow><TableCell colSpan={4} className="text-center text-muted-foreground py-8">Nenhuma movimentação neste ciclo.</TableCell></TableRow>
-                    ) : logsFiltrados.map((l) => (
+                    ) : logsFiltrados.slice(0, 500).map((l) => (
                       <TableRow key={l.id}>
                         <TableCell className="text-sm text-muted-foreground whitespace-nowrap">{fmtDataHora(l.created_at)}</TableCell>
                         <TableCell className="text-sm">{l.responsavel_id ? (userMap[l.responsavel_id] ?? "—") : "—"}</TableCell>
@@ -340,7 +340,7 @@ export default function Auditoria() {
                 </Table>
               </CardContent>
             </Card>
-            {logsFiltrados.length >= 500 && <p className="text-xs text-muted-foreground">Mostrando as 500 movimentações mais recentes do ciclo.</p>}
+            {logsFiltrados.length > 500 && <p className="text-xs text-muted-foreground">Mostrando 500 de {logsFiltrados.length} movimentações. Filtre por consultor pra ver todas as de alguém (o ciclo inteiro já está carregado).</p>}
           </div>
         )}
       </div>

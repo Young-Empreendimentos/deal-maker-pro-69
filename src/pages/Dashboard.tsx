@@ -810,7 +810,7 @@ export default function Dashboard() {
               <div className="divide-y">
                 {drillDown.items.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-10">Nenhuma negociação</p>
-                ) : drillDown.items.map((deal) => (
+                ) : drillDown.items.slice(0, 500).map((deal) => (
                   <Link
                     key={deal.id}
                     to={`/negociacoes/${deal.id}`}
@@ -837,6 +837,7 @@ export default function Dashboard() {
                   <p className="text-sm text-muted-foreground text-center py-10">Nenhuma venda</p>
                 ) : [...drillDown.items]
                     .sort((a, b) => Number(atingiuGatilho(a)) - Number(atingiuGatilho(b)))
+                    .slice(0, 500)
                     .map((deal) => {
                   const preco   = deal.preco_lote ?? 0;
                   const entrada = entradaDeal(deal);
@@ -879,7 +880,7 @@ export default function Dashboard() {
               <div className="divide-y">
                 {drillDown.items.length === 0 ? (
                   <p className="text-sm text-muted-foreground text-center py-10">Nenhuma tarefa</p>
-                ) : drillDown.items.map((task) => {
+                ) : drillDown.items.slice(0, 500).map((task) => {
                   const deal = deals.find((d) => d.id === task.deal_id);
                   const cfg  = task.tipo ? TIPO_CONFIG[task.tipo] : null;
                   const Icon = cfg?.icon;
@@ -903,6 +904,11 @@ export default function Dashboard() {
                   );
                 })}
               </div>
+            )}
+            {!!drillDown && drillDown.items.length > 500 && (
+              <p className="text-xs text-muted-foreground text-center py-4">
+                Mostrando os 500 primeiros de {drillDown.items.length}. Refine o período ou os filtros pra ver o resto.
+              </p>
             )}
           </ScrollArea>
         </SheetContent>
