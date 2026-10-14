@@ -323,6 +323,7 @@ export default function NegociacaoDetalhes() {
   const createTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !id) return;
+    if (!taskForm.tipo) { toast({ title: "Escolha o tipo da tarefa", variant: "destructive" }); return; }
     setTaskLoading(true);
 
     // FIX: Input type="date" pode causar problema de timezone
@@ -1071,11 +1072,10 @@ export default function NegociacaoDetalhes() {
           <form onSubmit={createTask} className="space-y-4">
             <div className="space-y-2"><Label>Título *</Label><Input value={taskForm.titulo} onChange={(e) => setTaskForm((f) => ({ ...f, titulo: e.target.value }))} required /></div>
             <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select value={taskForm.tipo || "__none__"} onValueChange={(v) => setTaskForm((f) => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+              <Label>Tipo *</Label>
+              <Select value={taskForm.tipo || undefined} onValueChange={(v) => setTaskForm((f) => ({ ...f, tipo: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Sem tipo</SelectItem>
                   {TASK_TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>

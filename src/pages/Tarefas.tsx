@@ -132,6 +132,7 @@ export default function Tarefas() {
     e.preventDefault();
     if (!editTask) return;
     if (!editForm.titulo.trim()) { toast({ title: "Título é obrigatório", variant: "destructive" }); return; }
+    if (!editForm.tipo) { toast({ title: "Escolha o tipo da tarefa", variant: "destructive" }); return; }
     const { error } = await crmDb.from("crm_tasks").update({
       titulo: editForm.titulo.trim(),
       descricao: editForm.descricao || "",
@@ -209,6 +210,7 @@ export default function Tarefas() {
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user) return;
+    if (!form.tipo) { toast({ title: "Escolha o tipo da tarefa", variant: "destructive" }); return; }
     setFormLoading(true);
 
     // FIX: Input type="date" pode causar problema de timezone
@@ -540,11 +542,10 @@ export default function Tarefas() {
               <Textarea value={form.descricao} onChange={(e) => setForm((f) => ({ ...f, descricao: e.target.value }))} rows={3} />
             </div>
             <div className="space-y-2">
-              <Label>Tipo</Label>
-              <Select value={form.tipo || "__none__"} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+              <Label>Tipo *</Label>
+              <Select value={form.tipo || undefined} onValueChange={(v) => setForm((f) => ({ ...f, tipo: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Sem tipo</SelectItem>
                   {TASK_TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>
@@ -629,10 +630,9 @@ export default function Tarefas() {
             </div>
             <div className="space-y-2">
               <Label>Tipo</Label>
-              <Select value={editForm.tipo || "__none__"} onValueChange={(v) => setEditForm((f) => ({ ...f, tipo: v === "__none__" ? "" : v }))}>
+              <Select value={editForm.tipo || undefined} onValueChange={(v) => setEditForm((f) => ({ ...f, tipo: v }))}>
                 <SelectTrigger><SelectValue placeholder="Selecione o tipo" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="__none__">Sem tipo</SelectItem>
                   {TASK_TIPOS.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                 </SelectContent>
               </Select>

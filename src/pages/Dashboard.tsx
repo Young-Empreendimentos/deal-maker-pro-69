@@ -309,31 +309,37 @@ export default function Dashboard() {
 
   const abrirDrillPerdas = async () => {
     if (!dateFrom || !dateTo) return;
-    let q = crmDb.from("crm_deals").select("*")
-      .eq("status", "perdido")
-      .gte("data_perdido", dateFrom.toISOString()).lte("data_perdido", dateTo.toISOString())
-      .order("data_perdido", { ascending: false }).limit(500);
     const s = scopeUsers();
-    if (s) q = q.in("responsavel_id", s);
-    if (filterEmps.length) q = q.in("empreendimento_id", filterEmps);
-    const { data } = await q;
-    setDrillDown({ kind: "deals", label: "Perdidas", items: (data as Deal[]) ?? [] });
+    const items = await fetchAllPaged<Deal>((from, to) => {
+      let q = crmDb.from("crm_deals").select("*")
+        .eq("status", "perdido")
+        .gte("data_perdido", dateFrom.toISOString()).lte("data_perdido", dateTo.toISOString())
+        .order("data_perdido", { ascending: false })
+        .range(from, to);
+      if (s) q = q.in("responsavel_id", s);
+      if (filterEmps.length) q = q.in("empreendimento_id", filterEmps);
+      return q;
+    });
+    setDrillDown({ kind: "deals", label: "Perdidas", items });
   };
 
   const abrirDrillTarefas = async (tipo: string) => {
     if (!dateFrom || !dateTo) return;
-    let q = crmDb.from("crm_tasks")
-      .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
-      .eq("concluida", true).is("deleted_at", null)
-      .gte("updated_at", dateFrom.toISOString()).lte("updated_at", dateTo.toISOString())
-      .order("updated_at", { ascending: false }).limit(500);
-    // "Sem tipo" = tarefas sem categoria, menos os logs de transferência (igual a RPC do card).
-    if (tipo === "Sem tipo") q = q.is("tipo", null).not("titulo", "ilike", "Negócio transferido%");
-    else q = q.eq("tipo", tipo);
     const s = scopeUsers();
-    if (s) q = q.in("responsavel_id", s);
-    const { data } = await q;
-    setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items: (data as Task[]) ?? [] });
+    const items = await fetchAllPaged<Task>((from, to) => {
+      let q = crmDb.from("crm_tasks")
+        .select("id, deal_id, titulo, responsavel_id, tipo, concluida, updated_at")
+        .eq("concluida", true).is("deleted_at", null)
+        .gte("updated_at", dateFrom.toISOString()).lte("updated_at", dateTo.toISOString())
+        .order("updated_at", { ascending: false })
+        .range(from, to);
+      // "Sem tipo" = tarefas sem categoria, menos os logs de transferência (igual a RPC do card).
+      if (tipo === "Sem tipo") q = q.is("tipo", null).not("titulo", "ilike", "Negócio transferido%");
+      else q = q.eq("tipo", tipo);
+      if (s) q = q.in("responsavel_id", s);
+      return q;
+    });
+    setDrillDown({ kind: "tasks", label: `Tarefas — ${tipo}`, items });
   };
 
   // ── Chart data ────────────────────────────────────────────────────────────
