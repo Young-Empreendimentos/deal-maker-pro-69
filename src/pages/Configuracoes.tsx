@@ -21,7 +21,7 @@ import type { CorretorCadastro } from "@/components/corretores/CorretorCadastroC
 
 type FonteLead = { id: string; nome: string; ativo: boolean };
 type MotivoPerda = { id: string; nome: string; ativo: boolean };
-type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean };
+type Empreendimento = { id: string; nome: string; cidade: string; ativo: boolean; responsavel_user_id?: string | null };
 type UserInfo = { id: string; email: string; role: string; nome: string; created_at: string };
 type UserProfile = { user_id: string; ativo: boolean };
 
@@ -59,20 +59,33 @@ function EmpreendimentoForm({ onAdd }: { onAdd: (nome: string, cidade: string) =
   );
 }
 
-function EmpreendimentoRow({ emp, onToggle, onSave }: { emp: Empreendimento; onToggle: () => void; onSave: (nome: string, cidade: string) => Promise<void> }) {
+function EmpreendimentoRow({ emp, users, onToggle, onSave }: { emp: Empreendimento; users: { id: string; nome: string }[]; onToggle: () => void; onSave: (nome: string, cidade: string, responsavelId: string | null) => Promise<void> }) {
   const [editing, setEditing] = useState(false);
   const [nome, setNome] = useState(emp.nome);
   const [cidade, setCidade] = useState(emp.cidade);
+  const [respId, setRespId] = useState<string | null>(emp.responsavel_user_id ?? null);
+  const respNome = emp.responsavel_user_id ? (users.find((u) => u.id === emp.responsavel_user_id)?.nome ?? "—") : "—";
   return (
     <TableRow className={!emp.ativo ? "opacity-50" : ""}>
       <TableCell>{editing ? <Input value={nome} onChange={(e) => setNome(e.target.value)} className="h-8 text-sm" /> : <span className="text-sm">{emp.nome}</span>}</TableCell>
       <TableCell>{editing ? <CidadeCombobox value={cidade} onSelect={setCidade} className="h-8 text-sm w-full" /> : <span className="text-sm text-muted-foreground">{emp.cidade || "—"}</span>}</TableCell>
+      <TableCell>
+        {editing ? (
+          <Select value={respId ?? "__none__"} onValueChange={(v) => setRespId(v === "__none__" ? null : v)}>
+            <SelectTrigger className="h-8 text-sm"><SelectValue placeholder="—" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__none__">— Nenhum —</SelectItem>
+              {users.map((u) => <SelectItem key={u.id} value={u.id}>{u.nome}</SelectItem>)}
+            </SelectContent>
+          </Select>
+        ) : <span className="text-sm text-muted-foreground">{respNome}</span>}
+      </TableCell>
       <TableCell><Switch checked={emp.ativo} onCheckedChange={onToggle} /></TableCell>
       <TableCell>
         {editing ? (
           <div className="flex gap-1">
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => { await onSave(nome.trim(), cidade.trim()); setEditing(false); }}><Check className="h-3.5 w-3.5 text-success" /></Button>
-            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(false); setNome(emp.nome); setCidade(emp.cidade); }}><X className="h-3.5 w-3.5 text-destructive" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={async () => { await onSave(nome.trim(), cidade.trim(), respId); setEditing(false); }}><Check className="h-3.5 w-3.5 text-success" /></Button>
+            <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => { setEditing(false); setNome(emp.nome); setCidade(emp.cidade); setRespId(emp.responsavel_user_id ?? null); }}><X className="h-3.5 w-3.5 text-destructive" /></Button>
           </div>
         ) : (
           <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditing(true)}><Pencil className="h-3.5 w-3.5" /></Button>
@@ -421,12 +434,12 @@ export default function Configuracoes() {
                   toast({ title: "Empreendimento adicionado!" }); await fetchEmpreendimentos(); return true;
                 }} />
                 <Table>
-                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cidade</TableHead><TableHead className="w-[60px]">Ativo</TableHead><TableHead className="w-[40px]"></TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Nome</TableHead><TableHead>Cidade</TableHead><TableHead>Responsável</TableHead><TableHead className="w-[60px]">Ativo</TableHead><TableHead className="w-[40px]"></TableHead></TableRow></TableHeader>
                   <TableBody>
                     {empreendimentos.map((emp) => (
-                      <EmpreendimentoRow key={emp.id} emp={emp}
+                      <EmpreendimentoRow key={emp.id} emp={emp} users={users.map((u) => ({ id: u.id, nome: u.nome }))}
                         onToggle={async () => { await crmDb.from("crm_empreendimentos").update({ ativo: !emp.ativo }).eq("id", emp.id); fetchEmpreendimentos(); }}
-                        onSave={async (nome, cidade) => { await crmDb.from("crm_empreendimentos").update({ nome, cidade }).eq("id", emp.id); fetchEmpreendimentos(); }}
+                        onSave={async (nome, cidade, responsavelId) => { await crmDb.from("crm_empreendimentos").update({ nome, cidade, responsavel_user_id: responsavelId }).eq("id", emp.id); fetchEmpreendimentos(); }}
                       />
                     ))}
                   </TableBody>
