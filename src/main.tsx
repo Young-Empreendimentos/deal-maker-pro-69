@@ -1,6 +1,11 @@
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { instalarAutoReloadDeChunk } from "./lib/chunkReload";
+
+// Se um "pedaço" do app falhar ao baixar (aba antiga + deploy novo, ou Pages instável),
+// recarrega 1x sozinho em vez de mostrar tela de erro.
+instalarAutoReloadDeChunk();
 
 // Blindagem contra o tradutor do navegador (Google Tradutor): ele troca nós de texto do DOM e faz
 // o React estourar "removeChild/insertBefore: the node is not a child of this node" → tela branca.

@@ -1,6 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 import { AlertTriangle, RotateCcw, ArrowLeft } from "lucide-react";
+import { ehErroDeChunk, recarregarPorChunkUmaVez } from "@/lib/chunkReload";
 
 type Props = {
   children: ReactNode;
@@ -24,6 +25,9 @@ export class ErrorBoundary extends Component<Props, State> {
   componentDidCatch(error: Error, info: ErrorInfo) {
     // Fica no console do navegador — é o que a gente vai ler pra achar a causa.
     console.error("[ErrorBoundary] tela quebrou:", error, info.componentStack);
+    // Erro de "pedaço não baixou" (deploy novo + aba antiga / Pages instável): recarrega 1x sozinho
+    // em vez de mostrar a tela de erro. A trava de tempo evita loop se persistir.
+    if (ehErroDeChunk(error)) recarregarPorChunkUmaVez();
   }
 
   componentDidUpdate(prev: Props) {
