@@ -205,8 +205,19 @@ export default function Atendimento() {
   const loadMsgs = useCallback(async (id: number, silent = false) => {
     if (!silent) setCarregandoMsgs(true);
     try {
-      const r = await chatwoot.getMessages(id);
-      setMsgs(r.data?.payload ?? []);
+      // Poll (silent) busca só as últimas mensagens (1 página, leve p/ o Chatwoot) e MESCLA;
+      // abrir a conversa (não-silent) busca o histórico e substitui.
+      const r = await chatwoot.getMessages(id, silent);
+      const novas = r.data?.payload ?? [];
+      if (silent) {
+        if (novas.length) setMsgs((prev) => {
+          const porId = new Map(prev.map((m) => [m.id, m]));
+          for (const m of novas) porId.set(m.id, m);
+          return [...porId.values()].sort((a, b) => (Number(a.id) || 0) - (Number(b.id) || 0));
+        });
+      } else {
+        setMsgs(novas);
+      }
     } catch {
       if (!silent) toast({ title: "Não consegui carregar as mensagens", variant: "destructive" });
     } finally {

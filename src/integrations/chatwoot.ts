@@ -140,8 +140,9 @@ export const chatwoot = {
     }
   },
 
-  getMessages: (conversation_id: number) =>
-    call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id }, true),
+  /** onlyLatest=true (polling) traz só a última página (leve); false (abrir conversa) traz o histórico. */
+  getMessages: (conversation_id: number, onlyLatest = false) =>
+    call<{ ok: boolean; data: { payload?: CwMessage[] } }>("get_messages", { conversation_id, only_latest: onlyLatest }, true),
 
   sendMessage: (conversation_id: number, content: string, signature_name?: string, phone?: string) =>
     call("send_message", { conversation_id, content, signature_name, phone }),
