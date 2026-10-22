@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { AtendimentoDealPanel } from "@/components/crm/AtendimentoDealPanel";
 
-const POLL_MS = 6000;
+const POLL_MS = 15000;
 
 // Emojis mais usados no atendimento. Seletor leve, sem dependência externa.
 const EMOJIS = [
@@ -251,13 +251,14 @@ export default function Atendimento() {
   //  app inteiro — travava o tablet. Removido o reload; lista 6s→25s.)
   useEffect(() => {
     if (!selId) return;
-    const t = setInterval(() => loadMsgs(selId, true), POLL_MS);
+    // Só consulta com a aba VISÍVEL — aba em 2º plano não martela o Chatwoot (evita sobrecarga/trava).
+    const t = setInterval(() => { if (!document.hidden) loadMsgs(selId, true); }, POLL_MS);
     return () => clearInterval(t);
   }, [loadMsgs, selId]);
 
   useEffect(() => {
     if (statusTab !== "open") return;
-    const t = setInterval(() => { if (!ocupadoRef.current) loadConvs(true); }, 25000);
+    const t = setInterval(() => { if (!document.hidden && !ocupadoRef.current) loadConvs(true); }, 45000);
     return () => clearInterval(t);
   }, [loadConvs, statusTab]);
 
