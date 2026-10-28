@@ -159,14 +159,13 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
   const { toast } = useToast();
   const [email, setEmail] = useState("");
   const [nome, setNome] = useState("");
-  const [password, setPassword] = useState("");
   const [role, setRole] = useState("user");
   const [saving, setSaving] = useState(false);
   const [consultorId, setConsultorId] = useState<string>("");
   const [consultoresLivres, setConsultoresLivres] = useState<ConsultorLivre[]>([]);
 
   const resetForm = () => {
-    setEmail(""); setNome(""); setPassword(""); setRole("user"); setConsultorId("");
+    setEmail(""); setNome(""); setRole("user"); setConsultorId("");
   };
 
   // Fetch consultores ativos sem user_id quando o dialog abre com role=vendedor.
@@ -190,30 +189,20 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
   }, [open, role]);
 
   const handleCreate = async () => {
-    if (!email.trim() || !password.trim()) return;
+    if (!email.trim() || !nome.trim()) return;
     setSaving(true);
     try {
+      // Pré-libera por e-mail (sem senha): a pessoa entra pelo Google e já cai liberada,
+      // com o perfil escolhido e, se for vendedor, vinculada ao consultor. A edge faz tudo.
       const { data, error } = await supabase.functions.invoke("create-user", {
-        body: { email: email.trim(), password, nome: nome.trim(), role },
+        body: { email: email.trim(), nome: nome.trim(), role, consultor_id: role === "user" ? (consultorId || null) : null },
       });
       if (error || data?.error) {
-        toast({ title: "Erro ao criar usuário", description: error?.message || data?.error, variant: "destructive" });
+        toast({ title: "Erro ao liberar usuário", description: error?.message || data?.error, variant: "destructive" });
         return;
       }
-      const newUserId = (data as { user_id?: string } | null)?.user_id;
-      if (role === "user" && consultorId && newUserId) {
-        const { error: linkError } = await crmDb
-          .from("crm_consultores")
-          .update({ user_id: newUserId } as unknown as { ativo: boolean })
-          .eq("id", consultorId);
-        if (linkError) {
-          toast({ title: "Usuário criado, mas não vinculado", description: linkError.message, variant: "destructive" });
-        } else {
-          toast({ title: "Usuário criado e vinculado ao consultor!" });
-        }
-      } else {
-        toast({ title: "Usuário criado com sucesso!" });
-      }
+      if (data?.aviso) toast({ title: "Usuário liberado", description: data.aviso });
+      else toast({ title: "Usuário liberado! Ele já entra pelo Google com esse e-mail." });
       resetForm();
       onOpenChange(false);
       onCreated();
@@ -225,17 +214,16 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
       <DialogContent className="sm:max-w-md">
         <DialogHeader><DialogTitle>Novo Usuário</DialogTitle></DialogHeader>
         <div className="space-y-4">
+          <p className="text-xs text-muted-foreground">
+            Libere pelo <strong>e-mail do Google</strong> da pessoa (@youngempreendimentos.com.br). Não precisa de senha — no 1º login com o Google ela já entra liberada, com o perfil escolhido.
+          </p>
           <div className="space-y-2">
             <Label>Nome</Label>
             <Input value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Nome completo" />
           </div>
           <div className="space-y-2">
             <Label>E-mail</Label>
-            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@exemplo.com" />
-          </div>
-          <div className="space-y-2">
-            <Label>Senha</Label>
-            <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Mínimo 6 caracteres" />
+            <Input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@youngempreendimentos.com.br" />
           </div>
           <div className="space-y-2">
             <Label>Perfil</Label>
@@ -264,7 +252,7 @@ function AddUserDialog({ open, onOpenChange, onCreated }: { open: boolean; onOpe
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={handleCreate} disabled={!email.trim() || !password.trim() || saving}>Criar Usuário</Button>
+          <Button onClick={handleCreate} disabled={!email.trim() || !nome.trim() || saving}>Liberar Usuário</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
