@@ -177,21 +177,35 @@ export default function Atendimento() {
     if (!silent) setLoading(true);
     let fullChegou = false;
     try {
-      // Abertura rápida SEM esconder nada: pinta as ~25 conversas MAIS RECENTES em ~0,5s
-      // (max_pages=1), marca "carregandoMais" e, em seguida, o load COMPLETO (todas as páginas)
-      // substitui pela lista inteira. O aviso "carregando as demais" mostra que ainda vem mais.
-      if (!silent) {
-        setCarregandoMais(true);
-        chatwoot.listConversations(statusTab, "all", 1)
-          .then((r) => {
-            if (seq === loadSeq.current && !fullChegou) {
-              setConvs(r.data?.payload ?? []);
-              setErro(null);
-              setLoading(false);
-            }
-          })
-          .catch(() => { /* ignora: o load completo resolve */ });
+      // POLL (silent): NÃO repuxa todas as abertas (podem ser centenas — travava e demorava). Busca
+      // só as recentes de forma global (leve) e MESCLA: atualiza/insere sem derrubar as antigas já
+      // carregadas. A exibição é ordenada por atividade (ver "filtered"), então a ordem não quebra.
+      if (silent) {
+        const r = await chatwoot.listConversations(statusTab, "all", 2);
+        if (seq === loadSeq.current) {
+          const recentes = r.data?.payload ?? [];
+          setConvs((prev) => {
+            const porId = new Map(prev.map((c) => [c.id, c]));
+            for (const c of recentes) porId.set(c.id, c);
+            return [...porId.values()];
+          });
+          setErro(null);
+        }
+        return;
       }
+      // Abertura rápida SEM esconder nada: pinta as ~25 conversas MAIS RECENTES (global) em ~0,5s
+      // (max_pages=1); em seguida o load COMPLETO (por caixa, TODAS as abertas) substitui pela lista
+      // inteira. O aviso "carregando as demais" mostra que ainda vem mais.
+      setCarregandoMais(true);
+      chatwoot.listConversations(statusTab, "all", 1)
+        .then((r) => {
+          if (seq === loadSeq.current && !fullChegou) {
+            setConvs(r.data?.payload ?? []);
+            setErro(null);
+            setLoading(false);
+          }
+        })
+        .catch(() => { /* ignora: o load completo resolve */ });
       const r = await chatwoot.listConversations(statusTab, "all");
       fullChegou = true;
       if (seq === loadSeq.current) { setConvs(r.data?.payload ?? []); setErro(null); }
@@ -402,12 +416,13 @@ export default function Atendimento() {
 
   const filtered = useMemo(() => {
     const me = user?.email?.toLowerCase();
+    const ts = (c: any) => Number(c.last_activity_at ?? c.timestamp ?? 0);
     return convs.filter((c) => {
       if (filtroAtendente && (c as any).atendente_nome !== filtroAtendente) return false;
       if (assigneeTab === "me") return c.meta?.assignee?.email?.toLowerCase() === me;
       if (assigneeTab === "unassigned") return !c.meta?.assignee;
       return true;
-    });
+    }).sort((a, b) => ts(b) - ts(a)); // mais recentes no topo (ordem estável, independe de como veio)
   }, [convs, assigneeTab, user, filtroAtendente]);
 
   const buscaAtiva = busca.trim().length >= 2;
