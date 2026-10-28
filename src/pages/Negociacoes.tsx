@@ -144,7 +144,7 @@ function loadPersistedState(): PersistedState {
 }
 
 export default function Negociacoes() {
-  const { user, isAdmin, veTodosLeads, isRecuperacao } = useAuth();
+  const { user, isAdmin, veTodosLeads, isRecuperacao, isGestor } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const fetchSeq = useRef(0);
@@ -511,7 +511,7 @@ export default function Negociacoes() {
       fetchDeals(); return;
     }
     // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
-    const assumir = isRecuperacao && !!user && source.droppableId === "perdido" && newStatus !== "perdido";
+    const assumir = (isRecuperacao || isGestor) && !!user && source.droppableId === "perdido" && newStatus !== "perdido";
     setDeals((prev) => prev.map((d) => (d.id === draggableId ? { ...d, status: newStatus, ordem_kanban: destination.index, ...(assumir ? { responsavel_id: user!.id } : {}) } : d)));
     const payload: any = { status: newStatus, ordem_kanban: destination.index };
     if (assumir) payload.responsavel_id = user!.id;

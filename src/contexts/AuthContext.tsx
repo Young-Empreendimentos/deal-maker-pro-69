@@ -31,6 +31,8 @@ interface AuthContextType {
   veTodosLeads: boolean;
   /** Papel de recuperação: vê os próprios leads + os PERDIDOS de todos (assume ao reativar). */
   isRecuperacao: boolean;
+  /** Papel de gestor: vê tudo e pode reativar perdidos de qualquer um (assume ao reativar, como recuperação). */
+  isGestor: boolean;
   /** Permissão FINANCEIRO (flag crm_user_roles.financeiro, independe do papel; hoje = Laís): única que
    *  pode "Marcar como Vendido" — vincula ao contrato do Sienge e a data da venda vira a do contrato.
    *  O banco também trava (trigger trg_crm_so_financeiro_vende); aqui é só UX. */
@@ -162,6 +164,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     podeAtender,
     veTodosLeads: role === "admin" || role === "gestor",
     isRecuperacao: role === "recuperacao",
+    isGestor: role === "gestor",
     isFinanceiro,
     authStatus,
     authorized: authStatus === "authorized",

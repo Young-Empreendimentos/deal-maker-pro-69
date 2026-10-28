@@ -96,7 +96,7 @@ function formatDuracao(ms: number): string {
 export default function NegociacaoDetalhes() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user, isAdmin, isRecuperacao, podeAtender, isFinanceiro } = useAuth();
+  const { user, isAdmin, isRecuperacao, isGestor, podeAtender, isFinanceiro } = useAuth();
   const { toast } = useToast();
 
   // Aprovação da venda (FINANCEIRO): escolhe o contrato do Sienge → vincula → data_vendido = data do contrato.
@@ -196,7 +196,7 @@ export default function NegociacaoDetalhes() {
       await handleMarkSold(); return;
     }
     // recuperacao assume o lead ao reativar um perdido (passa a ser o responsável).
-    const assumir = isRecuperacao && !!user && deal.status === "perdido" && newStatus !== "perdido";
+    const assumir = (isRecuperacao || isGestor) && !!user && deal.status === "perdido" && newStatus !== "perdido";
     const payload: any = { status: newStatus };
     if (assumir) payload.responsavel_id = user!.id;
     const { error } = await crmDb.from("crm_deals").update(payload).eq("id", id);
@@ -304,7 +304,7 @@ export default function NegociacaoDetalhes() {
     const eraVenda = deal.status === "vendido";
     if (eraVenda && !isFinanceiro) { toast({ title: "Só o financeiro desfaz uma venda", variant: "destructive" }); return; }
     if (eraVenda && !window.confirm("Desfazer esta venda? O negócio volta para \"Sinal pago e contrato assinado\".")) return;
-    const assumir = isRecuperacao && !!user && deal.status === "perdido";
+    const assumir = (isRecuperacao || isGestor) && !!user && deal.status === "perdido";
     const destino = eraVenda ? "sinal_pago_contrato_assinado" : "ficha_assinada";
     const payload: any = { status: destino, motivo_perda_id: null };
     if (assumir) payload.responsavel_id = user!.id;
