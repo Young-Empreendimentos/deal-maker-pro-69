@@ -606,7 +606,7 @@ export default function Configuracoes() {
                         return (
                           <TableRow key={u.id} className={!isAtivo ? "opacity-50" : ""}>
                             <TableCell>{isEditing ? <Input value={editNome} onChange={(e) => setEditNome(e.target.value)} className="h-8 text-sm" /> : (u.nome || "—")}</TableCell>
-                            <TableCell className="text-sm">{u.email}</TableCell>
+                            <TableCell className="text-sm break-all">{u.email}</TableCell>
                             <TableCell>
                               {isEditing ? (
                                 <Select value={editRole} onValueChange={setEditRole}>
