@@ -64,12 +64,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // re-rodava 3 consultas de permissão + re-render do app inteiro a cada foco (sensação de "travado").
   const lastUserId = useRef<string | null>(null);
 
-  const fetchUserMeta = async (userId: string) => {
+  const fetchUserMeta = async (userId: string, tentativa = 0) => {
     const [roleRes, profileRes, atendRes] = await Promise.all([
       crmDb.from("crm_user_roles").select("role, ativo, financeiro").eq("user_id", userId).maybeSingle(),
       supabase.from("user_profiles").select("nome").eq("user_id", userId).maybeSingle(),
       crmDb.from("crm_atendimento_habilitado").select("user_id").eq("user_id", userId).maybeSingle(),
     ]);
+    // ⚠️ FALHA de servidor/rede ao LER O PAPEL (API sobrecarregada, 5xx/PGRST002, timeout, sem rede)
+    // NÃO é "sem acesso". Antes, qualquer erro caía no `!roleRes.data` abaixo e jogava um usuário
+    // AUTORIZADO na tela "aguardando autorização" (susto na queda do Supabase de 05/11). Agora: em
+    // erro, mantém o estado atual (fica em "Carregando…") e re-tenta com espera crescente; quando a
+    // API volta, entra sozinho. Só declara pending/inactive quando a leitura RESPONDE (sem erro).
+    if (roleRes.error) {
+      if (lastUserId.current === userId && tentativa < 6) {
+        const espera = Math.min(1500 * 2 ** tentativa, 20000);
+        setTimeout(() => { if (lastUserId.current === userId) fetchUserMeta(userId, tentativa + 1); }, espera);
+      }
+      return;
+    }
     setNome(profileRes.data?.nome ?? "");
     setRole((roleRes.data?.role as UserRole) ?? "user");
     setPodeAtender(roleRes.data?.role === "admin" || !!atendRes.data);
