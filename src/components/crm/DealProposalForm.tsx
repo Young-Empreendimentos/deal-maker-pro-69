@@ -174,13 +174,16 @@ export function DealProposalForm({ dealId, initialData, onSave }: Props) {
     if (!empId || !empNomeById[empId] || tabelaPrecos.length === 0) return null;
     const nome = empNomeById[empId].trim().toLowerCase();
     const normalize = (s: string) => s.trim().toLowerCase().replace(/\bii\b/g, "2").replace(/\biii\b/g, "3").replace(/\biv\b/g, "4");
-    return tabelaPrecos.find((t) => {
-      const tn = t.empreendimento.trim().toLowerCase();
-      if (tn === nome) return true;
-      if (tn.includes(nome) || nome.includes(tn)) return true;
-      if (normalize(tn) === normalize(nome)) return true;
-      return false;
-    })?.empreendimento ?? null;
+    // Casa em ORDEM DE PRIORIDADE: exato → normalizado (II→2) → por aproximação (includes).
+    // O "includes" só entra se não houver nome exato — senão "Erico Verissimo" (fase 1) e
+    // "Erico Verissimo 2" (fase 2) se confundem (um é prefixo do outro) e trocam os lotes.
+    const textos = Array.from(new Set(tabelaPrecos.map((t) => t.empreendimento)));
+    return (
+      textos.find((tn) => tn.trim().toLowerCase() === nome) ??
+      textos.find((tn) => normalize(tn) === normalize(nome)) ??
+      textos.find((tn) => { const t = tn.trim().toLowerCase(); return t.includes(nome) || nome.includes(t); }) ??
+      null
+    );
   }, [tabelaPrecos, empNomeById]);
 
   // Derive empreendimento on initial load
