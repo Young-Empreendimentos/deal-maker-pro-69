@@ -197,11 +197,31 @@ export default function Tarefas() {
     if (term.length < 2) { setDealResults([]); setDealSearchLoading(false); return; }
     setDealSearchLoading(true);
     const handle = setTimeout(async () => {
+      // Por NOME
       let q = crmDb.from("crm_deals").select("id, cliente_nome")
         .ilike("cliente_nome", `%${term}%`).order("cliente_nome").limit(20);
       if (!isAdmin && user) q = q.eq("responsavel_id", user.id);
-      const { data } = await q;
-      setDealResults((data as Deal[]) ?? []);
+      const { data: porNome } = await q;
+
+      // Por TELEFONE (dígitos normalizados: acha o lead pelo número em qualquer formato).
+      const digitos = term.replace(/\D/g, "");
+      let porTelefone: Deal[] = [];
+      if (digitos.length >= 3) {
+        const { data: fones } = await crmDb.from("crm_deal_phones")
+          .select("deal_id").ilike("telefone_digitos", `%${digitos}%`).limit(20);
+        const ids = [...new Set(((fones as { deal_id: string }[]) ?? []).map((f) => f.deal_id))];
+        if (ids.length) {
+          let dq = crmDb.from("crm_deals").select("id, cliente_nome").in("id", ids).limit(20);
+          if (!isAdmin && user) dq = dq.eq("responsavel_id", user.id);
+          const { data } = await dq;
+          porTelefone = (data as Deal[]) ?? [];
+        }
+      }
+
+      // Mescla sem duplicar (nome primeiro)
+      const mapa = new Map<string, Deal>();
+      for (const d of [...((porNome as Deal[]) ?? []), ...porTelefone]) if (!mapa.has(d.id)) mapa.set(d.id, d);
+      setDealResults([...mapa.values()].slice(0, 20));
       setDealSearchLoading(false);
     }, 300);
     return () => clearTimeout(handle);

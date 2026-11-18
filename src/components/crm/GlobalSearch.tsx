@@ -70,12 +70,18 @@ export function GlobalSearch() {
 
     const { data: byName } = await dealsQuery;
 
-    // Busca por telefone
-    const { data: phones } = await crmDb
-      .from("crm_deal_phones")
-      .select("deal_id, telefone")
-      .ilike("telefone", `%${q}%`)
-      .limit(20);
+    // Busca por telefone: normaliza os dígitos digitados (tira ( ) - espaço +) e casa com a coluna
+    // só-dígitos (telefone_digitos). Assim "(51) 99924-6918" acha o número salvo como 555199924...
+    const digitos = q.replace(/\D/g, "");
+    let phones: { deal_id: string; telefone: string }[] = [];
+    if (digitos.length >= 3) {
+      const { data } = await crmDb
+        .from("crm_deal_phones")
+        .select("deal_id, telefone")
+        .ilike("telefone_digitos", `%${digitos}%`)
+        .limit(20);
+      phones = data ?? [];
+    }
 
     // Busca os deals dos telefones encontrados
     let byPhone: Result[] = [];
